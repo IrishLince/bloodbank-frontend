@@ -22,8 +22,8 @@
     "dev": "react-scripts start",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "build": "CI=false react-scripts build",
-    "build:production": "CI=false REACT_APP_ENVIRONMENT=production react-scripts build",
+    "build": "CI=false REACT_APP_API_BASE_URL=https://bloodbank-backend-production-8b88.up.railway.app/api REACT_APP_ENVIRONMENT=production react-scripts build",
+    "build:production": "CI=false REACT_APP_API_BASE_URL=https://bloodbank-backend-production-8b88.up.railway.app/api REACT_APP_ENVIRONMENT=production react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "serve": "serve -s build"
