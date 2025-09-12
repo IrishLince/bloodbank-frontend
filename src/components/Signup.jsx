@@ -92,7 +92,7 @@ export default function Signup() {
     
     try {
       setIsCheckingUsername(true);
-      const response = await fetch('http://localhost:8080/api/auth/check-username', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/check-username`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +121,7 @@ export default function Signup() {
     
     try {
       setIsCheckingEmail(true);
-      const response = await fetch('http://localhost:8080/api/auth/check-email', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/check-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,7 +158,7 @@ export default function Signup() {
       const phoneWithCountryCode = `63${phone}`;
       console.log('Sending phone check request:', { phone: phoneWithCountryCode });
       
-      const response = await fetch('http://localhost:8080/api/auth/check-phone', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/check-phone`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +321,7 @@ export default function Signup() {
 
       setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/auth/send-otp', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -397,7 +397,7 @@ export default function Signup() {
     setOtpError('');
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/verify-otp', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -466,7 +466,7 @@ export default function Signup() {
         fd.append('photo', photoFile);
       }
 
-      const response = await fetch('http://localhost:8080/api/auth/signup', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/signup`, {
         method: 'POST',
         body: fd,
       });
@@ -492,7 +492,7 @@ export default function Signup() {
     
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/auth/send-otp', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

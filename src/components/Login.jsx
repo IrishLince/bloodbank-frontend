@@ -25,7 +25,7 @@ export default function Login({ setIsLoggedIn }) {
 
     try {
       // 1. Authenticate user
-      const response = await fetch('http://localhost:8080/api/auth/signin', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: username, password }),
@@ -63,7 +63,7 @@ export default function Login({ setIsLoggedIn }) {
 
       // 3. Try to fetch additional user profile data
       try {
-        const profileResponse = await fetch('http://localhost:8080/api/auth/me', {
+        const profileResponse = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${authData.token}`,
             'Content-Type': 'application/json'
