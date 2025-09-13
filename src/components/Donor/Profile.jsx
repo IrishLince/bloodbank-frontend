@@ -165,14 +165,38 @@ const ProfileManagement = () => {
 
   // Helper function to convert userData to formData format
   const prepareFormData = (userData) => {
-    // Split name into firstName and lastName
+    // Split name into firstName, middleInitial, and lastName
     const nameParts = userData.name ? userData.name.trim().split(' ') : [];
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
+    let firstName = nameParts[0] || '';
+    let middleInitial = '';
+    let lastName = '';
+    
+    // Check if there's a potential middle initial (with or without period)
+    if (nameParts.length > 2) {
+      const potentialMiddleInitial = nameParts[1];
+      // Check if it's a single letter with period (traditional middle initial)
+      if (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) {
+        // It's a middle initial with period
+        middleInitial = potentialMiddleInitial.charAt(0); // Store without period
+        lastName = nameParts.slice(2).join(' ');
+      } 
+      // Check if it's a longer middle name/initial without period
+      else if (nameParts.length >= 3 && !/\d/.test(potentialMiddleInitial)) {
+        // Assume it's a middle name/initial
+        middleInitial = potentialMiddleInitial; // Store the full middle name/initial
+        lastName = nameParts.slice(2).join(' ');
+      } else {
+        // No middle initial, just first and last name
+        lastName = nameParts.slice(1).join(' ');
+      }
+    } else if (nameParts.length === 2) {
+      lastName = nameParts[1];
+    }
     
     return {
       ...userData,
       firstName: firstName,
+      middleInitial: middleInitial,
       lastName: lastName,
       phone: stripCountryCode(userData.phone), // Strip country code for form display
       birthDate: userData.rawBirthDate ? formatDateForInput(userData.rawBirthDate) : "",
@@ -234,9 +258,40 @@ const ProfileManagement = () => {
           rawBirthDate: data.dateOfBirth // Keep raw date for calculations
         };
         
+        // Extract name parts including potential middle initial
+        const nameParts = data.name ? data.name.trim().split(' ') : [];
+        let firstName = nameParts[0] || '';
+        let middleInitial = '';
+        let lastName = '';
+        
+        // Check if there's a potential middle initial (with or without period)
+        if (nameParts.length > 2) {
+          const potentialMiddleInitial = nameParts[1];
+          // Check if it's a single letter with period (traditional middle initial)
+          if (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) {
+            // It's a middle initial with period
+            middleInitial = potentialMiddleInitial.charAt(0); // Store without period
+            lastName = nameParts.slice(2).join(' ');
+          } 
+          // Check if it's a longer middle name/initial without period
+          else if (nameParts.length >= 3 && !/\d/.test(potentialMiddleInitial)) {
+            // Assume it's a middle name/initial
+            middleInitial = potentialMiddleInitial; // Store the full middle name/initial
+            lastName = nameParts.slice(2).join(' ');
+          } else {
+            // No middle initial, just first and last name
+            lastName = nameParts.slice(1).join(' ');
+          }
+        } else if (nameParts.length === 2) {
+          lastName = nameParts[1];
+        }
+        
         const formData = {
           id: data.id || "",
           name: data.name || "",
+          firstName: firstName,
+          middleInitial: middleInitial,
+          lastName: lastName,
           email: data.email || "",
           username: data.username || "",
           phone: data.contactInformation || "",
@@ -327,7 +382,9 @@ const ProfileManagement = () => {
       // Format data for backend - NEVER include password or email in profile updates
       const backendData = {
         name: updatedData.firstName && updatedData.lastName 
-              ? `${updatedData.firstName.trim()} ${updatedData.lastName.trim()}`.trim()
+              ? `${updatedData.firstName.trim()}${updatedData.middleInitial ? 
+                  (updatedData.middleInitial.trim().length === 1 ? ` ${updatedData.middleInitial.trim()}.` : ` ${updatedData.middleInitial.trim()}`) 
+                  : ''} ${updatedData.lastName.trim()}`.trim()
               : updatedData.firstName?.trim() || updatedData.lastName?.trim() || userData.name,
         // 🔒 SECURITY: Email is NEVER included in updates to prevent JWT token invalidation
         // email: updatedData.email || userData.email, // REMOVED FOR SECURITY
@@ -505,6 +562,7 @@ const ProfileManagement = () => {
           dateOfBirth: userData.rawBirthDate,
           age: userData.age ? parseInt(userData.age.replace(' years', '')) : null,
           role: userData.role || 'DONOR',
+          profilePhotoUrl: userData.profilePhotoUrl, // Include profile photo URL to prevent it from being lost
           otpCode: phoneOtp // Use same field name as password change
         })
       });
@@ -512,7 +570,42 @@ const ProfileManagement = () => {
       if (response.ok) {
         // Update local state
         setUserData(prev => ({ ...prev, phone: formatPhoneForBackend(newPhone) }));
-        setFormData(prev => ({ ...prev, phone: newPhone }));
+        
+        // Split name into firstName, middleInitial, and lastName for formData
+        const nameParts = userData.name ? userData.name.trim().split(' ') : [];
+        let firstName = nameParts[0] || '';
+        let middleInitial = '';
+        let lastName = '';
+        
+        // Check if there's a potential middle initial (with or without period)
+        if (nameParts.length > 2) {
+          const potentialMiddleInitial = nameParts[1];
+          // Check if it's a single letter with period (traditional middle initial)
+          if (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) {
+            // It's a middle initial with period
+            middleInitial = potentialMiddleInitial.charAt(0); // Store without period
+            lastName = nameParts.slice(2).join(' ');
+          } 
+          // Check if it's a longer middle name/initial without period
+          else if (nameParts.length >= 3 && !/\d/.test(potentialMiddleInitial)) {
+            // Assume it's a middle name/initial
+            middleInitial = potentialMiddleInitial; // Store the full middle name/initial
+            lastName = nameParts.slice(2).join(' ');
+          } else {
+            // No middle initial, just first and last name
+            lastName = nameParts.slice(1).join(' ');
+          }
+        } else if (nameParts.length === 2) {
+          lastName = nameParts[1];
+        }
+        
+        setFormData(prev => ({ 
+          ...prev, 
+          phone: newPhone,
+          firstName: firstName,
+          middleInitial: middleInitial,
+          lastName: lastName
+        }));
         
         // Reset phone verification states
         setPhoneVerificationStep('edit');
@@ -1012,7 +1105,7 @@ const ProfileManagement = () => {
               </div>
 
               <div className="grid gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="group">
                     <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
                       <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
@@ -1024,6 +1117,24 @@ const ProfileManagement = () => {
                       onChange={(e) => handleInputChange('firstName', e.target.value)}
                       className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
                       placeholder="Enter your first name"
+                  />
+                </div>
+
+                  <div className="group">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                      Middle Initial
+                    </label>
+                  <input
+                    type="text"
+                      value={formData.middleInitial || ""}
+                      onChange={(e) => {
+                        // Allow any letter characters without forcing uppercase
+                        const value = e.target.value.replace(/[^A-Za-z]/g, '');
+                        handleInputChange('middleInitial', value);
+                      }}
+                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
+                      placeholder="Middle Initial"
                   />
                 </div>
 
@@ -1069,7 +1180,7 @@ const ProfileManagement = () => {
                     {phoneVerificationStep === 'edit' ? (
                       <div className="relative">
                         <div className="flex">
-                          <div className="bg-gray-50 p-4 rounded-l-xl border-2 border-r-0 border-gray-200 flex items-center">
+                          <div className="bg-gray-50 p-4 rounded-l-xl border-2 border-r-0 border-gray-200 flex items-center shadow-sm">
                             <img src={flagLogo} alt="Philippines flag" className="w-5 h-4 mr-2" />
                             <span className="text-gray-800 text-sm font-medium">+63</span>
                           </div>
@@ -1129,7 +1240,7 @@ const ProfileManagement = () => {
                                 ? 'border-yellow-500 bg-yellow-50 focus:border-yellow-600'
                                 : newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone)
                                 ? 'border-green-500 bg-green-50 focus:border-green-600'
-                                : 'border-gray-200 focus:border-purple-500'
+                                : 'border-gray-200 focus:border-red-500'
                             } focus:ring-4 ${
                               phoneError 
                                 ? 'focus:ring-red-100' 
@@ -1137,7 +1248,7 @@ const ProfileManagement = () => {
                                 ? 'focus:ring-yellow-100'
                                 : newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone)
                                 ? 'focus:ring-green-100'
-                                : 'focus:ring-purple-500/20'
+                                : 'focus:ring-red-500/20'
                             } focus:outline-none text-sm pr-12 bg-white hover:border-gray-300 shadow-sm`}
                             placeholder="Phone number (10 digits)"
                             maxLength={10}
@@ -1162,19 +1273,19 @@ const ProfileManagement = () => {
                         
                         {/* Phone validation messages */}
                         {isCheckingPhone && (
-                          <p className="text-yellow-600 text-xs mt-2 flex items-center">
+                          <p className="text-yellow-600 text-xs mt-2 flex items-center bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-100">
                             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600 mr-2"></div>
-                            Checking phone availability...
+                            <span>Checking phone availability...</span>
                           </p>
                         )}
                         {!isCheckingPhone && newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone) && (
-                          <p className="text-green-600 text-xs mt-2 flex items-center">
-                            <Check size={12} className="mr-1" /> Phone number is available!
+                          <p className="text-green-600 text-xs mt-2 flex items-center bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                            <Check size={12} className="mr-1 flex-shrink-0" /> <span>Phone number is available!</span>
                           </p>
                         )}
                         {phoneError && (
-                          <p className="text-red-500 text-xs mt-2 flex items-center">
-                            <X size={12} className="mr-1" /> {phoneError}
+                          <p className="text-red-500 text-xs mt-2 flex items-center bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                            <X size={12} className="mr-1 flex-shrink-0" /> <span>{phoneError}</span>
                           </p>
                         )}
                         
@@ -1185,15 +1296,20 @@ const ProfileManagement = () => {
                               type="button"
                               onClick={sendPhoneOTP}
                               disabled={isChangingPhone}
-                              className="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                               {isChangingPhone ? (
                                 <>
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                  Sending Verification Code...
+                                  <span>Sending Verification Code...</span>
                                 </>
                               ) : (
-                                'Send Verification Code'
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                  </svg>
+                                  <span>Send Verification Code</span>
+                                </>
                               )}
                             </button>
                           </div>
@@ -1202,25 +1318,37 @@ const ProfileManagement = () => {
                     ) : (
                       // OTP Verification Step
                       <div className="space-y-4">
-                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                          <p className="text-sm text-purple-800 mb-2">
-                            <strong>Verification Required:</strong> We've sent a verification code to: +63 {newPhone}
-                          </p>
-                          <p className="text-xs text-purple-600">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex items-center mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-700 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            <p className="text-sm font-medium text-red-800">
+                              <strong>Verification Required:</strong> We've sent a verification code to: +63 {newPhone}
+                            </p>
+                          </div>
+                          <p className="text-xs text-red-600 ml-7">
                             Enter the 6-digit code to confirm your new phone number.
                           </p>
-                  </div>
+                        </div>
 
-                  <div>
+                        <div>
                           <label className="block text-sm text-gray-600 mb-1.5 font-medium">Enter Verification Code</label>
-                          <input
-                            type="text"
-                            value={phoneOtp}
-                            onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm shadow-sm transition-all"
-                            placeholder="Enter 6-digit code"
-                            maxLength="6"
-                          />
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={phoneOtp}
+                              onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
+                              className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm shadow-sm transition-all"
+                              placeholder="Enter 6-digit code"
+                              maxLength="6"
+                            />
+                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                            </div>
+                          </div>
                         </div>
                         
                         <div className="flex gap-3">
@@ -1231,24 +1359,32 @@ const ProfileManagement = () => {
                               setPhoneOtpSent(false);
                               setPhoneOtp('');
                             }}
-                            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium shadow-sm hover:shadow transition-all text-sm"
+                            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium shadow-sm hover:shadow transition-all text-sm flex items-center justify-center gap-2"
                           >
-                            Back to Edit
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            <span>Back to Edit</span>
                           </button>
                           
                           <button
                             type="button"
                             onClick={verifyPhoneOTP}
                             disabled={!phoneOtp || phoneOtp.length !== 6 || isChangingPhone}
-                            className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             {isChangingPhone ? (
                               <>
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Verifying...
+                                <span>Verifying...</span>
                               </>
                             ) : (
-                              'Verify & Update Phone'
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Verify & Update Phone</span>
+                              </>
                             )}
                           </button>
                         </div>
@@ -1419,7 +1555,7 @@ const ProfileManagement = () => {
                   </p>
                 </div>
                 <div className="flex items-start space-x-2">
-                  <svg className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                   </svg>
                   <p className="text-sm text-gray-700">
@@ -2313,4 +2449,4 @@ const ProfileManagement = () => {
   )
 }
 
-export default ProfileManagement 
+export default ProfileManagement

@@ -97,11 +97,22 @@ const EligibilityCheck = () => {
           'userData keys': Object.keys(userData)
         });
         
-        // Extract name parts (assuming name is "FirstName LastName")
+        // Extract name parts (assuming name is "FirstName [MiddleInitial] LastName")
         const fullName = userData.name || '';
         const nameParts = fullName.trim().split(' ');
         const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        let middleInitial = '';
+        let lastName = '';
+        
+        // Handle name parts properly
+        if (nameParts.length === 3) {
+          // If there are exactly 3 parts, assume middle initial is in the middle
+          middleInitial = nameParts[1] || '';
+          lastName = nameParts[2] || '';
+        } else if (nameParts.length > 1) {
+          // Otherwise, assume no middle initial and everything after first name is last name
+          lastName = nameParts.slice(1).join(' ') || '';
+        }
         
         // Calculate age from dateOfBirth if available
         let calculatedAge = '';
@@ -125,7 +136,7 @@ const EligibilityCheck = () => {
           bloodType: userData.bloodType || '',
           surname: lastName,
           firstName: firstName,
-          middleInitial: '', // Not available in user data
+          middleInitial: middleInitial, // Use extracted middle initial
           birthday: birthDateField ? formatDateForInput(birthDateField) : '',
           age: calculatedAge,
           sex: userData.sex || '',
@@ -137,6 +148,7 @@ const EligibilityCheck = () => {
           bloodType: userData.bloodType || '',
           surname: lastName,
           firstName: firstName,
+          middleInitial: middleInitial,
           birthday: birthDateField ? formatDateForInput(birthDateField) : '',
           age: calculatedAge,
           sex: userData.sex || '',
@@ -492,25 +504,16 @@ const EligibilityCheck = () => {
               <div className="relative">
                 <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
                   <User className="h-4 w-4" />
-                  M.I.
+                  M.I. <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   name="middleInitial"
                   value={formData.middleInitial}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`w-full p-2 border rounded-lg shadow-sm transition-colors ${
-                    errors.middleInitial && touched.middleInitial
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                  }`}
-                  placeholder="M.I."
-                  maxLength={3}
+                  readOnly
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  placeholder="Middle Initial from profile"
                 />
-                {errors.middleInitial && touched.middleInitial && (
-                  <p className="mt-1 text-xs text-red-500">{errors.middleInitial}</p>
-                )}
               </div>
             </div>
 

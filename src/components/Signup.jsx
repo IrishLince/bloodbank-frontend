@@ -21,6 +21,7 @@ export default function Signup() {
   const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
+    middleInitial: '',
     lastName: '',
     email: '',
     username: '',
@@ -443,7 +444,11 @@ export default function Signup() {
 
   const handleFinalSignup = async () => {
     try {
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      // Include middle initial in the full name if provided
+      // If middle initial is longer than 1 character, don't add a period
+      const middleInitialPart = formData.middleInitial ? 
+        (formData.middleInitial.length === 1 ? ` ${formData.middleInitial}.` : ` ${formData.middleInitial}`) : '';
+      const fullName = `${formData.firstName}${middleInitialPart} ${formData.lastName}`.trim();
       const payload = {
         name: fullName,
         email: formData.email,
@@ -791,16 +796,42 @@ export default function Signup() {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
-                  className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${
-                    errors.firstName 
-                      ? 'border-red-500 bg-red-50 focus:border-red-600' 
-                      : 'border-gray-300 focus:border-red-500'
-                  } focus:ring-4 focus:ring-red-100 focus:outline-none text-sm`}
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${errors.firstName ? 'border-red-500 bg-red-50 focus:border-red-600' : 'border-gray-300 focus:border-red-500'} focus:ring-4 focus:ring-red-100 focus:outline-none text-sm`}
                   placeholder="Enter your first name"
                 />
                 {errors.firstName && (
                   <p className="text-red-500 text-xs mt-2 flex items-center">
                     <X size={12} className="mr-1" /> {errors.firstName}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="middleInitial" className="block text-gray-700 text-sm font-semibold mb-2">
+                  Middle Initial
+                </label>
+                <input
+                  type="text"
+                  id="middleInitial"
+                  name="middleInitial"
+                  value={formData.middleInitial}
+                  onChange={(e) => {
+                    // Allow any letter characters without forcing uppercase
+                    const value = e.target.value.replace(/[^A-Za-z]/g, '');
+                    // Use a custom event to maintain compatibility with handleChange
+                    const customEvent = {
+                      target: {
+                        name: 'middleInitial',
+                        value: value
+                      }
+                    };
+                    handleChange(customEvent);
+                  }}
+                  className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${errors.middleInitial ? 'border-red-500 bg-red-50 focus:border-red-600' : 'border-gray-300 focus:border-red-500'} focus:ring-4 focus:ring-red-100 focus:outline-none text-sm`}
+                  placeholder="Enter your middle initial"
+                />
+                {errors.middleInitial && (
+                  <p className="text-red-500 text-xs mt-2 flex items-center">
+                    <X size={12} className="mr-1" /> {errors.middleInitial}
                   </p>
                 )}
               </div>
