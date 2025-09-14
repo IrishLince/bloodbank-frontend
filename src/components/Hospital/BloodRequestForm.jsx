@@ -191,12 +191,12 @@ const BloodRequestForm = () => {
 
   const handleAddBloodType = () => {
     const newErrors = {};
-
+  
     // Validate blood type selection
     if (!newBloodType || newBloodType.trim() === '') {
       newErrors.newBloodType = 'Please select a blood type';
     }
-
+  
     // Validate units
     if (!newUnitsRequested || newUnitsRequested.trim() === '') {
       newErrors.newUnitsRequested = 'Please enter the number of units';
@@ -204,17 +204,26 @@ const BloodRequestForm = () => {
       const unitsNum = Number(newUnitsRequested);
       if (isNaN(unitsNum) || unitsNum <= 0) {
         newErrors.newUnitsRequested = 'Units must be a positive number';
-      } else if (unitsNum > 50) {
-        newErrors.newUnitsRequested = 'Maximum 50 units per blood type';
+      } else {
+        // Apply hospital-specific maximum request limits
+        const limits = { "O+": 15, "A+": 10, "B+": 10, "AB+": 7 };
+        const unlimitedTypes = ["Whole Blood", "PRBC", "Platelet Concentrate", "FFP"];
+  
+        if (!unlimitedTypes.includes(newBloodType)) {
+          const maxLimit = limits[newBloodType];
+          if (maxLimit && unitsNum > maxLimit) {
+            newErrors.newUnitsRequested = `Maximum ${maxLimit} units allowed for ${newBloodType}`;
+          }
+        }
       }
     }
-
+  
     // Check for duplicates
     const isDuplicate = bloodRequests.some(request => request.bloodType === newBloodType);
     if (isDuplicate) {
       newErrors.newBloodType = 'This blood type is already added';
     }
-
+  
     // Check availability if blood center is selected
     if (selectedAdmin && newBloodType) {
       const inventory = selectedAdmin.inventory.find(item => item.type === newBloodType);
@@ -224,19 +233,19 @@ const BloodRequestForm = () => {
         newErrors.newUnitsRequested = `Only ${inventory.available} units available`;
       }
     }
-
+  
     // Check maximum requests limit
     const validRequests = bloodRequests.filter(req => req.bloodType && req.unitsRequested);
     if (validRequests.length >= 6) {
       newErrors.maxRequests = 'Maximum 6 blood requests allowed';
     }
-
+  
     // If there are validation errors, show them and return
     if (Object.keys(newErrors).length > 0) {
       setErrors({ ...errors, ...newErrors });
       return;
     }
-
+  
     // Add new blood request
     const newId = bloodRequests.length > 0 ? Math.max(...bloodRequests.map(req => req.id)) + 1 : 1;
     setBloodRequests([...bloodRequests, { 
@@ -244,7 +253,7 @@ const BloodRequestForm = () => {
       bloodType: newBloodType, 
       unitsRequested: newUnitsRequested 
     }]);
-
+  
     // Reset modal state
     setNewBloodType('');
     setNewUnitsRequested('');
@@ -738,7 +747,7 @@ const BloodRequestForm = () => {
                           <div className="flex items-center space-x-2">
                             <div className="w-2 h-2 bg-red-600 rounded-full"></div>
                             <span className="font-medium text-gray-900">
-                              🩸 {request.bloodType} - {request.unitsRequested} units
+                              {request.bloodType} - {request.unitsRequested} units
                             </span>
                           </div>
                           <button
@@ -1046,7 +1055,7 @@ const BloodRequestForm = () => {
                           .filter((item) => !bloodRequests.some(req => req.bloodType === item.type))
                           .map((item) => (
                             <option key={item.type} value={item.type}>
-                              🩸 {item.type} - {item.available} units available
+                              {item.type} - {item.available} units available
                             </option>
                           ))
                       : null}

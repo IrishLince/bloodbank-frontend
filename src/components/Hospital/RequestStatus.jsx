@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, Droplet, Package, Eye, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
@@ -7,7 +7,8 @@ import Header from '../Header';
 const REQUEST_STATUS = {
   PENDING: 'Pending',
   PROCESSING: 'Processing', 
-  FULFILLED: 'Fulfilled'
+  FULFILLED: 'Fulfilled',
+  CANCELLED: 'Cancelled'
 };
 
 export default function RequestStatus() {
@@ -164,6 +165,8 @@ export default function RequestStatus() {
         return <RefreshCw className="w-4 h-4 text-blue-500" />;
       case REQUEST_STATUS.FULFILLED:
         return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case REQUEST_STATUS.CANCELLED:
+        return <XCircle className="w-4 h-4 text-red-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-500" />;
     }
@@ -177,11 +180,12 @@ export default function RequestStatus() {
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case REQUEST_STATUS.FULFILLED:
         return 'bg-green-100 text-green-800 border-green-200';
+      case REQUEST_STATUS.CANCELLED:
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
-
 
   const getTotalUnitsRequested = (bloodRequests) => {
     return bloodRequests.reduce((total, req) => total + req.unitsRequested, 0);
@@ -189,6 +193,36 @@ export default function RequestStatus() {
 
   const getTotalUnitsFulfilled = (bloodRequests) => {
     return bloodRequests.reduce((total, req) => total + (req.unitsFulfilled || 0), 0);
+  };
+
+  const checkBusinessRules = (request) => {
+    let issues = [];
+
+    // Enforce max units for specific blood types
+    const bloodTypeLimits = { "O+": 15, "A+": 10, "B+": 10, "AB+": 7 };
+
+    request.bloodRequests.forEach((br) => {
+      const limit = bloodTypeLimits[br.bloodType];
+      if (limit && br.unitsRequested > limit) {
+        issues.push(`Exceeded max limit for ${br.bloodType} (max ${limit})`);
+      }
+    });
+
+    // Expiration risk if request date + 5 days < date needed
+    const reqDate = new Date(request.requestDate);
+    const needDate = new Date(request.dateNeeded);
+    if (needDate.getTime() - reqDate.getTime() > 5 * 24 * 60 * 60 * 1000) {
+      issues.push("Expiration risk: Date needed is more than 5 days after request.");
+    }
+
+    // Placeholder for form, cooler, payment requirements
+    if (!request.formCompleted) issues.push("Blood Request Form not completed");
+    if (!request.coolerProvided) issues.push("Cooler with ice not provided");
+    if (!request.paymentStatus || request.paymentStatus !== "Paid") {
+      issues.push("Payment not settled");
+    }
+
+    return issues;
   };
 
   const handleViewDetails = (request) => {
@@ -253,6 +287,7 @@ export default function RequestStatus() {
                   <option value={REQUEST_STATUS.PENDING}>Pending</option>
                   <option value={REQUEST_STATUS.PROCESSING}>Processing</option>
                   <option value={REQUEST_STATUS.FULFILLED}>Fulfilled</option>
+                  <option value={REQUEST_STATUS.CANCELLED}>Cancelled</option>
                 </select>
 
                 <select
@@ -455,6 +490,20 @@ export default function RequestStatus() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Business Rule Validation */}
+                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                     <h4 className="font-medium text-red-800 mb-2">Business Rule Check ⚠️</h4>
+                   <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {checkBusinessRules(selectedRequest).length === 0 ? (
+                     <li className="text-green-700">✅ All requirements met</li>
+                      ) : (
+                      checkBusinessRules(selectedRequest).map((issue, idx) => (
+                     <li key={idx}>{issue}</li>
+                       ))
+                     )}
+                  </ul>
                 </div>
 
                 {/* Dates */}
