@@ -868,37 +868,42 @@ const Header = () => {
             >
               <nav className="flex flex-col px-3 py-2">
                 {/* Navigation Links */}
-                <div className="space-y-1 mb-2">
-                  {navigationConfig.links?.map((link) => (
-                    <motion.div
-                      key={link.to}
-                      whileHover={{ x: 2 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <NavLink
-                        to={link.to}
-                        isAuthenticated={isAuthenticated}
-                        isActive={location.pathname === link.to}
-                        icon={link.icon}
-                        className="w-full justify-start py-2 px-3 rounded-lg text-white hover:bg-red-500/50 transition-all duration-200 flex items-center space-x-2 group"
+                <div className="space-y-1 mb-3">
+                  {navigationConfig.links?.map((link) => {
+                    const isActive = location.pathname === link.to;
+                    return (
+                      <motion.div
+                        key={link.to}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        <span className="group-hover:scale-105 transition-transform duration-200">
-                          {link.icon}
-                        </span>
-                        <span className="font-medium text-sm">{link.label}</span>
-                      </NavLink>
-                    </motion.div>
-                  ))}
+                        <RefreshLink
+                          to={link.to}
+                          className={`w-full justify-start py-2.5 px-3 rounded-lg transition-all duration-200 flex items-center space-x-2 group ${
+                            isActive 
+                              ? 'bg-white text-red-600 shadow-sm font-semibold' 
+                              : 'text-white hover:bg-red-500/50 font-medium'
+                          }`}
+                        >
+                          <span className="group-hover:scale-105 transition-transform duration-200">
+                            {link.icon}
+                          </span>
+                          <span className="text-sm">{link.label}</span>
+                        </RefreshLink>
+                      </motion.div>
+                    );
+                  })}
                 </div>
                 
                 {/* Authentication Actions for non-authenticated users */}
                 {!isAuthenticated && (
-                  <div className="space-y-2 pt-2 border-t border-red-500/30">
+                  <div className="flex space-x-2">
                     {navigationConfig.actions?.map((action, index) => (
                       <motion.div
                         key={action.to}
-                        whileHover={{ scale: 1.01 }}
+                        whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        className="flex-1"
                       >
                         <RefreshLink
                           to={action.to}
