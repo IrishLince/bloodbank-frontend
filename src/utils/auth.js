@@ -45,7 +45,8 @@ export const refreshAccessToken = async () => {
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch('http://localhost:8080/api/auth/refresh', {
+    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,7 +75,8 @@ export const validateTokenWithBackend = async () => {
   if (!token) return false;
 
   try {
-    const response = await fetch('http://localhost:8080/api/auth/me', {
+    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
