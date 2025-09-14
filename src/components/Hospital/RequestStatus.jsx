@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, Droplet, Package, Eye, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
@@ -83,7 +83,7 @@ export default function RequestStatus() {
       ],
       requestDate: '2023-11-18',
       dateNeeded: '2023-11-23',
-      status: REQUEST_STATUS.CANCELLED,
+      status: REQUEST_STATUS.PROCESSING,
       priority: 'High',
       notes: 'Request cancelled due to alternative source found',
       cancelledDate: '2023-11-18',
@@ -182,13 +182,42 @@ export default function RequestStatus() {
     }
   };
 
-
   const getTotalUnitsRequested = (bloodRequests) => {
     return bloodRequests.reduce((total, req) => total + req.unitsRequested, 0);
   };
 
   const getTotalUnitsFulfilled = (bloodRequests) => {
     return bloodRequests.reduce((total, req) => total + (req.unitsFulfilled || 0), 0);
+  };
+
+  const checkBusinessRules = (request) => {
+    let issues = [];
+
+    // Enforce max units for specific blood types
+    const bloodTypeLimits = { "O+": 15, "A+": 10, "B+": 10, "AB+": 7 };
+
+    request.bloodRequests.forEach((br) => {
+      const limit = bloodTypeLimits[br.bloodType];
+      if (limit && br.unitsRequested > limit) {
+        issues.push(`Exceeded max limit for ${br.bloodType} (max ${limit})`);
+      }
+    });
+
+    // Expiration risk if request date + 5 days < date needed
+    const reqDate = new Date(request.requestDate);
+    const needDate = new Date(request.dateNeeded);
+    if (needDate.getTime() - reqDate.getTime() > 5 * 24 * 60 * 60 * 1000) {
+      issues.push("Expiration risk: Date needed is more than 5 days after request.");
+    }
+
+    // Placeholder for form, cooler, payment requirements
+    if (!request.formCompleted) issues.push("Blood Request Form not completed");
+    if (!request.coolerProvided) issues.push("Cooler with ice not provided");
+    if (!request.paymentStatus || request.paymentStatus !== "Paid") {
+      issues.push("Payment not settled");
+    }
+
+    return issues;
   };
 
   const handleViewDetails = (request) => {
@@ -455,6 +484,20 @@ export default function RequestStatus() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Business Rule Validation */}
+                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                     <h4 className="font-medium text-red-800 mb-2">Business Rule Check ⚠️</h4>
+                   <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {checkBusinessRules(selectedRequest).length === 0 ? (
+                     <li className="text-green-700">✅ All requirements met</li>
+                      ) : (
+                      checkBusinessRules(selectedRequest).map((issue, idx) => (
+                     <li key={idx}>{issue}</li>
+                       ))
+                     )}
+                  </ul>
                 </div>
 
                 {/* Dates */}

@@ -19,6 +19,13 @@ export default function NewRequest() {
   const [countdownActive, setCountdownActive] = useState(false)
   const navigate = useNavigate()
 
+  const bloodTypeLimits = {
+  "O+": 15,
+  "A+": 10,
+  "B+": 10,
+  "AB+": 7, // upper bound of 5–7
+};
+
   // Mock data for blood admin centers
   const bloodAdminCenters = [
     {
@@ -210,43 +217,66 @@ export default function NewRequest() {
     })
   }
 
-  const handleSubmit = () => {
-    const newErrors = {}
+ const handleSubmit = () => {
+  const newErrors = {}
 
-    // Validate each blood request
-    bloodRequests.forEach((request, index) => {
-      if (!request.bloodType) newErrors[`bloodType_${index}`] = "Blood type is required"
-      if (!request.unitsRequested) newErrors[`unitsRequested_${index}`] = "Units requested is required"
+  // Validate each blood request
+  bloodRequests.forEach((request, index) => {
+    if (!request.bloodType) newErrors[`bloodType_${index}`] = "Blood type is required"
+    if (!request.unitsRequested) newErrors[`unitsRequested_${index}`] = "Units requested is required"
 
-      // Check if requested units exceed available
-      if (request.bloodType && request.unitsRequested > getTotalAvailable(request.bloodType)) {
-        newErrors[`unitsRequested_${index}`] = `Only ${getTotalAvailable(request.bloodType)} units available`
-      }
-    })
-
-    if (!requestDate) newErrors.requestDate = "Request date is required"
-    if (!dateNeeded) newErrors.dateNeeded = "Date needed is required"
-    if (!selectedAdminId) newErrors.bloodSource = "Blood source is required"
-
-    // Check for duplicate blood types
-    const bloodTypes = bloodRequests.map((req) => req.bloodType).filter((type) => type !== "")
-    const uniqueBloodTypes = new Set(bloodTypes)
-    if (bloodTypes.length !== uniqueBloodTypes.size) {
-      newErrors.duplicateBloodTypes = "Duplicate blood types are not allowed. Please combine quantities instead."
+    // Check if requested units exceed available
+    if (request.bloodType && request.unitsRequested > getTotalAvailable(request.bloodType)) {
+      newErrors[`unitsRequested_${index}`] = `Only ${getTotalAvailable(request.bloodType)} units available`
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      setFormError(true)
-      return
+    // Enforce maximum hospital request limits per blood type
+    const bloodTypeLimits = {
+      "O+": 15,
+      "A+": 10,
+      "B+": 10,
+      "AB+": 7,
     }
+    const limit = bloodTypeLimits[request.bloodType]
+    if (limit && Number(request.unitsRequested) > limit) {
+      newErrors[`unitsRequested_${index}`] = `Maximum allowed for ${request.bloodType} is ${limit} units`
+    }
+  })
 
-    setFormError(false)
-    
-    // Show confirmation modal instead of navigating directly
-    setShowConfirmationModal(true)
-    setCountdownActive(true)
+  // Validate request timeline fields
+  if (!requestDate) newErrors.requestDate = "Request date is required"
+  if (!dateNeeded) newErrors.dateNeeded = "Date needed is required"
+  if (!selectedAdminId) newErrors.bloodSource = "Blood source is required"
+
+  // Check for duplicate blood types
+  const bloodTypes = bloodRequests.map((req) => req.bloodType).filter((type) => type !== "")
+  const uniqueBloodTypes = new Set(bloodTypes)
+  if (bloodTypes.length !== uniqueBloodTypes.size) {
+    newErrors.duplicateBloodTypes = "Duplicate blood types are not allowed. Please combine quantities instead."
   }
+
+  // ⚠️ Reminder about expiration risk
+  if (requestDate && dateNeeded) {
+    const reqDate = new Date(requestDate)
+    const needDate = new Date(dateNeeded)
+    if (needDate.getTime() - reqDate.getTime() > 5 * 24 * 60 * 60 * 1000) {
+      // more than 5 days apart (example threshold)
+      newErrors.expiration = "⚠️ Reminder: Please consider blood expiration risk before requesting."
+    }
+  }
+
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors)
+    setFormError(true)
+    return
+  }
+
+  setFormError(false)
+
+  // Show confirmation modal instead of navigating directly
+  setShowConfirmationModal(true)
+  setCountdownActive(true)
+}
 
   // Get the selected admin details
   const selectedAdmin = bloodAdminCenters.find((admin) => admin.id === selectedAdminId)
