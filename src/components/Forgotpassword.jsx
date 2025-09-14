@@ -7,6 +7,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import RefreshLink from './RefreshLink';
 import { navigateWithRefresh } from '../utils/navigation';
 
+// Import API base URL from environment variables or use default
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+
 const ForgotPassword = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
@@ -100,7 +103,7 @@ const ForgotPassword = () => {
         return;
       }
       
-      const response = await fetch('http://localhost:8080/api/auth/send-forgot-password-otp', {
+      const response = await fetch(`${API_BASE_URL}/auth/send-forgot-password-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +137,7 @@ const ForgotPassword = () => {
       try {
         const cleaned = stripCountryCode(phoneNumber);
         
-        const response = await fetch('http://localhost:8080/api/auth/send-forgot-password-otp', {
+        const response = await fetch(`${API_BASE_URL}/auth/send-forgot-password-otp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -174,7 +177,7 @@ const ForgotPassword = () => {
       const cleaned = stripCountryCode(phoneNumber);
       
       // Verify OTP with backend using dedicated verification endpoint - SECURITY CRITICAL!
-      const response = await fetch('http://localhost:8080/api/auth/verify-forgot-password-otp', {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-forgot-password-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +222,7 @@ const ForgotPassword = () => {
       try {
         const cleaned = stripCountryCode(phoneNumber);
         
-        const response = await fetch('http://localhost:8080/api/auth/reset-password-with-otp', {
+        const response = await fetch(`${API_BASE_URL}/auth/reset-password-with-otp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
