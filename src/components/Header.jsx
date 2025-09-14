@@ -95,7 +95,7 @@ const useAuth = () => {
       
     } catch (error) {
       // Reset to defaults on error
-      setUserData({ id: "", name: "User", email: "", token: "", role: "", profilePhotoUrl: "" })
+      setUserData({ name: "User", email: "", token: "", role: "" })
       setIsAuthenticated(false)
       setUserRole("")
     } finally {
@@ -307,7 +307,7 @@ const ProfileDropdown = ({ onLogout, userData, isLoading }) => {
         aria-expanded={isOpen}
         disabled={isLoading}
       >
-        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/20">
+        <div className="w-6 h-6 rounded-full overflow-hidden border-2 border-white/20">
           <ProfileAvatar user={userData} size="sm" />
         </div>
       </button>
