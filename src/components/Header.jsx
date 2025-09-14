@@ -690,10 +690,17 @@ const Header = () => {
   // Optimized handlers
   const handleMobileMenuToggle = useCallback(() => {
     setIsMobileMenuOpen(prev => !prev)
+    setIsMobileProfileOpen(false) // Close profile when opening menu
+  }, [])
+
+  const handleMobileProfileToggle = useCallback(() => {
+    setIsMobileProfileOpen(prev => !prev)
+    setIsMobileMenuOpen(false) // Close menu when opening profile
   }, [])
 
   const handleLogout = useCallback(() => {
     setIsMobileMenuOpen(false)
+    setIsMobileProfileOpen(false)
     logout()
   }, [logout])
 
@@ -784,15 +791,17 @@ const Header = () => {
             {/* Mobile Profile Avatar */}
             {isAuthenticated && (
               <motion.button
-                onClick={() => setIsMobileProfileOpen(prev => !prev)}
+                onClick={handleMobileProfileToggle}
                 className="rounded-full p-1 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 aria-label="Open profile menu"
               >
-                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/30">
-                  <ProfileAvatar user={userData} size="sm" />
+                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/30 bg-white/10">
+                  <div className="w-full h-full">
+                    <ProfileAvatar user={userData} size="sm" />
+                  </div>
                 </div>
               </motion.button>
             )}

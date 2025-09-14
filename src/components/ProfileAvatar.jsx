@@ -111,8 +111,10 @@ const ProfileAvatar = ({
   }
 
   const avatarContent = (
-    <div className={`${sizes[size]} rounded-full overflow-hidden ${className} ${editable ? 'cursor-pointer' : ''} ${isLoading ? 'opacity-50' : ''}`}>
-      {renderImage()}
+    <div className={`${sizes[size]} rounded-full overflow-hidden ${className} ${editable ? 'cursor-pointer' : ''} ${isLoading ? 'opacity-50' : ''} relative`}>
+      <div className="w-full h-full">
+        {renderImage()}
+      </div>
       
       {/* Upload overlay for editable avatars */}
       {editable && showUploadIcon && (
