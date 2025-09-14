@@ -894,37 +894,45 @@ const Header = () => {
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               className="absolute right-4 top-16 z-50"
             >
-              <div className="bg-red-50 rounded-lg shadow-lg border border-red-200 w-80 overflow-hidden">
-                {/* Bloodbank Profile Header */}
-                <div className="px-4 py-4 text-center bg-red-50">
-                  <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 bg-red-100 border-2 border-red-200">
-                    <div className="w-full h-full">
-                      <ProfileAvatar user={userData} size="xl" />
+              <div className="bg-white rounded-lg shadow-lg border border-gray-200 w-80 overflow-hidden">
+                {/* Profile Header */}
+                <div className="px-4 py-4 bg-white border-b border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100">
+                      <div className="w-full h-full">
+                        <ProfileAvatar user={userData} size="md" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        {userData.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {userData.email}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-base font-normal text-red-900 mb-1">
-                    Hi, {userData.name}!
-                  </div>
-                  <div className="text-sm text-red-700 mb-3">
-                    {userData.email}
-                  </div>
-                  <RefreshLink
-                    to="/profile-page"
-                    onClick={() => setIsMobileProfileOpen(false)}
-                    className="inline-block px-4 py-1.5 border border-red-300 rounded-full text-sm text-red-800 bg-white hover:bg-red-50 transition-colors"
-                  >
-                    Manage your Account
-                  </RefreshLink>
                 </div>
 
                 {/* Menu Items */}
-                <div className="py-1 bg-red-50">
+                <div className="py-1 bg-white">
+                  <RefreshLink
+                    to="/profile-settings"
+                    onClick={() => setIsMobileProfileOpen(false)}
+                    className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="w-5 h-5 mr-3 flex items-center justify-center">
+                      <div className="w-4 h-4 rounded-full bg-gray-400"></div>
+                    </div>
+                    <span className="text-sm">Profile Settings</span>
+                  </RefreshLink>
+
                   <RefreshLink
                     to="/settings"
                     onClick={() => setIsMobileProfileOpen(false)}
-                    className="flex items-center px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
+                    className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    <Settings className="w-5 h-5 mr-3 text-red-600" />
+                    <Settings className="w-5 h-5 mr-3 text-gray-500" />
                     <span className="text-sm">Settings</span>
                   </RefreshLink>
 
@@ -933,20 +941,11 @@ const Header = () => {
                       setIsMobileProfileOpen(false)
                       handleLogout()
                     }}
-                    className="flex items-center w-full px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
+                    className="flex items-center w-full px-4 py-2.5 text-red-600 hover:bg-gray-50 transition-colors"
                   >
                     <LogOut className="w-5 h-5 mr-3 text-red-600" />
-                    <span className="text-sm">Sign out</span>
+                    <span className="text-sm">Logout</span>
                   </button>
-                </div>
-
-                {/* Footer */}
-                <div className="px-4 py-2 bg-red-100 border-t border-red-200">
-                  <div className="flex items-center justify-center space-x-2 text-xs text-red-600">
-                    <span>Privacy Policy</span>
-                    <span>•</span>
-                    <span>Terms of Service</span>
-                  </div>
                 </div>
               </div>
             </motion.div>
