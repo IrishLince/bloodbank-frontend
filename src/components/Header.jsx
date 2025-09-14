@@ -614,76 +614,64 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
         ))}
         
         {isAuthenticated && (
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 mx-3 mt-4 mb-3 overflow-hidden">
-            {/* Google-style Profile Header */}
-            <div className="px-6 py-5 text-center border-b border-gray-100">
-              <div className="flex flex-col items-center">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-gray-100 mb-3 bg-gray-50">
-                  <ProfileAvatar user={userData} size="xl" />
-                </div>
-                <h2 className="text-lg font-medium text-gray-900 mb-1">
-                  Hi, {userData.name}!
-                </h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  {userData.email}
-                </p>
-                <RefreshLink
-                  to="/profile-page"
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
-                >
-                  Manage your Account
-                </RefreshLink>
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 mx-3 mt-3 mb-2 overflow-hidden">
+            {/* Google Profile Header */}
+            <div className="px-4 py-4 text-center">
+              <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 bg-gray-100">
+                <ProfileAvatar user={userData} size="lg" />
               </div>
+              <div className="text-base font-normal text-gray-900 mb-1">
+                Hi, {userData.name}!
+              </div>
+              <div className="text-sm text-gray-600 mb-3">
+                {userData.email}
+              </div>
+              <RefreshLink
+                to="/profile-page"
+                className="inline-block px-4 py-1.5 border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Manage your Account
+              </RefreshLink>
             </div>
 
-            {/* Google-style Menu Items */}
-            <div className="py-2">
+            {/* Menu Items */}
+            <div className="py-1">
               <RefreshLink
                 to="/settings"
-                className="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <div className="w-6 h-6 mr-4 flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-gray-500" />
-                </div>
-                <span className="text-sm font-medium">Settings</span>
+                <Settings className="w-5 h-5 mr-3 text-gray-600" />
+                <span className="text-sm">Settings</span>
               </RefreshLink>
 
               <RefreshLink
                 to="/rewards"
-                className="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <div className="w-6 h-6 mr-4 flex items-center justify-center">
-                  <Star className="w-5 h-5 text-gray-500" />
-                </div>
-                <span className="text-sm font-medium">Reward Points</span>
+                <Star className="w-5 h-5 mr-3 text-gray-600" />
+                <span className="text-sm">Reward Points</span>
               </RefreshLink>
 
               <RefreshLink
                 to="/list-of-appointments"
-                className="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <div className="w-6 h-6 mr-4 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-gray-500" />
-                </div>
-                <span className="text-sm font-medium">My Appointments</span>
+                <Calendar className="w-5 h-5 mr-3 text-gray-600" />
+                <span className="text-sm">My Appointments</span>
               </RefreshLink>
 
-              <div className="border-t border-gray-100 mt-2">
-                <button
-                  onClick={onLogout}
-                  className="flex items-center w-full px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                >
-                  <div className="w-6 h-6 mr-4 flex items-center justify-center">
-                    <LogOut className="w-5 h-5 text-gray-500" />
-                  </div>
-                  <span className="text-sm font-medium">Sign out</span>
-                </button>
-              </div>
+              <button
+                onClick={onLogout}
+                className="flex items-center w-full px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <LogOut className="w-5 h-5 mr-3 text-gray-600" />
+                <span className="text-sm">Sign out</span>
+              </button>
             </div>
 
-            {/* Google-style Footer */}
-            <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
-              <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
+            {/* Footer */}
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+              <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
                 <span>Privacy Policy</span>
                 <span>•</span>
                 <span>Terms of Service</span>
