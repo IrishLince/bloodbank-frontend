@@ -321,20 +321,22 @@ const ProfileDropdown = ({ onLogout, userData, isLoading }) => {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
           >
-            {/* User Info Section */}
+          {/* User Info Section */}
           <div className="px-4 py-3 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
-                  <ProfileAvatar user={userData} size="lg" />
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                  <ProfileAvatar user={userData} size="md" />
+                </div>
               </div>
               <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 text-sm text-gray-800 mb-1 font-medium">
-                    <User className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                    <span className="truncate">{userData.name}</span>
+                <div className="flex items-center space-x-2 text-sm text-gray-800 mb-1 font-medium">
+                  <User className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                  <span className="truncate">{userData.name}</span>
                 </div>
                 {userData.email && (
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Mail className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <Mail className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{userData.email}</span>
                   </div>
                 )}
