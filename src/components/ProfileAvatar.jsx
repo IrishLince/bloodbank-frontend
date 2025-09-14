@@ -81,7 +81,7 @@ const ProfileAvatar = ({
         <img
           src={imageUrl}
           alt={`${user?.name || 'User'}'s profile`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-center"
           onError={handleImageError}
           onLoad={() => setImageError(false)}
         />
@@ -160,4 +160,3 @@ const ProfileAvatar = ({
 }
 
 export default ProfileAvatar
-
