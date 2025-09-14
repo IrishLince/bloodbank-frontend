@@ -866,30 +866,54 @@ const Header = () => {
               }}
               className="md:hidden overflow-hidden bg-red-600/95 backdrop-blur-sm rounded-b-lg shadow-lg"
             >
-              <nav className="flex flex-col space-y-1 px-2 pb-3 pt-2">
-                {navigationConfig.links?.map((link) => (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    isAuthenticated={isAuthenticated}
-                    isActive={location.pathname === link.to}
-                    icon={link.icon}
-                    className="w-full justify-start"
-                  >
-                    {link.label}
-                  </NavLink>
-                ))}
+              <nav className="flex flex-col px-4 py-4">
+                {/* Navigation Links */}
+                <div className="space-y-2 mb-4">
+                  {navigationConfig.links?.map((link) => (
+                    <motion.div
+                      key={link.to}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <NavLink
+                        to={link.to}
+                        isAuthenticated={isAuthenticated}
+                        isActive={location.pathname === link.to}
+                        icon={link.icon}
+                        className="w-full justify-start py-3 px-4 rounded-xl text-white hover:bg-red-500/50 transition-all duration-200 flex items-center space-x-3 group"
+                      >
+                        <span className="group-hover:scale-110 transition-transform duration-200">
+                          {link.icon}
+                        </span>
+                        <span className="font-medium">{link.label}</span>
+                      </NavLink>
+                    </motion.div>
+                  ))}
+                </div>
                 
-                {/* Add Sign Up and Login for non-authenticated users */}
-                {!isAuthenticated && navigationConfig.actions?.map((action) => (
-                  <RefreshLink
-                    key={action.to}
-                    to={action.to}
-                    className="px-4 py-2 text-white hover:bg-red-700 rounded-lg transition-colors flex items-center space-x-2"
-                  >
-                    <span>{action.label}</span>
-                  </RefreshLink>
-                ))}
+                {/* Authentication Actions for non-authenticated users */}
+                {!isAuthenticated && (
+                  <div className="space-y-3 pt-4 border-t border-red-500/30">
+                    {navigationConfig.actions?.map((action, index) => (
+                      <motion.div
+                        key={action.to}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <RefreshLink
+                          to={action.to}
+                          className={`block w-full py-3 px-4 rounded-xl text-center font-semibold transition-all duration-200 ${
+                            index === 0 
+                              ? 'bg-white text-red-600 hover:bg-red-50 shadow-md' 
+                              : 'bg-red-500/20 text-white border border-red-400/50 hover:bg-red-500/30'
+                          }`}
+                        >
+                          {action.label}
+                        </RefreshLink>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </nav>
             </motion.div>
           )}
