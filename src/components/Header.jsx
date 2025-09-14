@@ -614,64 +614,48 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
         ))}
         
         {isAuthenticated && (
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 mx-3 mt-3 mb-2 overflow-hidden">
-            {/* Google Profile Header */}
-            <div className="px-4 py-4 text-center">
-              <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 bg-gray-100">
+          <div className="bg-red-50 rounded-lg shadow-lg border border-red-200 mx-3 mt-3 mb-2 overflow-hidden">
+            {/* Bloodbank Profile Header */}
+            <div className="px-4 py-4 text-center bg-red-50">
+              <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 bg-red-100 border-2 border-red-200">
                 <ProfileAvatar user={userData} size="lg" />
               </div>
-              <div className="text-base font-normal text-gray-900 mb-1">
+              <div className="text-base font-normal text-red-900 mb-1">
                 Hi, {userData.name}!
               </div>
-              <div className="text-sm text-gray-600 mb-3">
+              <div className="text-sm text-red-700 mb-3">
                 {userData.email}
               </div>
               <RefreshLink
                 to="/profile-page"
-                className="inline-block px-4 py-1.5 border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                className="inline-block px-4 py-1.5 border border-red-300 rounded-full text-sm text-red-800 bg-white hover:bg-red-50 transition-colors"
               >
                 Manage your Account
               </RefreshLink>
             </div>
 
             {/* Menu Items */}
-            <div className="py-1">
+            <div className="py-1 bg-red-50">
               <RefreshLink
                 to="/settings"
-                className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex items-center px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
               >
-                <Settings className="w-5 h-5 mr-3 text-gray-600" />
+                <Settings className="w-5 h-5 mr-3 text-red-600" />
                 <span className="text-sm">Settings</span>
-              </RefreshLink>
-
-              <RefreshLink
-                to="/rewards"
-                className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Star className="w-5 h-5 mr-3 text-gray-600" />
-                <span className="text-sm">Reward Points</span>
-              </RefreshLink>
-
-              <RefreshLink
-                to="/list-of-appointments"
-                className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Calendar className="w-5 h-5 mr-3 text-gray-600" />
-                <span className="text-sm">My Appointments</span>
               </RefreshLink>
 
               <button
                 onClick={onLogout}
-                className="flex items-center w-full px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex items-center w-full px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
               >
-                <LogOut className="w-5 h-5 mr-3 text-gray-600" />
+                <LogOut className="w-5 h-5 mr-3 text-red-600" />
                 <span className="text-sm">Sign out</span>
               </button>
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
-              <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+            <div className="px-4 py-2 bg-red-100 border-t border-red-200">
+              <div className="flex items-center justify-center space-x-2 text-xs text-red-600">
                 <span>Privacy Policy</span>
                 <span>•</span>
                 <span>Terms of Service</span>
