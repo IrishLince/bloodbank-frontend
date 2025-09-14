@@ -870,7 +870,7 @@ const Header = () => {
                 {/* Navigation Links */}
                 <div className="space-y-1 mb-3">
                   {navigationConfig.links?.map((link) => {
-                    const isActive = location.pathname === link.to;
+                    const isActive = (link.to === "/" && location.pathname === "/") || location.pathname === link.to;
                     return (
                       <motion.div
                         key={link.to}
