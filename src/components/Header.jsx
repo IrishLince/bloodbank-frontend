@@ -866,13 +866,13 @@ const Header = () => {
               }}
               className="md:hidden overflow-hidden bg-red-600/95 backdrop-blur-sm rounded-b-lg shadow-lg"
             >
-              <nav className="flex flex-col px-4 py-4">
+              <nav className="flex flex-col px-3 py-2">
                 {/* Navigation Links */}
-                <div className="space-y-2 mb-4">
+                <div className="space-y-1 mb-2">
                   {navigationConfig.links?.map((link) => (
                     <motion.div
                       key={link.to}
-                      whileHover={{ x: 4 }}
+                      whileHover={{ x: 2 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <NavLink
@@ -880,12 +880,12 @@ const Header = () => {
                         isAuthenticated={isAuthenticated}
                         isActive={location.pathname === link.to}
                         icon={link.icon}
-                        className="w-full justify-start py-3 px-4 rounded-xl text-white hover:bg-red-500/50 transition-all duration-200 flex items-center space-x-3 group"
+                        className="w-full justify-start py-2 px-3 rounded-lg text-white hover:bg-red-500/50 transition-all duration-200 flex items-center space-x-2 group"
                       >
-                        <span className="group-hover:scale-110 transition-transform duration-200">
+                        <span className="group-hover:scale-105 transition-transform duration-200">
                           {link.icon}
                         </span>
-                        <span className="font-medium">{link.label}</span>
+                        <span className="font-medium text-sm">{link.label}</span>
                       </NavLink>
                     </motion.div>
                   ))}
@@ -893,18 +893,18 @@ const Header = () => {
                 
                 {/* Authentication Actions for non-authenticated users */}
                 {!isAuthenticated && (
-                  <div className="space-y-3 pt-4 border-t border-red-500/30">
+                  <div className="space-y-2 pt-2 border-t border-red-500/30">
                     {navigationConfig.actions?.map((action, index) => (
                       <motion.div
                         key={action.to}
-                        whileHover={{ scale: 1.02 }}
+                        whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <RefreshLink
                           to={action.to}
-                          className={`block w-full py-3 px-4 rounded-xl text-center font-semibold transition-all duration-200 ${
+                          className={`block w-full py-2 px-3 rounded-lg text-center font-medium text-sm transition-all duration-200 ${
                             index === 0 
-                              ? 'bg-white text-red-600 hover:bg-red-50 shadow-md' 
+                              ? 'bg-white text-red-600 hover:bg-red-50 shadow-sm' 
                               : 'bg-red-500/20 text-white border border-red-400/50 hover:bg-red-500/30'
                           }`}
                         >
