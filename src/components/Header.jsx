@@ -302,12 +302,12 @@ const ProfileDropdown = ({ onLogout, userData, isLoading }) => {
     <div className="relative profile-dropdown z-40">
       <button
         onClick={handleToggle}
-        className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-700 focus:bg-red-700 focus:outline-none focus:ring-2 focus:ring-white/20 transition-colors duration-200"
+        className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-red-700 focus:bg-red-700 focus:outline-none focus:ring-2 focus:ring-white/20 transition-colors duration-200"
         aria-label="Open profile menu"
         aria-expanded={isOpen}
         disabled={isLoading}
       >
-        <div className="w-6 h-6 rounded-full overflow-hidden border-2 border-white/30 bg-white/10 flex-shrink-0">
+        <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-white/30 bg-white/10 flex-shrink-0">
           <ProfileAvatar user={userData} size="sm" />
         </div>
       </button>
@@ -800,7 +800,7 @@ const Header = () => {
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 aria-label="Open profile menu"
               >
-                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/30 bg-white/10 flex-shrink-0">
+                <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-white/30 bg-white/10 flex-shrink-0">
                   <div className="w-full h-full">
                     <ProfileAvatar user={userData} size="sm" />
                   </div>
