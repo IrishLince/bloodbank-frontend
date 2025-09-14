@@ -7,8 +7,7 @@ import Header from '../Header';
 const REQUEST_STATUS = {
   PENDING: 'Pending',
   PROCESSING: 'Processing', 
-  FULFILLED: 'Fulfilled',
-  CANCELLED: 'Cancelled'
+  FULFILLED: 'Fulfilled'
 };
 
 export default function RequestStatus() {
@@ -84,7 +83,7 @@ export default function RequestStatus() {
       ],
       requestDate: '2023-11-18',
       dateNeeded: '2023-11-23',
-      status: REQUEST_STATUS.CANCELLED,
+      status: REQUEST_STATUS.PROCESSING,
       priority: 'High',
       notes: 'Request cancelled due to alternative source found',
       cancelledDate: '2023-11-18',
@@ -165,8 +164,6 @@ export default function RequestStatus() {
         return <RefreshCw className="w-4 h-4 text-blue-500" />;
       case REQUEST_STATUS.FULFILLED:
         return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case REQUEST_STATUS.CANCELLED:
-        return <XCircle className="w-4 h-4 text-red-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-500" />;
     }
@@ -180,8 +177,6 @@ export default function RequestStatus() {
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case REQUEST_STATUS.FULFILLED:
         return 'bg-green-100 text-green-800 border-green-200';
-      case REQUEST_STATUS.CANCELLED:
-        return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -287,7 +282,6 @@ export default function RequestStatus() {
                   <option value={REQUEST_STATUS.PENDING}>Pending</option>
                   <option value={REQUEST_STATUS.PROCESSING}>Processing</option>
                   <option value={REQUEST_STATUS.FULFILLED}>Fulfilled</option>
-                  <option value={REQUEST_STATUS.CANCELLED}>Cancelled</option>
                 </select>
 
                 <select
