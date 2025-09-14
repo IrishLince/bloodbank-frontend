@@ -675,6 +675,7 @@ const Header = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false)
   
   // Use the custom hooks
   const { isAuthenticated, userRole, userData, logout, isLoading } = useAuth()
@@ -696,9 +697,10 @@ const Header = () => {
     logout()
   }, [logout])
 
-  // Close mobile menu on route change
+  // Close mobile menus on route change
   useEffect(() => {
     setIsMobileMenuOpen(false)
+    setIsMobileProfileOpen(false)
   }, [location.pathname])
 
   // Early return for hidden paths
@@ -777,53 +779,166 @@ const Header = () => {
             </div>
           )}
 
-          {/* Mobile Menu Button */}
-          <motion.button
-            onClick={handleMobileMenuToggle}
-            className="md:hidden rounded-lg p-2 text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            aria-label="Toggle menu"
-            aria-expanded={isMobileMenuOpen}
-          >
-            <AnimatePresence mode="wait">
-              {isMobileMenuOpen ? (
-                <motion.div
-                  key="close"
-                  initial={{ rotate: -90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                >
-                  <X className="h-6 w-6" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="menu"
-                  initial={{ rotate: 90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: -90, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                >
-                  <Menu className="h-6 w-6" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
+          {/* Mobile Controls */}
+          <div className="md:hidden flex items-center space-x-3">
+            {/* Mobile Profile Avatar */}
+            {isAuthenticated && (
+              <motion.button
+                onClick={() => setIsMobileProfileOpen(prev => !prev)}
+                className="rounded-full p-1 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                aria-label="Open profile menu"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/30">
+                  <ProfileAvatar user={userData} size="sm" />
+                </div>
+              </motion.button>
+            )}
+            
+            {/* Mobile Menu Button */}
+            <motion.button
+              onClick={handleMobileMenuToggle}
+              className="rounded-lg p-2 text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
+            >
+              <AnimatePresence mode="wait">
+                {isMobileMenuOpen ? (
+                  <motion.div
+                    key="close"
+                    initial={{ rotate: -90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: 90, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  >
+                    <X className="h-6 w-6" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="menu"
+                    initial={{ rotate: 90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: -90, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  >
+                    <Menu className="h-6 w-6" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          </div>
           </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Navigation Menu */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <MobileMenu
-              isOpen={isMobileMenuOpen}
-              config={navigationConfig}
-              location={location}
-              isAuthenticated={isAuthenticated}
-              onLogout={handleLogout}
-              userData={userData}
-            />
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ 
+                height: "auto", 
+                opacity: 1,
+                transition: {
+                  height: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 }
+                }
+              }}
+              exit={{ 
+                height: 0, 
+                opacity: 0,
+                transition: {
+                  height: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 }
+                }
+              }}
+              className="md:hidden overflow-hidden bg-red-600/95 backdrop-blur-sm rounded-b-lg shadow-lg"
+            >
+              <nav className="flex flex-col space-y-1 px-2 pb-3 pt-2">
+                {navigationConfig.links?.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    isAuthenticated={isAuthenticated}
+                    isActive={location.pathname === link.to}
+                    icon={link.icon}
+                    className="w-full justify-start"
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile Profile Dropdown */}
+        <AnimatePresence>
+          {isMobileProfileOpen && isAuthenticated && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="absolute right-4 top-16 z-50"
+            >
+              <div className="bg-red-50 rounded-lg shadow-lg border border-red-200 w-80 overflow-hidden">
+                {/* Bloodbank Profile Header */}
+                <div className="px-4 py-4 text-center bg-red-50">
+                  <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 bg-red-100 border-2 border-red-200">
+                    <ProfileAvatar user={userData} size="lg" />
+                  </div>
+                  <div className="text-base font-normal text-red-900 mb-1">
+                    Hi, {userData.name}!
+                  </div>
+                  <div className="text-sm text-red-700 mb-3">
+                    {userData.email}
+                  </div>
+                  <RefreshLink
+                    to="/profile-page"
+                    onClick={() => setIsMobileProfileOpen(false)}
+                    className="inline-block px-4 py-1.5 border border-red-300 rounded-full text-sm text-red-800 bg-white hover:bg-red-50 transition-colors"
+                  >
+                    Manage your Account
+                  </RefreshLink>
+                </div>
+
+                {/* Menu Items */}
+                <div className="py-1 bg-red-50">
+                  <RefreshLink
+                    to="/settings"
+                    onClick={() => setIsMobileProfileOpen(false)}
+                    className="flex items-center px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
+                  >
+                    <Settings className="w-5 h-5 mr-3 text-red-600" />
+                    <span className="text-sm">Settings</span>
+                  </RefreshLink>
+
+                  <button
+                    onClick={() => {
+                      setIsMobileProfileOpen(false)
+                      handleLogout()
+                    }}
+                    className="flex items-center w-full px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
+                  >
+                    <LogOut className="w-5 h-5 mr-3 text-red-600" />
+                    <span className="text-sm">Sign out</span>
+                  </button>
+                </div>
+
+                {/* Footer */}
+                <div className="px-4 py-2 bg-red-100 border-t border-red-200">
+                  <div className="flex items-center justify-center space-x-2 text-xs text-red-600">
+                    <span>Privacy Policy</span>
+                    <span>•</span>
+                    <span>Terms of Service</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
