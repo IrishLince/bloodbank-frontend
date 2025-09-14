@@ -614,55 +614,150 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
         ))}
         
         {isAuthenticated && (
-          <div className="border-t border-red-700 pt-4 mt-2">
-            {/* Mobile Profile Section */}
-            <div className="px-4 py-3 mb-3 bg-white/10 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
-                  <ProfileAvatar user={userData} size="md" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 text-sm text-white mb-1 font-medium">
-                    <User className="w-4 h-4 text-white/80 flex-shrink-0" />
-                    <span className="truncate">{userData.name}</span>
-                  </div>
-                  {userData.email && (
-                    <div className="flex items-center space-x-2 text-sm text-white/80">
-                      <Mail className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{userData.email}</span>
+          <motion.div 
+            className="border-t border-red-700/30 pt-6 mt-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.3 }}
+          >
+            {/* Enhanced Mobile Profile Card */}
+            <motion.div 
+              className="relative mx-2 mb-6 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg overflow-hidden"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              {/* Subtle background pattern */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
+              
+              <div className="relative p-5">
+                <div className="flex items-center space-x-4">
+                  <motion.div 
+                    className="relative flex-shrink-0"
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/30 shadow-lg bg-white/10">
+                      <ProfileAvatar user={userData} size="lg" />
                     </div>
-                  )}
+                    {/* Online status indicator */}
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm" />
+                  </motion.div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <motion.div 
+                      className="flex items-center space-x-2 mb-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <h3 className="text-lg font-semibold text-white truncate">
+                        {userData.name}
+                      </h3>
+                      <div className="px-2 py-0.5 bg-white/20 rounded-full">
+                        <span className="text-xs font-medium text-white/90 uppercase tracking-wide">
+                          {userData.role || 'User'}
+                        </span>
+                      </div>
+                    </motion.div>
+                    
+                    {userData.email && (
+                      <motion.div 
+                        className="flex items-center space-x-2 text-sm text-white/80"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 }}
+                      >
+                        <Mail className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate font-medium">{userData.email}</span>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </div>
+            </motion.div>
+
+            {/* Enhanced Mobile Profile Actions */}
+            <div className="space-y-2 px-2">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <RefreshLink
+                  to="/profile-page"
+                  className="group flex items-center justify-between w-full px-4 py-3.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-white/10 rounded-lg group-hover:bg-white/20 transition-colors">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="font-medium text-white">Profile Settings</span>
+                  </div>
+                  <motion.div
+                    className="text-white/60 group-hover:text-white/80"
+                    whileHover={{ x: 3 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    →
+                  </motion.div>
+                </RefreshLink>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <RefreshLink
+                  to="/settings"
+                  className="group flex items-center justify-between w-full px-4 py-3.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-white/10 rounded-lg group-hover:bg-white/20 transition-colors">
+                      <Settings className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="font-medium text-white">Settings</span>
+                  </div>
+                  <motion.div
+                    className="text-white/60 group-hover:text-white/80"
+                    whileHover={{ x: 3 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    →
+                  </motion.div>
+                </RefreshLink>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="pt-2"
+              >
+                <motion.button
+                  onClick={onLogout}
+                  className="group flex items-center justify-between w-full px-4 py-3.5 bg-red-500/20 hover:bg-red-500/30 rounded-xl transition-all duration-300 border border-red-400/20 hover:border-red-400/40"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-red-500/20 rounded-lg group-hover:bg-red-500/30 transition-colors">
+                      <LogOut className="w-5 h-5 text-red-200" />
+                    </div>
+                    <span className="font-medium text-red-200">Logout</span>
+                  </div>
+                  <motion.div
+                    className="text-red-300/60 group-hover:text-red-300/80"
+                    whileHover={{ x: 3 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    →
+                  </motion.div>
+                </motion.button>
+              </motion.div>
             </div>
-
-            {/* Mobile Profile Actions */}
-            <RefreshLink
-              to="/profile-page"
-              className="flex items-center space-x-2 px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors mb-2"
-            >
-              <User className="w-5 h-5" />
-              <span>Profile Settings</span>
-            </RefreshLink>
-
-            <RefreshLink
-              to="/settings"
-              className="flex items-center space-x-2 px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors mb-2"
-            >
-              <Settings className="w-5 h-5" />
-              <span>Settings</span>
-            </RefreshLink>
-
-            <motion.button
-              onClick={onLogout}
-              className="flex items-center space-x-2 px-4 py-2 text-red-200 hover:bg-red-700 rounded-lg transition-colors w-full"
-              whileHover={{ x: 5, backgroundColor: "rgba(185, 28, 28, 0.8)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </motion.button>
-          </div>
+          </motion.div>
         )}
       </nav>
     </motion.div>
