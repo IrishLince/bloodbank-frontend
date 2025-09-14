@@ -534,17 +534,20 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
 const NavigationLinks = React.memo(({ config, location, isAuthenticated }) => {
   return (
     <>
-      {config.links?.map((link) => (
-      <NavLink
-          key={link.to}
-          to={link.to}
-        isAuthenticated={isAuthenticated}
-          isActive={location.pathname === link.to}
-          icon={link.icon}
-      >
-          {link.label}
-      </NavLink>
-      ))}
+      {config.links?.map((link) => {
+        const isActive = (link.to === "/" && (location.pathname === "/" || location.pathname === "/homepage")) || location.pathname === link.to;
+        return (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            isAuthenticated={isAuthenticated}
+            isActive={isActive}
+            icon={link.icon}
+          >
+            {link.label}
+          </NavLink>
+        );
+      })}
       
       {config.actions && (
         <div className="flex gap-2 ml-4">
@@ -870,7 +873,7 @@ const Header = () => {
                 {/* Navigation Links */}
                 <div className="space-y-1 mb-3">
                   {navigationConfig.links?.map((link) => {
-                    const isActive = (link.to === "/" && location.pathname === "/") || location.pathname === link.to;
+                    const isActive = (link.to === "/" && (location.pathname === "/" || location.pathname === "/homepage")) || location.pathname === link.to;
                     return (
                       <motion.div
                         key={link.to}
