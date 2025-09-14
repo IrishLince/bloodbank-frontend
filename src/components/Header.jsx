@@ -879,6 +879,17 @@ const Header = () => {
                     {link.label}
                   </NavLink>
                 ))}
+                
+                {/* Add Sign Up and Login for non-authenticated users */}
+                {!isAuthenticated && navigationConfig.actions?.map((action) => (
+                  <RefreshLink
+                    key={action.to}
+                    to={action.to}
+                    className="px-4 py-2 text-white hover:bg-red-700 rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <span>{action.label}</span>
+                  </RefreshLink>
+                ))}
               </nav>
             </motion.div>
           )}
