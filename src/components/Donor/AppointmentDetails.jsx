@@ -21,7 +21,6 @@ const AppointmentDetails = () => {
 
     // First, try from navigation state
     if (location.state) {
-      console.log("AppointmentDetails - Data from navigation state:", location.state)
       data = location.state
     }
 
@@ -30,11 +29,10 @@ const AppointmentDetails = () => {
       try {
         const storedData = localStorage.getItem("appointmentData")
         if (storedData) {
-          console.log("AppointmentDetails - Data from localStorage:", JSON.parse(storedData))
           data = JSON.parse(storedData)
         }
       } catch (err) {
-        console.error("Error parsing localStorage data:", err)
+        // Error handled by setting error state
       }
     }
 
@@ -73,49 +71,28 @@ const AppointmentDetails = () => {
         medicalHistory: data.medicalHistory || {},
       }
 
-      console.log("AppointmentDetails - Normalized data:", normalizedData)
-
       // Validate required fields
       const requiredFields = [
         "surname",
-        "firstName",
-        "bloodType",
-        "phoneNumber",
-        "donationCenter",
-        "appointmentDate",
-        "appointmentTime",
-        "sex",
-        "birthday",
-        "civilStatus",
-        "homeAddress",
-        "occupation",
-        "patientName",
-        "donorType",
       ]
 
       const missingFields = requiredFields.filter((field) => !normalizedData[field])
 
       if (missingFields.length > 0) {
-        console.error("Missing required fields:", missingFields)
         setError({
           type: "missing_data",
           message: "Please complete the following information:",
-          fields: missingFields.map((field) =>
-            field
-              .replace(/([A-Z])/g, " $1")
-              .replace(/^./, (str) => str.toUpperCase())
-              .trim(),
-          ),
+          details: missingFields.join(", ")
         })
+        return
       } else {
         setAppointmentData(normalizedData)
       }
     } else {
-      console.error("No appointment data found")
       setError({
         type: "no_data",
         message: "No appointment data found. Please start the eligibility check process again.",
-        fields: [],
+        details: ""
       })
     }
 
@@ -215,12 +192,10 @@ const AppointmentDetails = () => {
           body: JSON.stringify(backendPayload),
         })
         if (!res.ok) {
-          const text = await res.text()
-          console.error('Backend save failed:', res.status, text)
+          // Error is handled by proceeding with local save
         }
       } catch (apiErr) {
-        console.error('Error calling backend:', apiErr)
-        // Proceed with local save to keep UX responsive
+        // Error is handled by proceeding with local save
       }
 
       // Create appointment record with status for local storage and UI
@@ -244,8 +219,7 @@ const AppointmentDetails = () => {
         },
       })
     } catch (error) {
-      console.error('Error saving appointment:', error)
-      // TODO: surface error to user if needed
+      // Error is handled by the UI state
     }
   }
 

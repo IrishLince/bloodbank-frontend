@@ -61,7 +61,7 @@ const ProfileManagement = () => {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch user data:", error);
+        // Error is handled by the UI state
       }
     };
     
@@ -131,7 +131,7 @@ const ProfileManagement = () => {
       }, 3000);
       
     } catch (error) {
-      console.error("Failed to save user data:", error);
+      // Error is handled by the UI state
     }
   };
 

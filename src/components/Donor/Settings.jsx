@@ -98,7 +98,7 @@ const DonorSettings = () => {
         }
       }
     } catch (error) {
-      console.error('Error loading settings:', error)
+      // Error handled by UI state
     } finally {
       setIsLoading(false)
     }
@@ -120,7 +120,6 @@ const DonorSettings = () => {
         setTimeout(() => setSaveMessage(""), 3000)
       }
     } catch (error) {
-      console.error('Error saving settings:', error)
       setSaveMessage("Failed to save settings. Please try again.")
       setTimeout(() => setSaveMessage(""), 3000)
     } finally {
@@ -546,7 +545,7 @@ const DonorSettings = () => {
               onClick={() => {
                 if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
                   // Handle account deletion
-                  console.log('Account deletion requested')
+                  // Account deletion logic would go here
                 }
               }}
               className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"

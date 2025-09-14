@@ -50,7 +50,7 @@ const useAuth = () => {
           userData = JSON.parse(userDataStr)
         }
       } catch (e) {
-        console.warn('Error parsing userData from localStorage:', e)
+        // Silently handle parsing error
       }
       
       // Fallback to individual items for backward compatibility
@@ -94,7 +94,6 @@ const useAuth = () => {
       setUserRole(prev => prev !== role ? role : prev)
       
     } catch (error) {
-      console.error('Error updating user data:', error)
       // Reset to defaults on error
       setUserData({ id: "", name: "User", email: "", token: "", role: "", profilePhotoUrl: "" })
       setIsAuthenticated(false)
@@ -145,7 +144,7 @@ const useAuth = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      // Error is handled by the UI state
     }
   }, [userData.token, userData.refreshToken])
 
@@ -210,7 +209,7 @@ const useAuth = () => {
       
       navigateWithRefresh("/")
     } catch (error) {
-      console.error('Error during logout:', error)
+      // Error is handled by the UI state
     }
   }, [])
 

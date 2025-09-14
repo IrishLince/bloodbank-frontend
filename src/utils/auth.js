@@ -62,7 +62,6 @@ export const refreshAccessToken = async () => {
     setTokens(data.accessToken, refreshToken);
     return data.accessToken;
   } catch (error) {
-    console.error('Error refreshing token:', error);
     removeTokens();
     window.location.href = '/login';
     throw error;
@@ -94,9 +93,8 @@ export const validateTokenWithBackend = async () => {
         return false;
       }
     }
-    return false;
+    return response.ok;
   } catch (error) {
-    console.error('Token validation error:', error);
     return false;
   }
 };

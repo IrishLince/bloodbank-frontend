@@ -143,7 +143,6 @@ const RequestList = () => {
   // Handle confirming acceptance
   const handleConfirmAccept = () => {
     // In a real app, this would make an API call to accept the request
-    console.log(`Accepted request ${selectedRequest.id} from ${selectedRequest.donorName}`);
     setShowAcceptModal(false);
 
     // Update the request status (in a real app, this would be done through API)
@@ -178,7 +177,6 @@ const RequestList = () => {
   // Handle completing a voucher
   const handleCompleteVoucher = () => {
     // In a real app, this would make an API call to mark the voucher as complete
-    console.log(`Completed voucher for request ${validationStatus.request.id}`);
     
     // Reset validation state
     setValidationStatus(null);

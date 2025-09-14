@@ -269,7 +269,6 @@ export default function HospitalList() {
     
     // This won't persist on refresh since it's just state
     // In a real app, you'd update a database
-    console.log("Updated delivery:", updatedDelivery);
     
     // Show success notification (optional)
     alert(`Delivery ${updatedDelivery.id} updated to ${updatedDelivery.status}`);
@@ -279,7 +278,6 @@ export default function HospitalList() {
   const createNewDelivery = (newDelivery) => {
     // In a real app, this would call an API
     // For demo, we'll just add it to the state
-    console.log("Created new delivery:", newDelivery);
     
     // Show success notification (optional)
     alert(`Delivery ${newDelivery.id} has been created successfully!`);

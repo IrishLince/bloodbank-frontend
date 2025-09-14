@@ -333,15 +333,7 @@ const ProfileManagement = () => {
       setIsUpdating(true);
       setError(null);
 
-      console.log('Starting photo upload for user:', userData.id);
-      console.log('File details:', {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-
       const result = await uploadProfilePhoto(userData.id, file);
-      console.log('Upload result:', result);
       
       if (result.success) {
         // Update local state
@@ -367,7 +359,6 @@ const ProfileManagement = () => {
         setError(result.error || 'Failed to upload profile photo');
       }
     } catch (error) {
-      console.error('Error uploading profile photo:', error);
       setError('Failed to upload profile photo: ' + error.message);
     } finally {
       setIsUpdating(false);
@@ -408,13 +399,7 @@ const ProfileManagement = () => {
         // - Password will be preserved by backend
         // - Email is immutable for JWT token security
         // Password changes are handled separately via the password change functionality
-      };
-      
-      console.log('=== PROFILE UPDATE DEBUG ===');
-      console.log('Current userData.profilePhotoUrl:', userData.profilePhotoUrl);
-      console.log('Sending backendData:', backendData);
-      console.log('ProfilePhotoUrl in payload:', backendData.profilePhotoUrl);
-      console.log('============================');
+    };
       
       const response = await fetchWithAuth(`/user/${userData.id}`, {
         method: 'PUT',
@@ -989,17 +974,12 @@ const ProfileManagement = () => {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => {
-              console.log('Change Picture button clicked');
               setShowProfileModal(false);
               // Use setTimeout to ensure modal closes before triggering file input
               setTimeout(() => {
                 const fileInput = document.getElementById('profile-photo-input');
-                console.log('File input element:', fileInput);
                 if (fileInput) {
                   fileInput.click();
-                  console.log('File input clicked');
-                } else {
-                  console.error('File input not found');
                 }
               }, 100);
             }}
@@ -1036,12 +1016,11 @@ const ProfileManagement = () => {
                     // Dispatch event to notify other components
                     window.dispatchEvent(new CustomEvent('userDataUpdated'));
                     
-                    console.log('Photo removed successfully');
                   } else {
-                    console.error('Failed to remove photo:', response.status, response.statusText);
+                    // Error handled by UI state
                   }
                 } catch (error) {
-                  console.error('Error removing photo:', error);
+                  // Error handled by UI state
                 } finally {
                   setIsUpdating(false);
                 }
@@ -2432,10 +2411,8 @@ const ProfileManagement = () => {
         id="profile-photo-input"
         accept="image/*"
         onChange={(e) => {
-          console.log('File input triggered:', e.target.files);
           const file = e.target.files?.[0];
           if (file) {
-            console.log('File selected:', file.name, file.size);
             handleProfilePhotoUpload(file);
           }
           // Reset the input so the same file can be selected again

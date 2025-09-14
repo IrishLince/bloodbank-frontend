@@ -25,13 +25,12 @@ const ListOfAppointments = () => {
             const list = Array.isArray(body) ? body : (body?.data ?? [])
             setAppointments(Array.isArray(list) ? list : [])
           } else {
-            console.warn('Backend fetch failed, status:', res.status)
             // Fallback to localStorage
             const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
             setAppointments(stored)
           }
         } catch (e) {
-          console.error('Error fetching appointments:', e)
+          // Fallback to localStorage on error
           const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
           setAppointments(stored)
         }

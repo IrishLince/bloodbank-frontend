@@ -69,7 +69,7 @@ const ProfileAvatar = ({
     try {
       await onImageChange(file)
     } catch (error) {
-      console.error('Error changing profile image:', error)
+      // Error is handled by the parent component
     } finally {
       setIsLoading(false)
     }

@@ -63,7 +63,6 @@ export const fetchWithAuth = async (url, options = {}) => {
             return retryResponse;
           }
         } catch (error) {
-          console.error('Error refreshing token:', error);
           // If refresh fails, redirect to login
           localStorage.clear();
           navigateWithRefresh('/login');
@@ -79,7 +78,6 @@ export const fetchWithAuth = async (url, options = {}) => {
 
     return response;
   } catch (error) {
-    console.error('API request failed:', error);
     throw error;
   }
 };

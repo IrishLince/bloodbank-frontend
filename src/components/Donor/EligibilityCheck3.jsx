@@ -226,8 +226,6 @@ const EligibilityCheck3 = () => {
   const location = useLocation()
   const previousFormData = location.state || {}
 
-  console.log("EligibilityCheck3 - Received data:", previousFormData)
-
   // Get user's sex from previous form data
   const userSex = previousFormData.sex || ""
 
@@ -240,8 +238,7 @@ const EligibilityCheck3 = () => {
     return true
   })
 
-  console.log("User sex:", userSex)
-  console.log("Filtered questions sections:", questions.length)
+  // User sex and questions sections are now being used for filtering
 
   // Prevent back navigation
   useEffect(() => {
@@ -377,8 +374,6 @@ const EligibilityCheck3 = () => {
         step3: answers,
       },
     }
-
-    console.log("EligibilityCheck3 - Final data being passed:", completeFormData)
 
     // Save to localStorage for persistence
     localStorage.setItem("appointmentData", JSON.stringify(completeFormData))

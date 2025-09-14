@@ -147,9 +147,7 @@ export default function Signup() {
 
   // Check phone number availability
   const checkPhoneAvailability = async (phone) => {
-    console.log('checkPhoneAvailability called with:', phone);
     if (!phone || !/^\d{10}$/.test(phone)) {
-      console.log('Phone validation failed - invalid format:', phone);
       return;
     }
     
@@ -157,7 +155,6 @@ export default function Signup() {
       setIsCheckingPhone(true);
       // Send with country code format to match database storage
       const phoneWithCountryCode = `63${phone}`;
-      console.log('Sending phone check request:', { phone: phoneWithCountryCode });
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api'}/auth/check-phone`, {
         method: 'POST',
@@ -168,18 +165,14 @@ export default function Signup() {
       });
 
       const result = await response.json();
-      console.log('Phone check response:', { status: response.status, result });
       
       if (!response.ok) {
-        console.log('Phone is already in use:', result.message);
         setErrors(prev => ({ ...prev, contactInformation: result.message || 'Phone number is already in use' }));
       } else {
         // Phone is available, clear any existing error
-        console.log('Phone is available');
         setErrors(prev => ({ ...prev, contactInformation: '' }));
       }
     } catch (error) {
-      console.error('Error checking phone availability:', error);
       setErrors(prev => ({ ...prev, contactInformation: 'Error checking phone availability' }));
     } finally {
       setIsCheckingPhone(false);
@@ -1226,19 +1219,18 @@ export default function Signup() {
                     value={formData.contactInformation}
                 onChange={(e) => {
                       let rawValue = e.target.value;
-                      console.log('Phone onChange - raw value:', rawValue);
                       
                       // Handle different input formats (autofill might include country codes)
                       let cleanValue = rawValue.replace(/\D/g, ''); // Remove all non-digits
                       
-                      // Normalize different formats
-                      if (cleanValue.startsWith('63') && cleanValue.length === 12) {
-                        cleanValue = cleanValue.substring(2); // Remove '63' prefix
-                      } else if (cleanValue.length > 10) {
+                      // If the number starts with 63 (country code), remove it
+                      if (cleanValue.startsWith('63') && cleanValue.length > 10) {
+                        cleanValue = cleanValue.substring(2);
+                      }
+                      // If it's still too long, take the last 10 digits
+                      if (cleanValue.length > 10) {
                         cleanValue = cleanValue.slice(-10); // Take last 10 digits
                       }
-                      
-                      console.log('Phone onChange - normalized value:', cleanValue);
                       
                       // Update form data with normalized value
                       setFormData(prev => ({ ...prev, contactInformation: cleanValue }));
@@ -1273,7 +1265,6 @@ export default function Signup() {
                       // Handle browser autofill with longer delay and better format handling
                       setTimeout(() => {
                         const value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
-                        console.log('Autofill detected, checking phone:', value);
                         
                         // Handle different autofill formats
                         let normalizedPhone = value;

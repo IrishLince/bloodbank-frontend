@@ -10,8 +10,6 @@ const EligibilityCheck2 = () => {
   const location = useLocation()
   const previousFormData = location.state || {}
 
-  console.log("EligibilityCheck2 - Received data:", previousFormData)
-
   const [answers, setAnswers] = useState({
     q1: "",
     q2: "",
@@ -116,8 +114,6 @@ const EligibilityCheck2 = () => {
         ...previousFormData,
         medicalHistory: answers,
       }
-
-      console.log("EligibilityCheck2 - Passing data to step 3:", dataToPass)
 
       navigate("/eligibility-step3", {
         state: dataToPass,

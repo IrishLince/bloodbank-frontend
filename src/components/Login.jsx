@@ -37,7 +37,6 @@ export default function Login({ setIsLoggedIn }) {
       }
 
       const authData = await response.json();
-      console.log('Auth response:', authData);
 
       // 2. Store tokens and basic user data
       const userData = {
@@ -71,32 +70,26 @@ export default function Login({ setIsLoggedIn }) {
           credentials: 'include'
         });
         
-        console.log('Profile response status:', profileResponse.status);
-        
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          console.log('User profile data:', profileData);
           
           // Update user data with profile information if available
           if (profileData?.name) {
-            userData.name = profileData.name;
-            userData.email = profileData.email || userData.email;
-            userData.profilePhotoUrl = profileData.profilePhotoUrl || userData.profilePhotoUrl;
+            // Merge profile data with existing user data
+            Object.assign(userData, {
+              name: profileData.name,
+              profilePhotoUrl: profileData.profilePhotoUrl || userData.profilePhotoUrl
+            });
             
-            // Update localStorage with complete profile
+            // Update local storage with merged data
             localStorage.setItem('userData', JSON.stringify(userData));
             localStorage.setItem('userName', profileData.name);
-            
-            console.log('Updated user data with profile:', userData);
             
             // Dispatch event to notify other components
             window.dispatchEvent(new Event('userDataUpdated'));
           }
-        } else {
-          console.warn('Failed to fetch user profile, using basic auth data');
         }
       } catch (profileError) {
-        console.error('Error fetching user profile:', profileError);
       }
       
       // Update parent component's state
@@ -106,7 +99,6 @@ export default function Login({ setIsLoggedIn }) {
       window.location.href = '/';
       
     } catch (error) {
-      console.error('Login error:', error);
       setError(error.message || 'Invalid email or password');
     }
   };

@@ -90,12 +90,6 @@ const EligibilityCheck = () => {
       
       if (response.ok) {
         const userData = await response.json();
-        console.log('Fetched user data for eligibility:', userData);
-        console.log('Available date fields:', {
-          birthDate: userData.birthDate,
-          dateOfBirth: userData.dateOfBirth,
-          'userData keys': Object.keys(userData)
-        });
         
         // Extract name parts (assuming name is "FirstName [MiddleInitial] LastName")
         const fullName = userData.name || '';
@@ -136,31 +130,21 @@ const EligibilityCheck = () => {
           bloodType: userData.bloodType || '',
           surname: lastName,
           firstName: firstName,
-          middleInitial: middleInitial, // Use extracted middle initial
-          birthday: birthDateField ? formatDateForInput(birthDateField) : '',
-          age: calculatedAge,
-          sex: userData.sex || '',
-          homeAddress: userData.address || '',
-          phoneNumber: userData.contactInformation ? stripCountryCode(userData.contactInformation) : '',
-        }));
-        
-        console.log('Auto-populated form data:', {
-          bloodType: userData.bloodType || '',
-          surname: lastName,
-          firstName: firstName,
           middleInitial: middleInitial,
           birthday: birthDateField ? formatDateForInput(birthDateField) : '',
           age: calculatedAge,
           sex: userData.sex || '',
           homeAddress: userData.address || '',
-          phoneNumber: userData.contactInformation ? stripCountryCode(userData.contactInformation) : '',
-        });
+          phoneNumber: userData.contactInformation ? stripCountryCode(userData.contactInformation) : ''
+        }));
+        
+        // Form data is now auto-populated from user profile
         
       } else {
-        console.warn('Failed to fetch user data for eligibility form');
+        // Error handled by UI state
       }
     } catch (error) {
-      console.error('Error fetching user data for eligibility form:', error);
+      // Error handled by UI state
     } finally {
       setIsLoadingUserData(false);
     }

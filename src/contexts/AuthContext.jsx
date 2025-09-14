@@ -35,7 +35,6 @@ export const AuthProvider = ({ children }) => {
           logout();
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
         logout();
       } finally {
         setLoading(false);
@@ -76,7 +75,6 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
-      console.error('Login error:', error);
       return { success: false, error: error.message };
     }
   };

@@ -39,7 +39,6 @@ export const fetchUserProfilePhoto = async (userId) => {
     }
     return null
   } catch (error) {
-    console.error('Error fetching profile photo:', error)
     return null
   }
 }
@@ -52,12 +51,8 @@ export const fetchUserProfilePhoto = async (userId) => {
  */
 export const uploadProfilePhoto = async (userId, photoFile) => {
   try {
-    console.log('uploadProfilePhoto called with:', { userId, fileName: photoFile?.name, fileSize: photoFile?.size })
-    
     const formData = new FormData()
     formData.append('photo', photoFile)
-
-    console.log('FormData created, making request to:', `/user/${userId}/upload-photo`)
 
     const response = await fetchWithAuth(`/user/${userId}/upload-photo`, {
       method: 'POST',
@@ -65,15 +60,8 @@ export const uploadProfilePhoto = async (userId, photoFile) => {
       // Don't set Content-Type header, let the browser set it for FormData
     })
 
-    console.log('Response received:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    })
-
     if (response.ok) {
       const data = await response.json()
-      console.log('Success response data:', data)
       return {
         success: true,
         photoUrl: data?.data?.profilePhotoUrl || null,
@@ -81,14 +69,12 @@ export const uploadProfilePhoto = async (userId, photoFile) => {
       }
     } else {
       const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
-      console.error('Error response:', errorData)
       return {
         success: false,
         error: errorData?.message || 'Failed to upload photo'
       }
     }
   } catch (error) {
-    console.error('Error uploading profile photo:', error)
     return {
       success: false,
       error: 'Failed to upload photo: ' + error.message
