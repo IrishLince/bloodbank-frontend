@@ -898,7 +898,9 @@ const Header = () => {
                 {/* Bloodbank Profile Header */}
                 <div className="px-4 py-4 text-center bg-red-50">
                   <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 bg-red-100 border-2 border-red-200">
-                    <ProfileAvatar user={userData} size="lg" />
+                    <div className="w-full h-full">
+                      <ProfileAvatar user={userData} size="xl" />
+                    </div>
                   </div>
                   <div className="text-base font-normal text-red-900 mb-1">
                     Hi, {userData.name}!

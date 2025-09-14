@@ -14,15 +14,15 @@ const ProfileAvatar = ({
   const [imageError, setImageError] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Size configurations
+  // Size configurations - removed size classes to let parent container control sizing
   const sizes = {
-    xs: 'w-6 h-6',
-    sm: 'w-8 h-8', 
-    md: 'w-10 h-10',
-    lg: 'w-12 h-12',
-    xl: 'w-16 h-16',
-    '2xl': 'w-20 h-20',
-    '3xl': 'w-24 h-24'
+    xs: 'w-full h-full',
+    sm: 'w-full h-full', 
+    md: 'w-full h-full',
+    lg: 'w-full h-full',
+    xl: 'w-full h-full',
+    '2xl': 'w-full h-full',
+    '3xl': 'w-full h-full'
   }
 
   const iconSizes = {
