@@ -1035,38 +1035,51 @@ const BloodRequestForm = () => {
 
               {/* Modal Content */}
               <div className="p-6 space-y-6">
-                {/* Blood Type Selection */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-bold text-gray-800">Blood Type</label>
-                  <select
-                    value={newBloodType}
-                    onChange={(e) => {
-                      setNewBloodType(e.target.value);
-                      const newErrors = { ...errors };
-                      delete newErrors.newBloodType;
-                      setErrors(newErrors);
-                    }}
-                    className={`w-full p-4 border-2 ${errors.newBloodType ? 'border-red-500' : 'border-gray-200'} rounded-lg font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer text-base`}
-                  >
-                    <option value="">Select Blood Type</option>
-                    {selectedAdmin
-                      ? selectedAdmin.inventory
-                          .filter((item) => item.available > 0)
-                          .filter((item) => !bloodRequests.some(req => req.bloodType === item.type))
-                          .map((item) => (
-                            <option key={item.type} value={item.type}>
-                              {item.type} - {item.available} units available
-                            </option>
-                          ))
-                      : null}
-                  </select>
-                  {errors.newBloodType && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <FiInfo className="w-4 h-4 mr-1" />
-                      {errors.newBloodType}
-                    </p>
-                  )}
-                </div>
+  {/* ✅ Reminder for specific blood types */}
+  {newBloodType && ["O+", "A+", "B+", "AB+"].includes(newBloodType) && (
+    <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-2 text-sm">
+      Please note: Maximum allowed units for{" "}
+      {newBloodType === "O+" && "O+ is 15 units"}
+      {newBloodType === "A+" && "A+ is 10 units"}
+      {newBloodType === "B+" && "B+ is 10 units"}
+      {newBloodType === "AB+" && "AB+ is 7 units"}
+    </div>
+  )}
+
+  {/* Blood Type Selection */}
+  <div className="space-y-3">
+    <label className="block text-sm font-bold text-gray-800">Blood Type</label>
+    <select
+      value={newBloodType}
+      onChange={(e) => {
+        setNewBloodType(e.target.value);
+        const newErrors = { ...errors };
+        delete newErrors.newBloodType;
+        setErrors(newErrors);
+      }}
+      className={`w-full p-4 border-2 ${
+        errors.newBloodType ? 'border-red-500' : 'border-gray-200'
+      } rounded-lg font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer text-base`}
+    >
+      <option value="">Select Blood Type</option>
+      {selectedAdmin
+        ? selectedAdmin.inventory
+            .filter((item) => item.available > 0)
+            .filter((item) => !bloodRequests.some(req => req.bloodType === item.type))
+            .map((item) => (
+              <option key={item.type} value={item.type}>
+                🩸 {item.type} - {item.available} units available
+              </option>
+            ))
+        : null}
+    </select>
+    {errors.newBloodType && (
+      <p className="text-red-500 text-sm mt-1 flex items-center">
+        <FiInfo className="w-4 h-4 mr-1" />
+        {errors.newBloodType}
+      </p>
+    )}
+  </div>
 
                 {/* Units Requested */}
                 <div className="space-y-3">
