@@ -614,15 +614,55 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
         ))}
         
         {isAuthenticated && (
-          <motion.button
-            onClick={onLogout}
-            className="flex items-center space-x-2 px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors mt-2 border-t border-red-700 pt-4"
-            whileHover={{ x: 5, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </motion.button>
+          <div className="border-t border-red-700 pt-4 mt-2">
+            {/* Mobile Profile Section */}
+            <div className="px-4 py-3 mb-3 bg-white/10 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <ProfileAvatar user={userData} size="md" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 text-sm text-white mb-1 font-medium">
+                    <User className="w-4 h-4 text-white/80 flex-shrink-0" />
+                    <span className="truncate">{userData.name}</span>
+                  </div>
+                  {userData.email && (
+                    <div className="flex items-center space-x-2 text-sm text-white/80">
+                      <Mail className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{userData.email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Profile Actions */}
+            <RefreshLink
+              to="/profile-page"
+              className="flex items-center space-x-2 px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors mb-2"
+            >
+              <User className="w-5 h-5" />
+              <span>Profile Settings</span>
+            </RefreshLink>
+
+            <RefreshLink
+              to="/settings"
+              className="flex items-center space-x-2 px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors mb-2"
+            >
+              <Settings className="w-5 h-5" />
+              <span>Settings</span>
+            </RefreshLink>
+
+            <motion.button
+              onClick={onLogout}
+              className="flex items-center space-x-2 px-4 py-2 text-red-200 hover:bg-red-700 rounded-lg transition-colors w-full"
+              whileHover={{ x: 5, backgroundColor: "rgba(185, 28, 28, 0.8)" }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Logout</span>
+            </motion.button>
+          </div>
         )}
       </nav>
     </motion.div>
