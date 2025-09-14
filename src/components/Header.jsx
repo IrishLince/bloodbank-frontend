@@ -614,65 +614,79 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
         ))}
         
         {isAuthenticated && (
-          <div className="border-t border-red-700/20 mt-3 pt-4">
-            {/* Clean Mobile Profile Header */}
-            <div className="px-4 py-3 mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 bg-white/10">
-                  <ProfileAvatar user={userData} size="md" />
+          <div className="bg-white rounded-lg shadow-xl border border-gray-200 mx-3 mt-4 mb-3 overflow-hidden">
+            {/* Google-style Profile Header */}
+            <div className="px-6 py-5 text-center border-b border-gray-100">
+              <div className="flex flex-col items-center">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-gray-100 mb-3 bg-gray-50">
+                  <ProfileAvatar user={userData} size="xl" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white font-semibold text-base truncate">
-                    {userData.name}
-                  </div>
-                  <div className="text-white/70 text-sm truncate">
-                    {userData.email}
-                  </div>
-                </div>
-                <div className="px-2 py-1 bg-white/15 rounded-md">
-                  <span className="text-xs font-medium text-white/90 uppercase">
-                    {userData.role || 'User'}
-                  </span>
-                </div>
+                <h2 className="text-lg font-medium text-gray-900 mb-1">
+                  Hi, {userData.name}!
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  {userData.email}
+                </p>
+                <RefreshLink
+                  to="/profile-page"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                >
+                  Manage your Account
+                </RefreshLink>
               </div>
             </div>
 
-            {/* Clean Mobile Menu Items */}
-            <div className="space-y-1">
-              <RefreshLink
-                to="/profile-page"
-                className="flex items-center px-4 py-3 text-white hover:bg-white/10 transition-colors duration-200"
-              >
-                <User className="w-5 h-5 mr-3 text-white/80" />
-                <span className="font-medium">Profile Settings</span>
-                <div className="ml-auto text-white/50">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </RefreshLink>
-
+            {/* Google-style Menu Items */}
+            <div className="py-2">
               <RefreshLink
                 to="/settings"
-                className="flex items-center px-4 py-3 text-white hover:bg-white/10 transition-colors duration-200"
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
               >
-                <Settings className="w-5 h-5 mr-3 text-white/80" />
-                <span className="font-medium">Settings</span>
-                <div className="ml-auto text-white/50">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <div className="w-6 h-6 mr-4 flex items-center justify-center">
+                  <Settings className="w-5 h-5 text-gray-500" />
                 </div>
+                <span className="text-sm font-medium">Settings</span>
               </RefreshLink>
 
-              <div className="border-t border-red-700/20 mt-2 pt-2">
+              <RefreshLink
+                to="/rewards"
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+              >
+                <div className="w-6 h-6 mr-4 flex items-center justify-center">
+                  <Star className="w-5 h-5 text-gray-500" />
+                </div>
+                <span className="text-sm font-medium">Reward Points</span>
+              </RefreshLink>
+
+              <RefreshLink
+                to="/list-of-appointments"
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+              >
+                <div className="w-6 h-6 mr-4 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-gray-500" />
+                </div>
+                <span className="text-sm font-medium">My Appointments</span>
+              </RefreshLink>
+
+              <div className="border-t border-gray-100 mt-2">
                 <button
                   onClick={onLogout}
-                  className="flex items-center w-full px-4 py-3 text-red-200 hover:bg-red-500/10 transition-colors duration-200"
+                  className="flex items-center w-full px-6 py-3 text-gray-700 hover:bg-gray-50 transition-colors duration-150"
                 >
-                  <LogOut className="w-5 h-5 mr-3" />
-                  <span className="font-medium">Logout</span>
+                  <div className="w-6 h-6 mr-4 flex items-center justify-center">
+                    <LogOut className="w-5 h-5 text-gray-500" />
+                  </div>
+                  <span className="text-sm font-medium">Sign out</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Google-style Footer */}
+            <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
+              <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
+                <span>Privacy Policy</span>
+                <span>•</span>
+                <span>Terms of Service</span>
               </div>
             </div>
           </div>
