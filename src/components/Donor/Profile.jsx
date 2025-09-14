@@ -11,6 +11,9 @@ import { uploadProfilePhoto } from "../../utils/profileImage"
 import ProfileAvatar from "../ProfileAvatar"
 import flagLogo from "../../assets/Logophonenumber.png"
 
+// Import API base URL from environment variables or use default
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+
 // Add a CSS block for global styles
 const globalStyles = `
   .no-scrollbar::-webkit-scrollbar {
@@ -494,9 +497,12 @@ const ProfileManagement = () => {
       setIsChangingPhone(true);
       setError(null);
       
+      // Get API base URL from environment variables
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+      
       // Use regular OTP endpoint for new phone number verification
       // We'll send a request to verify the new phone number without email
-      const response = await fetch('http://localhost:8080/api/auth/send-phone-otp', {
+      const response = await fetch(`${API_BASE_URL}/auth/send-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -515,7 +521,7 @@ const ProfileManagement = () => {
       } else {
         // If phone-specific endpoint doesn't exist, try the regular send-otp with just phone
         try {
-          const altResponse = await fetch('http://localhost:8080/api/auth/send-otp', {
+          const altResponse = await fetch(`${API_BASE_URL}/auth/send-otp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -648,7 +654,7 @@ const ProfileManagement = () => {
     
     try {
       setIsCheckingPhone(true);
-      const response = await fetch('http://localhost:8080/api/auth/check-phone', {
+      const response = await fetch(`${API_BASE_URL}/auth/check-phone`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1011,7 +1017,7 @@ const ProfileManagement = () => {
                   
                   // Call remove photo function
                   const token = localStorage.getItem('userToken') || localStorage.getItem('accessToken');
-                  const response = await fetch(`http://localhost:8080/api/user/${userData.id}/photo`, {
+                  const response = await fetch(`${API_BASE_URL}/user/${userData.id}/photo`, {
                     method: 'DELETE',
                     headers: {
                       'Authorization': `Bearer ${token}`
