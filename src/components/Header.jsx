@@ -614,150 +614,68 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
         ))}
         
         {isAuthenticated && (
-          <motion.div 
-            className="border-t border-red-700/30 pt-6 mt-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.3 }}
-          >
-            {/* Enhanced Mobile Profile Card */}
-            <motion.div 
-              className="relative mx-2 mb-6 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg overflow-hidden"
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            >
-              {/* Subtle background pattern */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
-              
-              <div className="relative p-5">
-                <div className="flex items-center space-x-4">
-                  <motion.div 
-                    className="relative flex-shrink-0"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/30 shadow-lg bg-white/10">
-                      <ProfileAvatar user={userData} size="lg" />
-                    </div>
-                    {/* Online status indicator */}
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm" />
-                  </motion.div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <motion.div 
-                      className="flex items-center space-x-2 mb-2"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <h3 className="text-lg font-semibold text-white truncate">
-                        {userData.name}
-                      </h3>
-                      <div className="px-2 py-0.5 bg-white/20 rounded-full">
-                        <span className="text-xs font-medium text-white/90 uppercase tracking-wide">
-                          {userData.role || 'User'}
-                        </span>
-                      </div>
-                    </motion.div>
-                    
-                    {userData.email && (
-                      <motion.div 
-                        className="flex items-center space-x-2 text-sm text-white/80"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 }}
-                      >
-                        <Mail className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate font-medium">{userData.email}</span>
-                      </motion.div>
-                    )}
+          <div className="border-t border-red-700/20 mt-3 pt-4">
+            {/* Clean Mobile Profile Header */}
+            <div className="px-4 py-3 mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 bg-white/10">
+                  <ProfileAvatar user={userData} size="md" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-semibold text-base truncate">
+                    {userData.name}
+                  </div>
+                  <div className="text-white/70 text-sm truncate">
+                    {userData.email}
                   </div>
                 </div>
+                <div className="px-2 py-1 bg-white/15 rounded-md">
+                  <span className="text-xs font-medium text-white/90 uppercase">
+                    {userData.role || 'User'}
+                  </span>
+                </div>
               </div>
-            </motion.div>
-
-            {/* Enhanced Mobile Profile Actions */}
-            <div className="space-y-2 px-2">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <RefreshLink
-                  to="/profile-page"
-                  className="group flex items-center justify-between w-full px-4 py-3.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-white/10 rounded-lg group-hover:bg-white/20 transition-colors">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="font-medium text-white">Profile Settings</span>
-                  </div>
-                  <motion.div
-                    className="text-white/60 group-hover:text-white/80"
-                    whileHover={{ x: 3 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    →
-                  </motion.div>
-                </RefreshLink>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <RefreshLink
-                  to="/settings"
-                  className="group flex items-center justify-between w-full px-4 py-3.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-white/10 rounded-lg group-hover:bg-white/20 transition-colors">
-                      <Settings className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="font-medium text-white">Settings</span>
-                  </div>
-                  <motion.div
-                    className="text-white/60 group-hover:text-white/80"
-                    whileHover={{ x: 3 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    →
-                  </motion.div>
-                </RefreshLink>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="pt-2"
-              >
-                <motion.button
-                  onClick={onLogout}
-                  className="group flex items-center justify-between w-full px-4 py-3.5 bg-red-500/20 hover:bg-red-500/30 rounded-xl transition-all duration-300 border border-red-400/20 hover:border-red-400/40"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-red-500/20 rounded-lg group-hover:bg-red-500/30 transition-colors">
-                      <LogOut className="w-5 h-5 text-red-200" />
-                    </div>
-                    <span className="font-medium text-red-200">Logout</span>
-                  </div>
-                  <motion.div
-                    className="text-red-300/60 group-hover:text-red-300/80"
-                    whileHover={{ x: 3 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    →
-                  </motion.div>
-                </motion.button>
-              </motion.div>
             </div>
-          </motion.div>
+
+            {/* Clean Mobile Menu Items */}
+            <div className="space-y-1">
+              <RefreshLink
+                to="/profile-page"
+                className="flex items-center px-4 py-3 text-white hover:bg-white/10 transition-colors duration-200"
+              >
+                <User className="w-5 h-5 mr-3 text-white/80" />
+                <span className="font-medium">Profile Settings</span>
+                <div className="ml-auto text-white/50">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RefreshLink>
+
+              <RefreshLink
+                to="/settings"
+                className="flex items-center px-4 py-3 text-white hover:bg-white/10 transition-colors duration-200"
+              >
+                <Settings className="w-5 h-5 mr-3 text-white/80" />
+                <span className="font-medium">Settings</span>
+                <div className="ml-auto text-white/50">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RefreshLink>
+
+              <div className="border-t border-red-700/20 mt-2 pt-2">
+                <button
+                  onClick={onLogout}
+                  className="flex items-center w-full px-4 py-3 text-red-200 hover:bg-red-500/10 transition-colors duration-200"
+                >
+                  <LogOut className="w-5 h-5 mr-3" />
+                  <span className="font-medium">Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </nav>
     </motion.div>
