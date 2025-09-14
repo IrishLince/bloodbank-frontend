@@ -565,7 +565,7 @@ const NavigationLinks = React.memo(({ config, location, isAuthenticated }) => {
 
 NavigationLinks.displayName = 'NavigationLinks'
 
-const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLogout }) => {
+const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLogout, userData }) => {
   if (!isOpen) return null
 
   return (
@@ -823,6 +823,7 @@ const Header = () => {
               location={location}
               isAuthenticated={isAuthenticated}
               onLogout={handleLogout}
+              userData={userData}
             />
           )}
         </AnimatePresence>
