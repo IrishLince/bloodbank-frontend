@@ -52,6 +52,7 @@ const ProfileManagement = () => {
   const [phoneOtp, setPhoneOtp] = useState('')
   const [isCheckingPhone, setIsCheckingPhone] = useState(false)
   const [phoneError, setPhoneError] = useState('')
+  const [phoneOtpAttempts, setPhoneOtpAttempts] = useState(0)
   
   // Password fields state - SEPARATE from formData for persistence
   // These fields remain persistent across modal closes/opens until manually cleared
@@ -566,32 +567,20 @@ const ProfileManagement = () => {
         let middleInitial = '';
         let lastName = '';
         
-        if (nameParts.length === 1) {
-          // Only first name
-          firstName = nameParts[0];
+        // Handle name parts properly - use same logic as EligibilityCheck
+        if (nameParts.length === 3) {
+          // If there are exactly 3 parts, assume middle initial is in the middle
+          middleInitial = nameParts[1] || '';
+          lastName = nameParts[2] || '';
+        } else if (nameParts.length > 3) {
+          // More than 3 parts - assume second part is middle initial, rest is last name
+          middleInitial = nameParts[1] || '';
+          lastName = nameParts.slice(2).join(' ') || '';
         } else if (nameParts.length === 2) {
-          // First name and last name only
-          firstName = nameParts[0];
-          lastName = nameParts[1];
-        } else if (nameParts.length >= 3) {
-          // First name, potential middle initial, and last name(s)
-          firstName = nameParts[0];
-          const potentialMiddleInitial = nameParts[1];
-          
-          // Check if the second part looks like a middle initial
-          // (single letter, single letter with period, or short name that could be middle initial)
-          if (potentialMiddleInitial.length === 1 || 
-              (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) ||
-              (potentialMiddleInitial.length <= 4 && !/\d/.test(potentialMiddleInitial))) {
-            // Treat as middle initial
-            middleInitial = potentialMiddleInitial.replace('.', ''); // Remove period if present
-            lastName = nameParts.slice(2).join(' '); // Everything after middle initial is last name
-          } else {
-            // No middle initial, treat second part onwards as last name
-            middleInitial = '';
-            lastName = nameParts.slice(1).join(' ');
-          }
+          // Only first and last name
+          lastName = nameParts[1] || '';
         }
+        // If only 1 part, just firstName is set above
         
         setFormData(prev => ({ 
           ...prev, 
@@ -608,11 +597,16 @@ const ProfileManagement = () => {
         setOriginalPhone('');
         setNewPhone(undefined);
         setPhoneError('');
+        setPhoneOtpAttempts(0);
         
         // Refresh profile data
         await fetchUserProfile();
         
       } else {
+        // Increment attempt counter
+        const newAttempts = phoneOtpAttempts + 1;
+        setPhoneOtpAttempts(newAttempts);
+        
         const errorData = await response.text();
         let errorMessage = 'Failed to verify OTP and change phone number';
         try {
@@ -621,12 +615,37 @@ const ProfileManagement = () => {
         } catch (e) {
           errorMessage = errorData || errorMessage;
         }
+        
+        // Check if max attempts reached
+        if (newAttempts >= 3) {
+          setPhoneError('Maximum OTP attempts reached. Please try again later.');
+          // Auto-close modal after 2 seconds
+          setTimeout(() => {
+            setShowEditModal(false);
+            // Reset all phone verification states
+            setPhoneVerificationStep('edit');
+            setPhoneOtpSent(false);
+            setPhoneOtp('');
+            setOriginalPhone('');
+            setNewPhone(undefined);
+            setPhoneError('');
+            setPhoneOtpAttempts(0);
+            setIsChangingPhone(false);
+          }, 2000);
+        } else {
+          setPhoneError(`${errorMessage} (${newAttempts}/3 attempts)`);
+        }
+        
         throw new Error(errorMessage);
       }
     } catch (error) {
-      setError(error.message || 'Failed to verify OTP and change phone number');
+      if (phoneOtpAttempts < 3) {
+        setError(error.message || 'Failed to verify OTP and change phone number');
+      }
     } finally {
-      setIsChangingPhone(false);
+      if (phoneOtpAttempts < 3) {
+        setIsChangingPhone(false);
+      }
     }
   };
 
@@ -1070,12 +1089,14 @@ const ProfileManagement = () => {
                 setOriginalPhone('');
                 setNewPhone(undefined);
                 setPhoneError('');
+                setPhoneOtpAttempts(0);
+                setIsChangingPhone(false);
                 setShowEditModal(false);
-              }} 
-              className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full transition-all duration-200 flex items-center justify-center group backdrop-blur-sm"
+              }}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
             >
-              <X className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-          </button>
+              <X className="w-6 h-6 text-white" />
+            </button>
           </div>
         </div>
 
@@ -1090,7 +1111,7 @@ const ProfileManagement = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">Personal Details</h2>
-                  <p className="text-sm text-gray-600">Basic information about you</p>
+                  <p className="text-sm text-gray-600">Update your basic information</p>
                 </div>
               </div>
 
