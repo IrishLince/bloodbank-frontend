@@ -174,27 +174,20 @@ const ProfileManagement = () => {
     let middleInitial = '';
     let lastName = '';
     
-    // Check if there's a potential middle initial (with or without period)
-    if (nameParts.length > 2) {
-      const potentialMiddleInitial = nameParts[1];
-      // Check if it's a single letter with period (traditional middle initial)
-      if (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) {
-        // It's a middle initial with period
-        middleInitial = potentialMiddleInitial.charAt(0); // Store without period
-        lastName = nameParts.slice(2).join(' ');
-      } 
-      // Check if it's a longer middle name/initial without period
-      else if (nameParts.length >= 3 && !/\d/.test(potentialMiddleInitial)) {
-        // Assume it's a middle name/initial
-        middleInitial = potentialMiddleInitial; // Store the full middle name/initial
-        lastName = nameParts.slice(2).join(' ');
-      } else {
-        // No middle initial, just first and last name
-        lastName = nameParts.slice(1).join(' ');
-      }
+    // Handle name parts properly - use same logic as EligibilityCheck
+    if (nameParts.length === 3) {
+      // If there are exactly 3 parts, assume middle initial is in the middle
+      middleInitial = nameParts[1] || '';
+      lastName = nameParts[2] || '';
+    } else if (nameParts.length > 3) {
+      // More than 3 parts - assume second part is middle initial, rest is last name
+      middleInitial = nameParts[1] || '';
+      lastName = nameParts.slice(2).join(' ') || '';
     } else if (nameParts.length === 2) {
-      lastName = nameParts[1];
+      // Only first and last name
+      lastName = nameParts[1] || '';
     }
+    // If only 1 part, just firstName is set above
     
     return {
       ...userData,
@@ -267,26 +260,31 @@ const ProfileManagement = () => {
         let middleInitial = '';
         let lastName = '';
         
-        // Check if there's a potential middle initial (with or without period)
-        if (nameParts.length > 2) {
+        if (nameParts.length === 1) {
+          // Only first name
+          firstName = nameParts[0];
+        } else if (nameParts.length === 2) {
+          // First name and last name only
+          firstName = nameParts[0];
+          lastName = nameParts[1];
+        } else if (nameParts.length >= 3) {
+          // First name, potential middle initial, and last name(s)
+          firstName = nameParts[0];
           const potentialMiddleInitial = nameParts[1];
-          // Check if it's a single letter with period (traditional middle initial)
-          if (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) {
-            // It's a middle initial with period
-            middleInitial = potentialMiddleInitial.charAt(0); // Store without period
-            lastName = nameParts.slice(2).join(' ');
-          } 
-          // Check if it's a longer middle name/initial without period
-          else if (nameParts.length >= 3 && !/\d/.test(potentialMiddleInitial)) {
-            // Assume it's a middle name/initial
-            middleInitial = potentialMiddleInitial; // Store the full middle name/initial
-            lastName = nameParts.slice(2).join(' ');
+          
+          // Check if the second part looks like a middle initial
+          // (single letter, single letter with period, or short name that could be middle initial)
+          if (potentialMiddleInitial.length === 1 || 
+              (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) ||
+              (potentialMiddleInitial.length <= 4 && !/\d/.test(potentialMiddleInitial))) {
+            // Treat as middle initial
+            middleInitial = potentialMiddleInitial.replace('.', ''); // Remove period if present
+            lastName = nameParts.slice(2).join(' '); // Everything after middle initial is last name
           } else {
-            // No middle initial, just first and last name
+            // No middle initial, treat second part onwards as last name
+            middleInitial = '';
             lastName = nameParts.slice(1).join(' ');
           }
-        } else if (nameParts.length === 2) {
-          lastName = nameParts[1];
         }
         
         const formData = {
@@ -568,26 +566,31 @@ const ProfileManagement = () => {
         let middleInitial = '';
         let lastName = '';
         
-        // Check if there's a potential middle initial (with or without period)
-        if (nameParts.length > 2) {
+        if (nameParts.length === 1) {
+          // Only first name
+          firstName = nameParts[0];
+        } else if (nameParts.length === 2) {
+          // First name and last name only
+          firstName = nameParts[0];
+          lastName = nameParts[1];
+        } else if (nameParts.length >= 3) {
+          // First name, potential middle initial, and last name(s)
+          firstName = nameParts[0];
           const potentialMiddleInitial = nameParts[1];
-          // Check if it's a single letter with period (traditional middle initial)
-          if (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) {
-            // It's a middle initial with period
-            middleInitial = potentialMiddleInitial.charAt(0); // Store without period
-            lastName = nameParts.slice(2).join(' ');
-          } 
-          // Check if it's a longer middle name/initial without period
-          else if (nameParts.length >= 3 && !/\d/.test(potentialMiddleInitial)) {
-            // Assume it's a middle name/initial
-            middleInitial = potentialMiddleInitial; // Store the full middle name/initial
-            lastName = nameParts.slice(2).join(' ');
+          
+          // Check if the second part looks like a middle initial
+          // (single letter, single letter with period, or short name that could be middle initial)
+          if (potentialMiddleInitial.length === 1 || 
+              (potentialMiddleInitial.length === 2 && potentialMiddleInitial.endsWith('.')) ||
+              (potentialMiddleInitial.length <= 4 && !/\d/.test(potentialMiddleInitial))) {
+            // Treat as middle initial
+            middleInitial = potentialMiddleInitial.replace('.', ''); // Remove period if present
+            lastName = nameParts.slice(2).join(' '); // Everything after middle initial is last name
           } else {
-            // No middle initial, just first and last name
+            // No middle initial, treat second part onwards as last name
+            middleInitial = '';
             lastName = nameParts.slice(1).join(' ');
           }
-        } else if (nameParts.length === 2) {
-          lastName = nameParts[1];
         }
         
         setFormData(prev => ({ 
@@ -1013,9 +1016,11 @@ const ProfileManagement = () => {
                     storedUserData.profilePhotoUrl = '';
                     localStorage.setItem('userData', JSON.stringify(storedUserData));
                     
-                    // Dispatch event to notify other components
+                    // Dispatch event to notify header of update
                     window.dispatchEvent(new CustomEvent('userDataUpdated'));
-                    
+
+                    // Show success message
+                    // You could add a success state here if needed
                   } else {
                     // Error handled by UI state
                   }
@@ -1330,7 +1335,7 @@ const ProfileManagement = () => {
                             />
                             <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm0 0v-8" />
                               </svg>
                             </div>
                           </div>
@@ -1366,7 +1371,7 @@ const ProfileManagement = () => {
                             ) : (
                               <>
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
                                 </svg>
                                 <span>Verify & Update Phone</span>
                               </>
@@ -1752,20 +1757,20 @@ const ProfileManagement = () => {
                   <div className="flex gap-3 mt-6">
               <button
                 type="button"
-                      onClick={() => {
-                        setPasswordFields({ oldPassword: '', newPassword: '', confirmPassword: '' });
-                        setPasswordOtp('');
-                        setPasswordOtpSent(false);
-                        // Reset password validation states
-                        setPasswordValidation({
-                          oldPassword: { isValid: null, message: '' },
-                          newPassword: { isValid: null, message: '' },
-                          confirmPassword: { isValid: null, message: '' }
-                        });
-                      }}
-                      className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium shadow-sm hover:shadow transition-all text-sm"
-                    >
-                      Clear Password Fields
+                onClick={() => {
+                  setPasswordFields({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                  setPasswordOtp('');
+                  setPasswordOtpSent(false);
+                  // Reset password validation states
+                  setPasswordValidation({
+                    oldPassword: { isValid: null, message: '' },
+                    newPassword: { isValid: null, message: '' },
+                    confirmPassword: { isValid: null, message: '' }
+                  });
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium shadow-sm hover:shadow transition-all text-sm"
+              >
+                Clear Password Fields
               </button>
                     
                     {!passwordOtpSent ? (
@@ -1960,23 +1965,18 @@ const ProfileManagement = () => {
   const renderArchiveConfirmationInput = () => (
     <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md mx-4 shadow-xl animate-fadeIn">
-        <div className="flex items-center mb-6">
-          <button onClick={() => {
-            setShowArchiveConfirmModal(false);
-            setShowArchiveModal(true);
-          }} className="flex items-center text-[#C91C1C] hover:bg-red-50 p-2 rounded-lg transition-colors">
-            <ArrowLeft className="mr-1 w-5 h-5" />
-            <span>BACK</span>
-          </button>
-        </div>
         <div className="flex flex-col items-center">
           <div className="w-28 h-28 rounded-full overflow-hidden mb-4 border-4 border-red-100 shadow-md">
             <img src="/path-to-user-avatar.png" alt="" className="w-full h-full object-cover" />
           </div>
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{userData.name.toUpperCase()}</h2>
-          <div className="w-full bg-red-50 p-4 rounded-lg mb-6">
-            <p className="text-center text-gray-800 mb-2">To confirm, type "{userData.name.toUpperCase()}" in the box below</p>
-            <p className="text-xs text-red-600 text-center">This action cannot be undone easily</p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 w-full">
+            <p className="text-sm text-amber-800 text-center mb-2">
+              <strong>Important:</strong> You are about to archive your account. To confirm, type "{userData.name.toUpperCase()}" in the box below
+            </p>
+            <p className="text-xs text-amber-700 text-center">
+              This action cannot be undone. Are you sure this is correct?
+            </p>
           </div>
           <input
             type="text"
@@ -2273,7 +2273,7 @@ const ProfileManagement = () => {
                 setPhoneError('');
                 setShowEditModal(true);
               }}
-              className="inline-flex items-center bg-white shadow-md text-[#C91C1C] px-4 py-1.5 rounded-full transition-all text-sm"
+              className="inline-flex items-center bg-white shadow-md text-[#C91C1C] px-4 py-1.5 rounded-full transition-colors text-sm font-medium"
             >
               <User className="w-3.5 h-3.5 mr-1.5" />
               Edit Profile
