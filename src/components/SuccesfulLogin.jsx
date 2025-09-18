@@ -44,7 +44,7 @@ const SuccessfulLogin = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % images.length);
-    }, 5000); // Change image every 5 seconds
+    }, 60000); // Change image every 1 minute (60 seconds)
 
     return () => clearInterval(timer);
   }, []);
