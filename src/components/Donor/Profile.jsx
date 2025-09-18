@@ -416,7 +416,9 @@ const ProfileManagement = () => {
           const updatedUserData = {
             ...userData,
             name: formData.firstName && formData.lastName 
-                  ? `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim()
+                  ? `${formData.firstName.trim()}${formData.middleInitial ? 
+                      (formData.middleInitial.trim().length === 1 ? ` ${formData.middleInitial.trim()}.` : ` ${formData.middleInitial.trim()}`) 
+                      : ''} ${formData.lastName.trim()}`.trim()
                   : formData.firstName?.trim() || formData.lastName?.trim() || userData.name,
             // email: formData.email || userData.email, // NEVER update email locally
             username: formData.username || userData.username,

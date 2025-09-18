@@ -474,17 +474,6 @@ export default function ViewRequests({ hospital, onClose }) {
                 <div key={index} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
                     <div className="flex items-start">
-                      {/* Checkbox for selecting request */}
-                      {request.status === 'Pending' && (
-                        <div className="mr-4 mt-1">
-                          <input
-                            type="checkbox"
-                            checked={selectedRequests.includes(request.id)}
-                            onChange={() => toggleRequestSelection(request.id)}
-                            className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                        </div>
-                      )}
                       <div>
                         <div className="flex items-center">
                           <h3 className="font-medium text-lg text-gray-800 mr-3">{request.id}</h3>
@@ -584,26 +573,7 @@ export default function ViewRequests({ hospital, onClose }) {
         
         {/* Footer with Actions */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-          {hospital.deliveryStatus === "Pending" && filteredRequests.length > 0 ? (
-            <div className="flex space-x-3">
-              <button
-                onClick={handleBulkApprove}
-                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-                disabled={selectedRequests.length === 0}
-              >
-                <CheckCircle className="w-4 h-4 mr-1.5" /> Approve Selected
-              </button>
-              <button
-                onClick={handleBulkReject}
-                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center"
-                disabled={selectedRequests.length === 0}
-              >
-                <X className="w-4 h-4 mr-1.5" /> Reject Selected
-              </button>
-            </div>
-          ) : (
-            <div></div>
-          )}
+          <div></div>
           <button
             onClick={onClose}
             className="px-4 py-2 text-white bg-[#C91C1C] rounded-lg hover:bg-[#b01818] transition-colors"
@@ -728,7 +698,7 @@ export default function ViewRequests({ hospital, onClose }) {
               
               <div className="flex justify-end space-x-3">
                 <button
-                  onClick={() => handleReject(requestToApprove.id)}
+                  onClick={handleReject(requestToApprove.id)}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                 >
                   Rejected

@@ -1,8 +1,11 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Eye, EyeOff, FileText, Building, User, Lock, Shield, CheckCircle, AlertTriangle, Pencil, Clock, LogOut } from "lucide-react"
+import { 
+  Building, User, Mail, Phone, MapPin, Lock, FileText, 
+  CheckCircle, Calendar, Clock, Camera, Loader2, AlertTriangle,
+  ArrowLeft, Eye, EyeOff
+} from "lucide-react"
+import { hospitalProfileAPI, uploadProfilePhoto } from '../../utils/api'
 
 
 const ProfileManagement = () => {
@@ -13,7 +16,41 @@ const ProfileManagement = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [confirmText, setConfirmText] = useState("")
   const [isMobile, setIsMobile] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const navigate = useNavigate()
+  const [hospitalData, setHospitalData] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchHospitalData = async () => {
+      try {
+        setLoading(true);
+        const data = await hospitalProfileAPI.getCurrentProfile();
+        setHospitalData(data);
+        setError(null);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHospitalData();
+  }, []);
+
+  const handleProfilePhotoUpload = async (file) => {
+    setIsUpdating(true);
+    try {
+      const photoUrl = await uploadProfilePhoto(file);
+      setHospitalData({ ...hospitalData, profilePhotoUrl: photoUrl });
+      setError(null);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Check if the screen is mobile size on load and when resized
   useEffect(() => {
@@ -41,32 +78,20 @@ const ProfileManagement = () => {
           <div className="relative p-5 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8">
             {/* Profile Image */}
             <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-full border-4 border-white flex items-center justify-center relative -mt-4 sm:mt-0">
-              <Building className="w-14 h-14 sm:w-16 sm:h-16 text-red-600" />
+              {hospitalData.profilePhotoUrl ? (
+                <img src={hospitalData.profilePhotoUrl} alt="Profile Photo" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <Building className="w-14 h-14 sm:w-16 sm:h-16 text-red-600" />
+              )}
               <div className="absolute bottom-1 right-1 bg-green-500 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
                 <CheckCircle className="w-3 h-3 text-white" />
               </div>
             </div>
             
-            {/* Hospital Info & Tags */}
+            {/* Hospital Info */}
             <div className="text-center sm:text-left flex-1">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">MANILA MEDICAL CENTER</h2>
-              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2 sm:mt-3">
-                <span className="bg-white/20 text-white text-xs sm:text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1.5" /> Verified Provider
-                </span>
-                <span className="bg-white/20 text-white text-xs sm:text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1.5" /> Active since 2021
-                </span>
-              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">{hospitalData.name || 'Not provided'}</h2>
             </div>
-            
-            {/* Edit Button */}
-            <button
-              onClick={() => setView("editDetails")}
-              className="bg-white/20 hover:bg-white/30 text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm transition-colors"
-            >
-              <Pencil className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5" /> Edit Profile
-            </button>
           </div>
         </div>
         
@@ -104,12 +129,6 @@ const ProfileManagement = () => {
                 <User className="w-5 h-5 mr-2 text-red-600" />
                 Hospital Information
               </h3>
-              <button 
-                onClick={() => setView("editDetails")}
-                className="text-red-600 hover:text-red-700 text-sm font-medium border border-red-600 rounded-lg px-3 py-1 flex items-center"
-              >
-                Edit <ArrowLeft className="w-3 h-3 ml-1 rotate-180" />
-              </button>
             </div>
             
             <div className="grid md:grid-cols-2 gap-6">
@@ -118,7 +137,7 @@ const ProfileManagement = () => {
                   <p className="text-sm text-gray-500 uppercase mb-1">Email</p>
                   <div className="flex items-center">
                     <Mail className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">info@manilamedical.com</span>
+                    <span className="font-medium">{hospitalData.email || 'Not provided'}</span>
                   </div>
                 </div>
                 
@@ -126,13 +145,13 @@ const ProfileManagement = () => {
                   <p className="text-sm text-gray-500 uppercase mb-1">Phone</p>
                   <div className="flex items-center">
                     <Phone className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">+63 2 8888 9999</span>
+                    <span className="font-medium">{hospitalData.contactInformation || 'Not provided'}</span>
                   </div>
                 </div>
                 
                 <div className="mb-5">
                   <p className="text-sm text-gray-500 uppercase mb-1">Hospital ID</p>
-                  <span className="font-medium">MMC-2023</span>
+                  <span className="font-medium">{hospitalData.id || 'Not provided'}</span>
                 </div>
               </div>
               
@@ -141,20 +160,20 @@ const ProfileManagement = () => {
                   <p className="text-sm text-gray-500 uppercase mb-1">Address</p>
                   <div className="flex items-start">
                     <MapPin className="w-4 h-4 mr-2 text-red-600 mt-0.5 flex-shrink-0" />
-                    <span className="font-medium">456 Taft Avenue, Manila, Metro Manila, Philippines</span>
+                    <span className="font-medium">{hospitalData.address || 'Not provided'}</span>
                   </div>
                 </div>
                 
                 <div className="mb-5">
                   <p className="text-sm text-gray-500 uppercase mb-1">License Number</p>
-                  <span className="font-medium">LN-12345-67890</span>
+                  <span className="font-medium">{hospitalData.licenseNumber || 'Not provided'}</span>
                 </div>
                 
                 <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">Account Status</p>
+                  <p className="text-sm text-gray-500 uppercase mb-1">Hospital Name</p>
                   <div className="flex items-center">
-                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                    <span className="font-medium">Active</span>
+                    <Building className="w-4 h-4 mr-2 text-red-600" />
+                    <span className="font-medium">{hospitalData.name || 'Not provided'}</span>
                   </div>
                 </div>
               </div>
@@ -294,196 +313,204 @@ const ProfileManagement = () => {
   )
 
   const renderEditDetails = () => (
-    <div className="min-h-screen bg-gray-50 pt-4 sm:pt-6 pb-8 sm:pb-12 px-4 sm:px-0 overflow-hidden">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-3 sm:p-4 flex items-center">
-          <button onClick={() => setView("profile")} className="flex items-center hover:bg-red-700/50 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="font-medium text-sm sm:text-base">Back to Profile</span>
-          </button>
-          <h1 className="text-center flex-1 font-bold mr-8 sm:mr-12 text-base sm:text-lg">Edit Hospital Details</h1>
-        </div>
-
-        {/* Form */}
-        <form className="p-4 sm:p-6 overflow-x-hidden">
-          {/* Hospital Details Section */}
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-gray-800 flex items-center">
-              <Building className="mr-2 h-4 sm:h-5 w-4 sm:w-5 text-red-600" />
-              Hospital Details
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Hospital Name</label>
-                <input
-                  type="text"
-                  defaultValue="Manila Medical Center"
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Hospital ID</label>
-                <input
-                  type="text"
-                  defaultValue="MMC-2023"
-                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
-                  disabled
-                />
-                <p className="text-xs text-gray-500 mt-1">Hospital ID cannot be changed</p>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Contact Number</label>
-                <input
-                  type="tel"
-                  defaultValue="+63 2 8888 9999"
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Email Address</label>
-                <input
-                  type="email"
-                  defaultValue="info@manilamedical.com"
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-                />
-              </div>
-
-              <div className="space-y-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Location Address</label>
-                <input
-                  type="text"
-                  defaultValue="456 Taft Avenue, Manila, Metro Manila, Philippines"
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">License Number</label>
-                <input
-                  type="text"
-                  defaultValue="LN-12345-67890"
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Password Section */}
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-gray-800 flex items-center">
-              <Lock className="mr-2 h-4 sm:h-5 w-4 sm:w-5 text-red-600" />
-              Change Password
-            </h2>
-
-            <div className="space-y-3 sm:space-y-4">
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                <div className="relative">
-                  <input
-                    type={showOldPassword ? "text" : "password"}
-                    className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
-                    placeholder="Enter your current password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowOldPassword(!showOldPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showOldPassword ? (
-                      <EyeOff className="w-4 sm:w-5 h-4 sm:h-5" />
-                    ) : (
-                      <Eye className="w-4 sm:w-5 h-4 sm:h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
-                    placeholder="Enter new password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showNewPassword ? (
-                      <EyeOff className="w-4 sm:w-5 h-4 sm:h-5" />
-                    ) : (
-                      <Eye className="w-4 sm:w-5 h-4 sm:h-5" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Password must be at least 8 characters long and include a number and special character</p>
-              </div>
-
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
-                    placeholder="Confirm new password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-4 sm:w-5 h-4 sm:h-5" />
-                    ) : (
-                      <Eye className="w-4 sm:w-5 h-4 sm:h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-center border-t border-gray-200 pt-4 sm:pt-6">
-            <button
-              type="button"
-              onClick={() => setView("archiveConfirmation")}
-              className="mt-3 sm:mt-0 text-red-600 hover:text-red-700 text-sm font-medium flex items-center"
-            >
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              Delete Account
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Blurred Background - Profile Content */}
+      <div className="absolute inset-0 blur-sm pointer-events-none">
+        {renderProfile()}
+      </div>
+      
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+      
+      {/* Modal Content */}
+      <div className="relative flex items-center justify-center min-h-screen p-4">
+        <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 flex items-center">
+            <button onClick={() => setView("profile")} className="flex items-center hover:bg-red-700/50 rounded-lg px-3 py-1.5 transition-colors">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              <span className="font-medium">Back to Profile</span>
             </button>
-
-            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setView("profile")}
-                className="w-1/2 sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="w-1/2 sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg text-sm transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
+            <h1 className="text-center flex-1 font-bold mr-12 text-lg">Edit Hospital Details</h1>
           </div>
-        </form>
+
+          {/* Form - Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+            <form className="p-6">
+              {/* Hospital Details Section */}
+              <div className="mb-8">
+                <h2 className="text-lg font-bold mb-4 text-gray-800 flex items-center">
+                  <Building className="mr-2 h-5 w-5 text-red-600" />
+                  Hospital Details
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">Hospital Name</label>
+                    <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                      {hospitalData.name || 'Not provided'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">Hospital ID</label>
+                    <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                      {hospitalData.id || 'Not provided'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">Contact Number</label>
+                    <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                      {hospitalData.contactInformation || 'Not provided'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                    <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                      {hospitalData.email || 'Not provided'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Location Address</label>
+                    <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                      {hospitalData.address || 'Not provided'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">License Number</label>
+                    <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                      {hospitalData.licenseNumber || 'Not provided'}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    Hospital details are managed by system administrators and cannot be modified here.
+                  </p>
+                </div>
+              </div>
+
+              {/* Password Section */}
+              <div className="mb-8">
+                <h2 className="text-lg font-bold mb-4 text-gray-800 flex items-center">
+                  <Lock className="mr-2 h-5 w-5 text-red-600" />
+                  Change Password
+                </h2>
+
+                <div className="space-y-4">
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showOldPassword ? "text" : "password"}
+                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
+                        placeholder="Enter your current password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showOldPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
+                        placeholder="Enter new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Password must be at least 8 characters long and include a number and special character</p>
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-center border-t border-gray-200 pt-6">
+                <button
+                  type="button"
+                  onClick={() => setView("archiveConfirmation")}
+                  className="mt-3 sm:mt-0 text-red-600 hover:text-red-700 text-sm font-medium flex items-center"
+                >
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  Delete Account
+                </button>
+
+                <div className="flex gap-3 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setView("profile")}
+                    className="w-1/2 sm:w-auto px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 sm:w-auto px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg text-sm transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   )
 
   const renderArchiveConfirmation = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-hidden">
       <div className="bg-white rounded-xl max-w-md w-full p-4 sm:p-6 shadow-xl">
         <div className="flex flex-col items-center text-center mb-4 sm:mb-6">
           <div className="bg-red-100 p-2 sm:p-3 rounded-full mb-3 sm:mb-4">
@@ -531,6 +558,26 @@ const ProfileManagement = () => {
       </div>
     </div>
   )
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="w-10 h-10 text-red-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <AlertTriangle className="w-10 h-10 text-red-600 mb-4" />
+          <h2 className="text-lg font-bold text-gray-800 mb-2">Error</h2>
+          <p className="text-sm text-gray-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
