@@ -32,10 +32,6 @@ export default function ViewRequests({ hospital, onClose }) {
   const [showApproveConfirmation, setShowApproveConfirmation] = useState(false);
   // State for the request being approved
   const [requestToApprove, setRequestToApprove] = useState(null);
-  // State for showing reject confirmation
-  const [showRejectConfirmation, setShowRejectConfirmation] = useState(false);
-  // State for the request being rejected
-  const [requestToReject, setRequestToReject] = useState(null);
   
   // State for tracking confirmation dialogs
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -45,7 +41,6 @@ export default function ViewRequests({ hospital, onClose }) {
   
   // State for bulk confirmation dialog
   const [showBulkConfirmation, setShowBulkConfirmation] = useState(false);
-  const [bulkAction, setBulkAction] = useState(''); // 'approve' or 'reject'
   const [selectedRequestDetails, setSelectedRequestDetails] = useState([]);
   
   // State for tracking updated requests
@@ -169,14 +164,6 @@ export default function ViewRequests({ hospital, onClose }) {
     alert(`Request ${requestId} has been approved`);
   };
   
-  // Handle reject request
-  const handleReject = (requestId) => {
-    const request = requests.find(req => req.id === requestId);
-    if (request) {
-      setRequestToReject(request);
-      setShowRejectConfirmation(true);
-    }
-  };
   
   // Open update confirmation
   const openUpdateConfirmation = (request) => {
@@ -201,22 +188,6 @@ export default function ViewRequests({ hospital, onClose }) {
     alert(`Request ${requestToUpdate.id} has been updated to Pending`);
   };
   
-  // Handle update to Rejected
-  const handleUpdateToRejected = () => {
-    if (!requestToUpdate) return;
-    
-    setRequests(prevRequests => 
-      prevRequests.map(request => 
-        request.id === requestToUpdate.id
-          ? {...request, status: "Rejected"}
-          : request
-      )
-    );
-    
-    setShowUpdateConfirmation(false);
-    setRequestToUpdate(null);
-    alert(`Request ${requestToUpdate.id} has been updated to Rejected`);
-  };
   
   // Open schedule delivery confirmation
   const openScheduleConfirmation = (request) => {
@@ -247,7 +218,6 @@ export default function ViewRequests({ hospital, onClose }) {
       case 'scheduled': 
       case 'approved': return 'bg-green-100 text-green-800 border-green-200';
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
       case 'in transit': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'complete': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -345,89 +315,56 @@ export default function ViewRequests({ hospital, onClose }) {
     // Get details of selected requests for confirmation
     const details = requests.filter(req => selectedRequests.includes(req.id));
     setSelectedRequestDetails(details);
-    setBulkAction('approve');
     setShowBulkConfirmation(true);
   };
   
-  // Handle bulk reject of selected requests
-  const handleBulkReject = () => {
-    if (selectedRequests.length === 0) {
-      alert("Please select at least one request to reject");
-      return;
-    }
-    
-    // Get details of selected requests for confirmation
-    const details = requests.filter(req => selectedRequests.includes(req.id));
-    setSelectedRequestDetails(details);
-    setBulkAction('reject');
-    setShowBulkConfirmation(true);
-  };
   
   // Handle bulk confirmation
   const handleBulkConfirm = () => {
     setRequests(prevRequests => 
       prevRequests.map(request => 
         selectedRequests.includes(request.id)
-          ? {...request, status: bulkAction === 'approve' ? "Scheduled" : "Rejected"}
+          ? {...request, status: "Scheduled"}
           : request
       )
     );
     
-    alert(`${selectedRequests.length} request(s) have been ${bulkAction === 'approve' ? 'approved' : 'rejected'}`);
+    alert(`${selectedRequests.length} request(s) have been approved`);
     
-    // Only redirect if approving
-    if (bulkAction === 'approve') {
-      // Calculate blood type summary and total units
-      const bloodTypeSummary = {};
-      let totalUnits = 0;
-      
-      selectedRequestDetails.forEach(request => {
-        bloodTypeSummary[request.bloodType] = (bloodTypeSummary[request.bloodType] || 0) + request.units;
-        totalUnits += request.units;
-      });
-      
-      // Convert blood type summary to string
-      const summaryStr = Object.entries(bloodTypeSummary)
-        .map(([type, units]) => `${type}:${units}`)
-        .join(',');
-      
-      // Build URL with parameters
-      const params = new URLSearchParams();
-      params.append('bloodTypeSummary', summaryStr);
-      params.append('totalUnits', totalUnits);
-      params.append('requestIds', selectedRequests.join(','));
-      
-      // Add hospital information to the URL
-      if (hospital) {
-        params.append('hospitalName', hospital.name);
-        params.append('hospitalLocation', hospital.location);
-        params.append('hospitalContact', hospital.phone);
-      }
-      
-      window.location.href = `/schedule?${params.toString()}`;
+    // Calculate blood type summary and total units
+    const bloodTypeSummary = {};
+    let totalUnits = 0;
+    
+    selectedRequestDetails.forEach(request => {
+      bloodTypeSummary[request.bloodType] = (bloodTypeSummary[request.bloodType] || 0) + request.units;
+      totalUnits += request.units;
+    });
+    
+    // Convert blood type summary to string
+    const summaryStr = Object.entries(bloodTypeSummary)
+      .map(([type, units]) => `${type}:${units}`)
+      .join(',');
+    
+    // Build URL with parameters
+    const params = new URLSearchParams();
+    params.append('bloodTypeSummary', summaryStr);
+    params.append('totalUnits', totalUnits);
+    params.append('requestIds', selectedRequests.join(','));
+    
+    // Add hospital information to the URL
+    if (hospital) {
+      params.append('hospitalName', hospital.name);
+      params.append('hospitalLocation', hospital.location);
+      params.append('hospitalContact', hospital.phone);
     }
+    
+    window.location.href = `/schedule?${params.toString()}`;
     
     setSelectedRequests([]);
     setShowBulkConfirmation(false);
     setSelectedRequestDetails([]);
   };
   
-  // Handle reject confirmation
-  const handleRejectConfirm = () => {
-    if (!requestToReject) return;
-    
-    setRequests(prevRequests => 
-      prevRequests.map(request => 
-        request.id === requestToReject.id
-          ? {...request, status: "Rejected"}
-          : request
-      )
-    );
-    
-    setShowRejectConfirmation(false);
-    setRequestToReject(null);
-    alert(`Request ${requestToReject.id} has been rejected`);
-  };
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -501,15 +438,6 @@ export default function ViewRequests({ hospital, onClose }) {
                         <FileText className="w-4 h-4 mr-1.5" /> Details
                       </button>
                       
-                      {/* Schedule Delivery Button (for Scheduled) */}
-                      {request.status === 'Scheduled' && (
-                        <button 
-                          onClick={() => openUpdateConfirmation(request)}
-                          className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all flex items-center shadow-sm"
-                        >
-                          <Edit className="w-4 h-4 mr-1.5" /> Update
-                        </button>
-                      )}
                       
                       {/* Disabled Button (for In Transit) */}
                       {request.status === 'In Transit' && (
@@ -620,52 +548,6 @@ export default function ViewRequests({ hospital, onClose }) {
           </div>
         )}
         
-        {/* Confirmation Dialog for Update Status */}
-        {showUpdateConfirmation && requestToUpdate && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-              <h3 className="text-lg font-semibold mb-3">Update Request Status</h3>
-              <p className="mb-4">
-                Are you sure you want to update the status for request <strong>{requestToUpdate.id}</strong>?
-              </p>
-              <div className="bg-yellow-50 p-3 rounded-lg mb-4">
-                <div className="flex items-center text-yellow-800">
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  <span>This will change the status from <strong>Scheduled</strong> to another status.</span>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600 mb-3">Select the new status:</p>
-              <div className="flex flex-col gap-3 mb-4">
-                <button
-                  onClick={handleUpdateToApproved}
-                  className="w-full py-2 px-4 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-lg flex items-center justify-center"
-                >
-                  <Clock className="mr-2 w-4 h-4" /> 
-                  Change to Pending
-                </button>
-                <button
-                  onClick={handleUpdateToRejected}
-                  className="w-full py-2 px-4 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg flex items-center justify-center"
-                >
-                  <X className="mr-2 w-4 h-4" /> 
-                  Change to Rejected
-                </button>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => {
-                    setShowUpdateConfirmation(false);
-                    setRequestToUpdate(null);
-                  }}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Approve Confirmation Dialog */}
         {showApproveConfirmation && requestToApprove && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
@@ -698,12 +580,6 @@ export default function ViewRequests({ hospital, onClose }) {
               
               <div className="flex justify-end space-x-3">
                 <button
-                  onClick={handleReject(requestToApprove.id)}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                  Rejected
-                </button>
-                <button
                   onClick={handleApproveConfirm}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                 >
@@ -714,66 +590,18 @@ export default function ViewRequests({ hospital, onClose }) {
           </div>
         )}
         
-        {/* Reject Confirmation Dialog */}
-        {showRejectConfirmation && requestToReject && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">Blood Request Rejection</h3>
-              
-              <div className="mb-4">
-                <div className="bg-gray-50 p-4 rounded-md mb-3">
-                  <div className="flex items-start">
-                    <input 
-                      type="checkbox" 
-                      checked={true} 
-                      className="mt-1 mr-3" 
-                      readOnly
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{requestToReject.id}</p>
-                      <div className="flex items-center mt-1">
-                        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getBloodTypeBadge(requestToReject.bloodType)}`}>
-                          <Droplet className="mr-1 w-3 h-3" /> {requestToReject.bloodType}
-                        </span>
-                        <span className="ml-2 text-sm">{requestToReject.units} unit{requestToReject.units > 1 ? 's' : ''}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">Requested by: {requestToReject.requestedBy}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">{requestToReject.requestDate}</p>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-sm text-red-600">Are you sure you want to reject this blood request?</p>
-              </div>
-              
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowRejectConfirmation(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRejectConfirm}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                  Confirm Rejection
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         
         {/* Bulk Action Confirmation Dialog */}
         {showBulkConfirmation && selectedRequestDetails.length > 0 && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
             <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
               <h3 className="text-xl font-semibold mb-4 text-gray-800">
-                {bulkAction === 'approve' ? 'Approve' : 'Reject'} Blood Requests
+                Approve Blood Requests
               </h3>
               
               <div className="mb-4">
                 <p className="text-gray-700 mb-2">
-                  Are you sure you want to {bulkAction === 'approve' ? 'approve' : 'reject'} the following {selectedRequestDetails.length} request(s)?
+                  Are you sure you want to approve the following {selectedRequestDetails.length} request(s)?
                 </p>
                 
                 <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200 mb-3">
@@ -813,13 +641,9 @@ export default function ViewRequests({ hospital, onClose }) {
                 </button>
                 <button
                   onClick={handleBulkConfirm}
-                  className={`px-4 py-2 text-white rounded transition-colors ${
-                    bulkAction === 'approve' 
-                      ? 'bg-green-600 hover:bg-green-700' 
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
+                  className="px-4 py-2 text-white rounded transition-colors bg-green-600 hover:bg-green-700"
                 >
-                  {bulkAction === 'approve' ? 'Approve' : 'Reject'} All
+                  Approve All
                 </button>
               </div>
             </div>

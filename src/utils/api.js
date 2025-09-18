@@ -86,7 +86,7 @@ export const fetchWithAuth = async (url, options = {}) => {
 export const hospitalProfileAPI = {
   // Get current hospital profile
   getCurrentProfile: async () => {
-    const response = await fetchWithAuth('/auth/me');
+    const response = await fetchWithAuth('/hospital/profile');
     if (!response.ok) {
       throw new Error('Failed to fetch hospital profile');
     }
@@ -94,9 +94,9 @@ export const hospitalProfileAPI = {
   },
 
   // Update hospital password
-  updatePassword: async (passwordData) => {
-    const response = await fetchWithAuth('/auth/change-password', {
-      method: 'POST',
+  updatePassword: async (hospitalId, passwordData) => {
+    const response = await fetchWithAuth(`/hospital/${hospitalId}/password`, {
+      method: 'PUT',
       body: JSON.stringify(passwordData),
     });
     if (!response.ok) {
@@ -107,10 +107,9 @@ export const hospitalProfileAPI = {
   },
 
   // Send OTP for password change
-  sendPasswordOTP: async (email, phone) => {
-    const response = await fetchWithAuth('/auth/send-password-otp', {
+  sendPasswordOTP: async (hospitalId) => {
+    const response = await fetchWithAuth(`/hospital/${hospitalId}/send-password-otp`, {
       method: 'POST',
-      body: JSON.stringify({ email, phone }),
     });
     if (!response.ok) {
       const errorData = await response.json();
@@ -120,8 +119,8 @@ export const hospitalProfileAPI = {
   },
 
   // Update hospital profile
-  updateProfile: async (userId, profileData) => {
-    const response = await fetchWithAuth(`/user/${userId}`, {
+  updateProfile: async (hospitalId, profileData) => {
+    const response = await fetchWithAuth(`/hospital/${hospitalId}`, {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
@@ -133,10 +132,10 @@ export const hospitalProfileAPI = {
   },
 
   // Send OTP for phone verification
-  sendPhoneOTP: async (phone) => {
-    const response = await fetchWithAuth('/auth/send-phone-otp', {
+  sendPhoneOTP: async (hospitalId, phone) => {
+    const response = await fetchWithAuth(`/hospital/${hospitalId}/send-phone-otp`, {
       method: 'POST',
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phoneNumber: phone }),
     });
     if (!response.ok) {
       const errorData = await response.json();
@@ -159,7 +158,7 @@ export const hospitalProfileAPI = {
   }
 };
 
-// Profile photo upload function
+// Profile photo upload function (for donors)
 export const uploadProfilePhoto = async (file) => {
   const formData = new FormData();
   formData.append('profilePhoto', file);
@@ -188,3 +187,74 @@ export const uploadProfilePhoto = async (file) => {
   
   return data.profilePhotoUrl;
 };
+
+// Hospital profile photo upload function
+export const uploadHospitalProfilePhoto = async (hospitalId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const response = await fetchWithAuth(`/hospital/${hospitalId}/upload-profile-photo`, {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header, let the browser set it for FormData
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Update localStorage with new photo URL
+      const hospitalData = JSON.parse(localStorage.getItem('hospitalData') || '{}');
+      const photoUrl = data?.data?.profilePhotoUrl || data?.profilePhotoUrl;
+      hospitalData.profilePhotoUrl = photoUrl;
+      localStorage.setItem('hospitalData', JSON.stringify(hospitalData));
+      
+      // Dispatch event to update header
+      window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+        detail: { profilePhotoUrl: photoUrl }
+      }));
+      
+      return {
+        success: true,
+        photoUrl: photoUrl,
+        hospital: data?.data?.hospital || data?.hospital || null
+      };
+    } else {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData?.message || 'Failed to upload photo'
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to upload photo: ' + error.message
+    };
+  }
+};
+
+// Remove hospital profile photo function
+export const removeHospitalProfilePhoto = async (hospitalId) => {
+  const response = await fetchWithAuth(`/hospital/${hospitalId}/photo`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to remove profile photo');
+  }
+  
+  // Update localStorage
+  const hospitalData = JSON.parse(localStorage.getItem('hospitalData') || '{}');
+  hospitalData.profilePhotoUrl = null;
+  localStorage.setItem('hospitalData', JSON.stringify(hospitalData));
+  
+  // Dispatch event to update header
+  window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+    detail: { profilePhotoUrl: null }
+  }));
+  
+  return true;
+};
+

@@ -38,10 +38,55 @@ export default function Schedule() {
     { time: "6:00 PM", availability: "high" }
   ];
 
+  // Helper function to check if a time slot is in the past
+  const isTimeSlotInPast = (timeSlot, selectedDate) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    // If selected date is in the future, all time slots are valid
+    if (selectedDay > today) {
+      return false;
+    }
+    
+    // If selected date is not today, all time slots are valid
+    if (selectedDay.getTime() !== today.getTime()) {
+      return false;
+    }
+    
+    // For today, check if the time slot is in the past
+    const [time, period] = timeSlot.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) {
+      hour24 += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    const slotDateTime = new Date(selectedDate);
+    slotDateTime.setHours(hour24, minutes || 0, 0, 0);
+    
+    return slotDateTime <= now;
+  };
+
+  // Filter available time slots to exclude past times
+  const getAvailableTimeSlots = () => {
+    return availableTimeSlots.filter(slot => !isTimeSlotInPast(slot.time, date));
+  };
+
   useEffect(() => {
     // Scroll to top on component mount
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (selectedTime && isTimeSlotInPast(selectedTime, date)) {
+      setSelectedTime('');
+      setIsTimeError(false);
+    }
+  }, [date, selectedTime]);
 
   const handleConfirm = () => {
     if (selectedTime) {
@@ -268,7 +313,7 @@ export default function Schedule() {
                 )}
                 
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  {availableTimeSlots.map((slot) => (
+                  {getAvailableTimeSlots().map((slot) => (
                     <label
                       key={slot.time}
                       className={`flex items-center p-3 border rounded cursor-pointer ${

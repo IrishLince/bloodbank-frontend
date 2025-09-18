@@ -5,7 +5,7 @@ import {
   CheckCircle, Calendar, Clock, Camera, Loader2, AlertTriangle,
   ArrowLeft, Eye, EyeOff
 } from "lucide-react"
-import { hospitalProfileAPI, uploadProfilePhoto } from '../../utils/api'
+import { hospitalProfileAPI, uploadHospitalProfilePhoto, removeHospitalProfilePhoto } from '../../utils/api'
 
 
 const ProfileManagement = () => {
@@ -21,12 +21,26 @@ const ProfileManagement = () => {
   const [hospitalData, setHospitalData] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    otpCode: ''
+  })
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
 
   useEffect(() => {
     const fetchHospitalData = async () => {
       try {
         setLoading(true);
-        const data = await hospitalProfileAPI.getCurrentProfile();
+        const response = await hospitalProfileAPI.getCurrentProfile();
+        const data = response.data || response;
+        
+        // Update localStorage with hospital data
+        localStorage.setItem('hospitalData', JSON.stringify(data));
+        
         setHospitalData(data);
         setError(null);
       } catch (error) {
@@ -42,13 +56,98 @@ const ProfileManagement = () => {
   const handleProfilePhotoUpload = async (file) => {
     setIsUpdating(true);
     try {
-      const photoUrl = await uploadProfilePhoto(file);
-      setHospitalData({ ...hospitalData, profilePhotoUrl: photoUrl });
+      setError(null);
+
+      const result = await uploadHospitalProfilePhoto(hospitalData.id, file);
+      
+      if (result.success) {
+        // Update local state
+        setHospitalData(prev => ({
+          ...prev,
+          profilePhotoUrl: result.photoUrl
+        }));
+
+        // Update localStorage to sync with header
+        const currentHospitalData = JSON.parse(localStorage.getItem('hospitalData') || '{}');
+        const updatedHospitalData = {
+          ...currentHospitalData,
+          profilePhotoUrl: result.photoUrl
+        };
+        localStorage.setItem('hospitalData', JSON.stringify(updatedHospitalData));
+        
+        // Dispatch custom event to notify header of update
+        window.dispatchEvent(new CustomEvent('hospitalDataUpdated'));
+
+        setShowProfileModal(false);
+      } else {
+        setError(result.error || 'Failed to upload profile photo');
+      }
+    } catch (error) {
+      setError('Failed to upload profile photo: ' + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRemoveProfilePhoto = async () => {
+    setIsUpdating(true);
+    try {
+      await removeHospitalProfilePhoto(hospitalData.id);
+      setHospitalData({ ...hospitalData, profilePhotoUrl: null });
+      setShowProfileModal(false);
       setError(null);
     } catch (error) {
       setError(error.message);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters long');
+      return;
+    }
+    
+    setPasswordLoading(true);
+    setPasswordError('');
+    
+    try {
+      await hospitalProfileAPI.updatePassword(hospitalData.id, {
+        newPassword: passwordData.newPassword,
+        otpCode: passwordData.otpCode
+      });
+      
+      // Reset form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        otpCode: ''
+      });
+      
+      setView('profile');
+      alert('Password updated successfully!');
+    } catch (error) {
+      setPasswordError(error.message);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleSendPasswordOTP = async () => {
+    try {
+      await hospitalProfileAPI.sendPasswordOTP(hospitalData.id);
+      alert('OTP sent to your registered phone number');
+    } catch (error) {
+      setPasswordError(error.message);
     }
   };
 
@@ -86,11 +185,23 @@ const ProfileManagement = () => {
               <div className="absolute bottom-1 right-1 bg-green-500 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
                 <CheckCircle className="w-3 h-3 text-white" />
               </div>
+              
+              {/* Camera Button for Profile Photo */}
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="absolute bottom-0 left-0 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-105"
+              >
+                {isUpdating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+              </button>
             </div>
             
             {/* Hospital Info */}
             <div className="text-center sm:text-left flex-1">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">{hospitalData.name || 'Not provided'}</h2>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">{hospitalData.hospitalName || 'Not provided'}</h2>
             </div>
           </div>
         </div>
@@ -145,13 +256,13 @@ const ProfileManagement = () => {
                   <p className="text-sm text-gray-500 uppercase mb-1">Phone</p>
                   <div className="flex items-center">
                     <Phone className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">{hospitalData.contactInformation || 'Not provided'}</span>
+                    <span className="font-medium">{hospitalData.phone || 'Not provided'}</span>
                   </div>
                 </div>
                 
                 <div className="mb-5">
                   <p className="text-sm text-gray-500 uppercase mb-1">Hospital ID</p>
-                  <span className="font-medium">{hospitalData.id || 'Not provided'}</span>
+                  <span className="font-medium">{hospitalData.hospitalId || 'Not provided'}</span>
                 </div>
               </div>
               
@@ -173,7 +284,7 @@ const ProfileManagement = () => {
                   <p className="text-sm text-gray-500 uppercase mb-1">Hospital Name</p>
                   <div className="flex items-center">
                     <Building className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">{hospitalData.name || 'Not provided'}</span>
+                    <span className="font-medium">{hospitalData.hospitalName || 'Not provided'}</span>
                   </div>
                 </div>
               </div>
@@ -336,7 +447,12 @@ const ProfileManagement = () => {
 
           {/* Form - Scrollable Content */}
           <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-            <form className="p-6">
+            <form className="p-6" onSubmit={handlePasswordChange}>
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">{passwordError}</p>
+                </div>
+              )}
               {/* Hospital Details Section */}
               <div className="mb-8">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 flex items-center">
@@ -348,21 +464,21 @@ const ProfileManagement = () => {
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-gray-700">Hospital Name</label>
                     <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-                      {hospitalData.name || 'Not provided'}
+                      {hospitalData.hospitalName || 'Not provided'}
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-gray-700">Hospital ID</label>
                     <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-                      {hospitalData.id || 'Not provided'}
+                      {hospitalData.hospitalId || 'Not provided'}
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-gray-700">Contact Number</label>
                     <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-                      {hospitalData.contactInformation || 'Not provided'}
+                      {hospitalData.phone || 'Not provided'}
                     </div>
                   </div>
 
@@ -407,25 +523,24 @@ const ProfileManagement = () => {
 
                 <div className="space-y-4">
                   <div className="relative">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                    <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">OTP Code</label>
+                    <div className="flex gap-2">
                       <input
-                        type={showOldPassword ? "text" : "password"}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
-                        placeholder="Enter your current password"
+                        type="text"
+                        value={passwordData.otpCode}
+                        onChange={(e) => setPasswordData({...passwordData, otpCode: e.target.value})}
+                        className="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
+                        placeholder="Enter OTP code"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowOldPassword(!showOldPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        onClick={handleSendPasswordOTP}
+                        className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
                       >
-                        {showOldPassword ? (
-                          <EyeOff className="w-5 h-5" />
-                        ) : (
-                          <Eye className="w-5 h-5" />
-                        )}
+                        Send OTP
                       </button>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">An OTP will be sent to your registered phone number</p>
                   </div>
 
                   <div className="relative">
@@ -433,8 +548,11 @@ const ProfileManagement = () => {
                     <div className="relative">
                       <input
                         type={showNewPassword ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
                         className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
                         placeholder="Enter new password"
+                        required
                       />
                       <button
                         type="button"
@@ -456,8 +574,11 @@ const ProfileManagement = () => {
                     <div className="relative">
                       <input
                         type={showConfirmPassword ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                         className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
                         placeholder="Confirm new password"
+                        required
                       />
                       <button
                         type="button"
@@ -496,9 +617,17 @@ const ProfileManagement = () => {
                   </button>
                   <button
                     type="submit"
-                    className="w-1/2 sm:w-auto px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg text-sm transition-colors"
+                    disabled={passwordLoading}
+                    className="w-1/2 sm:w-auto px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Changes
+                    {passwordLoading ? (
+                      <div className="flex items-center">
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Updating...
+                      </div>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </button>
                 </div>
               </div>
@@ -508,6 +637,7 @@ const ProfileManagement = () => {
       </div>
     </div>
   )
+
 
   const renderArchiveConfirmation = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-hidden">
@@ -584,6 +714,60 @@ const ProfileManagement = () => {
       {view === "profile" && renderProfile()}
       {view === "editDetails" && renderEditDetails()}
       {view === "archiveConfirmation" && renderArchiveConfirmation()}
+      
+      {/* Profile Picture Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Profile Picture</h3>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => document.getElementById('hospital-profile-photo-input').click()}
+                className="w-full flex items-center justify-center gap-3 p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                disabled={isUpdating}
+              >
+                <Camera className="w-5 h-5" />
+                Change Picture
+              </button>
+              
+              {hospitalData.profilePhotoUrl && (
+                <button
+                  onClick={handleRemoveProfilePhoto}
+                  className="w-full flex items-center justify-center gap-3 p-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  disabled={isUpdating}
+                >
+                  <AlertTriangle className="w-5 h-5" />
+                  Remove Photo
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="w-full p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                disabled={isUpdating}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Hidden File Input */}
+      <input
+        id="hospital-profile-photo-input"
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) {
+            handleProfilePhotoUpload(file);
+            e.target.value = ''; // Reset input
+          }
+        }}
+        className="hidden"
+      />
     </div>
   )
 }

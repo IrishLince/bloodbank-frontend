@@ -53,7 +53,8 @@ export default function HospitalList() {
       phone: "(555) 123-4567",
       bloodTypes: "O+, A+, B-, O-",
       requests: 3,
-      deliveryStatus: "Scheduled"
+      deliveryStatus: "Scheduled",
+      dateRequest: "2023-08-18\n3:00 PM"
     },
     {
       name: "Riverside Community Medical Center",
@@ -61,7 +62,8 @@ export default function HospitalList() {
       phone: "(555) 987-6543",
       bloodTypes: "AB+, O-, A+, B-",
       requests: 2,
-      deliveryStatus: "Pending"
+      deliveryStatus: "Pending",
+      dateRequest: "2023-08-19\n10:30 AM"
     },
     {
       name: "Pinecrest Medical Center",
@@ -69,7 +71,8 @@ export default function HospitalList() {
       phone: "(555) 456-7890",
       bloodTypes: "A-, B+, O+, AB+",
       requests: 0,
-      deliveryStatus: "Complete"
+      deliveryStatus: "Complete",
+      dateRequest: "2023-08-15\n2:45 PM"
     },
     {
       name: "Mount Hope Regional Hospital",
@@ -77,7 +80,8 @@ export default function HospitalList() {
       phone: "(555) 222-3333",
       bloodTypes: "O+, A-, A+, B-",
       requests: 1,
-      deliveryStatus: "In Transit"
+      deliveryStatus: "In Transit",
+      dateRequest: "2023-08-17\n1:15 PM"
     },
     {
       name: "Cityview Medical Center",
@@ -85,7 +89,8 @@ export default function HospitalList() {
       phone: "(555) 111-4444",
       bloodTypes: "AB-, B+, A-, O-",
       requests: 0,
-      deliveryStatus: "Complete"
+      deliveryStatus: "Complete",
+      dateRequest: "2023-08-14\n11:20 AM"
     },
     {
       name: "Lakeside General Hospital",
@@ -93,7 +98,8 @@ export default function HospitalList() {
       phone: "(555) 555-7777",
       bloodTypes: "O-, AB+, A+, B-",
       requests: 4,
-      deliveryStatus: "Pending"
+      deliveryStatus: "Pending",
+      dateRequest: "2023-08-16\n9:00 AM"
     },
     {
       name: "Sunrise Healthcare Facility",
@@ -101,7 +107,8 @@ export default function HospitalList() {
       phone: "(555) 444-6666",
       bloodTypes: "A+, B-, B+, AB-",
       requests: 1,
-      deliveryStatus: "Scheduled"
+      deliveryStatus: "Scheduled",
+      dateRequest: "2023-08-20\n4:30 PM"
     },
     {
       name: "Evergreen Medical Hospital",
@@ -109,7 +116,8 @@ export default function HospitalList() {
       phone: "(555) 999-8888",
       bloodTypes: "AB-, O+, O-, A+",
       requests: 0,
-      deliveryStatus: "Complete"
+      deliveryStatus: "Complete",
+      dateRequest: "2023-08-13\n8:45 AM"
     }
   ]
 
@@ -431,6 +439,13 @@ export default function HospitalList() {
                     </div>
                   </div>
                   
+                  <div className="mb-3">
+                    <div className="text-xs font-medium text-gray-500 mb-1">Date Request</div>
+                    <div className="text-sm text-gray-800 whitespace-pre-line">
+                      {hospital.dateRequest}
+                    </div>
+                  </div>
+                  
                   <div className="flex justify-between items-center">
                     <div>
                       <div className="text-xs font-medium text-gray-500 mb-1">Units</div>
@@ -481,6 +496,7 @@ export default function HospitalList() {
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Hospital</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Location</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Blood Types</th>
+                    <th className="text-left p-4 lg:p-5 border-b font-semibold">Date Request</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Units</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Request Status</th>
                     <th className="p-4 lg:p-5 border-b text-center font-semibold">Actions</th>
@@ -509,6 +525,11 @@ export default function HospitalList() {
                           </div>
                         </td>
                         <td className="p-4 lg:p-5">
+                          <div className="text-gray-800 lg:text-base whitespace-pre-line">
+                            {hospital.dateRequest}
+                          </div>
+                        </td>
+                        <td className="p-4 lg:p-5">
                           <span className={`inline-flex items-center justify-center w-7 h-7 lg:w-9 lg:h-9 rounded-full font-medium lg:text-base ${
                             hospital.requests > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                           }`}>
@@ -522,27 +543,27 @@ export default function HospitalList() {
                           </span>
                         </td>
                         <td className="p-4 lg:p-5">
-                          <div className="flex justify-center space-x-2 lg:space-x-3 opacity-90 group-hover:opacity-100">
+                          <div className="flex justify-center space-x-1.5 lg:space-x-2 opacity-90 group-hover:opacity-100">
                             <button
                               onClick={() => handleViewRequests(hospital)}
-                              className="px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base text-white bg-[#F05B5B] rounded-lg hover:bg-[#e04d4d] transition-all shadow-sm flex items-center"
+                              className="px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-white bg-[#F05B5B] rounded-md hover:bg-[#e04d4d] transition-all shadow-sm flex items-center"
                             >
-                              <FiEye className="mr-1.5 lg:mr-2 lg:w-5 lg:h-5" /> View Requests
+                              <FiEye className="mr-1 lg:mr-1.5 w-3 h-3 lg:w-4 lg:h-4" /> View
                             </button>
                             <button
                               onClick={() => handleCreateDelivery(hospital)}
                               disabled={hospital.deliveryStatus !== 'Pending'}
-                              className={`px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base text-white ${
+                              className={`px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-white ${
                                 hospital.deliveryStatus !== 'Pending' 
                                   ? 'bg-gray-400 cursor-not-allowed' 
                                   : 'bg-blue-500 hover:bg-blue-600'
-                              } rounded-lg transition-all shadow-sm flex items-center`}
+                              } rounded-md transition-all shadow-sm flex items-center`}
                             >
-                              <FiTruck className="mr-1.5 lg:mr-2 lg:w-5 lg:h-5" /> 
-                              {hospital.deliveryStatus === 'Scheduled' ? 'Delivery Scheduled' : 
-                               hospital.deliveryStatus === 'In Transit' ? 'Delivery In Transit' :
-                               hospital.deliveryStatus === 'Complete' ? 'Delivery Complete' :
-                               'Schedule Delivery'}
+                              <FiTruck className="mr-1 lg:mr-1.5 w-3 h-3 lg:w-4 lg:h-4" /> 
+                              {hospital.deliveryStatus === 'Scheduled' ? 'Scheduled' : 
+                               hospital.deliveryStatus === 'In Transit' ? 'In Transit' :
+                               hospital.deliveryStatus === 'Complete' ? 'Complete' :
+                               'Schedule'}
                             </button>
                           </div>
                         </td>
@@ -550,7 +571,7 @@ export default function HospitalList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="p-8 lg:p-12 text-center text-gray-500 lg:text-lg">
+                      <td colSpan="7" className="p-8 lg:p-12 text-center text-gray-500 lg:text-lg">
                         No hospitals match your search criteria. Try adjusting your filters.
                       </td>
                     </tr>
@@ -632,8 +653,13 @@ export default function HospitalList() {
                         <FiEye className="mr-1 w-3 h-3" /> Track
                       </button>
                       <button 
-                        className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center shadow-sm"
+                        className={`px-3 py-1.5 text-xs rounded-lg transition-all flex items-center shadow-sm ${
+                          delivery.status === DELIVERY_STATUS.COMPLETE
+                            ? 'bg-gray-400 text-white cursor-not-allowed'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
                         onClick={() => handleUpdateDelivery(delivery)}
+                        disabled={delivery.status === DELIVERY_STATUS.COMPLETE}
                       >
                         <FiArrowRight className="mr-1 w-3 h-3" /> Update
                       </button>
@@ -700,8 +726,13 @@ export default function HospitalList() {
                                 <FiEye className="mr-1.5 w-3.5 h-3.5 lg:w-4 lg:h-4" /> Track
                               </button>
                               <button 
-                                className="px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center shadow-sm lg:shadow-md"
+                                className={`px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base rounded-lg transition-all flex items-center shadow-sm lg:shadow-md ${
+                                  delivery.status === DELIVERY_STATUS.COMPLETE
+                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
                                 onClick={() => handleUpdateDelivery(delivery)}
+                                disabled={delivery.status === DELIVERY_STATUS.COMPLETE}
                               >
                                 <FiArrowRight className="mr-1.5 w-3.5 h-3.5 lg:w-4 lg:h-4" /> Update
                               </button>
