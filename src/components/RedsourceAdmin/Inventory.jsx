@@ -54,8 +54,7 @@ const Inventory = () => {
     collectedBefore: '',
     expiryAfter: '',
     expiryBefore: '',
-    temperature: 'All',
-    screeningStatus: 'All'
+    temperature: 'All'
   });
   
   // Form state for add/edit modals
@@ -70,8 +69,7 @@ const Inventory = () => {
     temperature: '4°C',
     donorId: '',
     hospital: '',
-    batchNo: '',
-    screeningStatus: 'Passed'
+    batchNo: ''
   });
   
   // Ref for print functionality
@@ -83,8 +81,6 @@ const Inventory = () => {
   // Temperature options
   const temperatures = ['All', '2°C', '3°C', '4°C', '5°C', '6°C'];
   
-  // Screening status options
-  const screeningStatuses = ['All', 'Passed', 'Pending', 'Failed'];
 
   // Hospital options (mock data)
   const hospitals = [
@@ -117,8 +113,7 @@ const Inventory = () => {
       temperature: '4°C',
       donorId: 'D-5432',
       hospital: null,
-      batchNo: 'B-202308-01',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-01'
     },
     { 
       id: 'BU-1002', 
@@ -131,8 +126,7 @@ const Inventory = () => {
       temperature: '4°C',
       donorId: 'D-5433',
       hospital: null,
-      batchNo: 'B-202308-01',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-01'
     },
     { 
       id: 'BU-1003', 
@@ -141,12 +135,11 @@ const Inventory = () => {
       location: 'Storage C', 
       collected: '2023-08-14', 
       expiry: '2023-08-21', 
-      status: 'Reserved',
+      status: 'Available',
       temperature: '4°C',
       donorId: 'D-5431',
       hospital: 'City General Hospital',
-      batchNo: 'B-202308-01',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-01'
     },
     { 
       id: 'BU-1004', 
@@ -155,12 +148,11 @@ const Inventory = () => {
       location: 'Storage A', 
       collected: '2023-08-12', 
       expiry: '2023-08-19', 
-      status: 'Reserved',
+      status: 'Available',
       temperature: '4°C',
       donorId: 'D-5430',
       hospital: 'Memorial Hospital',
-      batchNo: 'B-202308-01',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-01'
     },
     { 
       id: 'BU-1005', 
@@ -173,8 +165,7 @@ const Inventory = () => {
       temperature: '4°C',
       donorId: 'D-5429',
       hospital: null,
-      batchNo: 'B-202308-02',
-      screeningStatus: 'Pending'
+      batchNo: 'B-202308-02'
     },
     { 
       id: 'BU-1006', 
@@ -187,8 +178,7 @@ const Inventory = () => {
       temperature: '4°C',
       donorId: 'D-5434',
       hospital: null,
-      batchNo: 'B-202308-02',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-02'
     },
     { 
       id: 'BU-1007', 
@@ -201,8 +191,7 @@ const Inventory = () => {
       temperature: '4°C',
       donorId: 'D-5428',
       hospital: null,
-      batchNo: 'B-202308-02',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-02'
     },
     { 
       id: 'BU-1008', 
@@ -215,25 +204,24 @@ const Inventory = () => {
       temperature: '5°C',
       donorId: 'D-5427',
       hospital: null,
-      batchNo: 'B-202308-02',
-      screeningStatus: 'Passed'
+      batchNo: 'B-202308-02'
     }
   ]);
 
   // Blood type summary
   const bloodTypeSummary = [
-    { type: 'A+', available: 150, reserved: 0, total: 150 },
-    { type: 'A-', available: 0, reserved: 30, total: 30 },
-    { type: 'B+', available: 120, reserved: 0, total: 120 },
-    { type: 'B-', available: 35, reserved: 0, total: 35 },
-    { type: 'AB+', available: 0, reserved: 50, total: 50 },
-    { type: 'AB-', available: 0, reserved: 20, total: 20 },
-    { type: 'O+', available: 200, reserved: 0, total: 200 },
-    { type: 'O-', available: 0, reserved: 75, total: 75 },
+    { type: 'A+', available: 150, total: 150 },
+    { type: 'A-', available: 30, total: 30 },
+    { type: 'B+', available: 120, total: 120 },
+    { type: 'B-', available: 35, total: 35 },
+    { type: 'AB+', available: 50, total: 50 },
+    { type: 'AB-', available: 20, total: 20 },
+    { type: 'O+', available: 200, total: 200 },
+    { type: 'O-', available: 75, total: 75 },
   ];
 
   const bloodTypes = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-  const statuses = ['All', 'Available', 'Reserved', 'Quarantined', 'Critical'];
+  const statuses = ['All', 'Available', 'Quarantined', 'Critical'];
 
   // Filter blood inventory based on search term and selected filters
   const filteredInventory = bloodInventory.filter(item => {
@@ -280,7 +268,6 @@ const Inventory = () => {
   const getStatusColor = (status) => {
     switch(status) {
       case 'Available': return 'bg-green-100 text-green-800';
-      case 'Reserved': return 'bg-blue-100 text-blue-800';
       case 'Quarantined': return 'bg-yellow-100 text-yellow-800';
       case 'Critical': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -361,8 +348,7 @@ const Inventory = () => {
       temperature: '4°C',
       donorId: `D-${Math.floor(1000 + Math.random() * 9000)}`,
       hospital: '',
-      batchNo: `B-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.floor(1 + Math.random() * 99).toString().padStart(2, '0')}`,
-      screeningStatus: 'Passed'
+      batchNo: `B-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.floor(1 + Math.random() * 99).toString().padStart(2, '0')}`
     });
   };
 
@@ -391,7 +377,6 @@ const Inventory = () => {
         return {
           ...type,
           available: formData.status === 'Available' ? type.available + formData.units : type.available,
-          reserved: formData.status === 'Reserved' ? type.reserved + formData.units : type.reserved,
           total: type.total + formData.units
         };
       }
@@ -605,7 +590,7 @@ const Inventory = () => {
     // Create header row with styling for Excel
     const header = [
       'ID', 'Type', 'Units', 'Location', 'Collected Date', 'Expiry Date', 
-      'Status', 'Temperature', 'Donor ID', 'Hospital', 'Batch No', 'Screening Status'
+      'Status', 'Temperature', 'Donor ID', 'Hospital', 'Batch No'
     ];
     
     // Generate rows from filtered inventory
@@ -620,8 +605,7 @@ const Inventory = () => {
       item.temperature,
       item.donorId,
       item.hospital || 'N/A',
-      item.batchNo,
-      item.screeningStatus
+      item.batchNo
     ]);
     
     // Create HTML table for Excel
@@ -645,7 +629,6 @@ const Inventory = () => {
         let style = 'padding: 5px;';
         if (index === 6) { // Status column
           if (cell === 'Available') style += 'color: green;';
-          else if (cell === 'Reserved') style += 'color: blue;';
           else if (cell === 'Critical') style += 'color: red;';
           else if (cell === 'Quarantined') style += 'color: orange;';
         }
@@ -696,11 +679,6 @@ const Inventory = () => {
       
       // Temperature filter
       if (advancedFilters.temperature !== 'All' && item.temperature !== advancedFilters.temperature) {
-        return false;
-      }
-      
-      // Screening status filter
-      if (advancedFilters.screeningStatus !== 'All' && item.screeningStatus !== advancedFilters.screeningStatus) {
         return false;
       }
       
@@ -838,21 +816,6 @@ const Inventory = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hospital (if reserved)</label>
-              <select
-                name="hospital"
-                value={formData.hospital || ''}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-              >
-                <option value="">Not Reserved</option>
-                {hospitals.map(hospital => (
-                  <option key={hospital} value={hospital}>{hospital}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Batch No</label>
               <input
                 type="text"
@@ -861,20 +824,6 @@ const Inventory = () => {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
               />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Screening Status</label>
-              <select
-                name="screeningStatus"
-                value={formData.screeningStatus}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-              >
-                {screeningStatuses.filter(status => status !== 'All').map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
             </div>
           </div>
           
@@ -1025,21 +974,6 @@ const Inventory = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hospital (if reserved)</label>
-              <select
-                name="hospital"
-                value={formData.hospital || ''}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-              >
-                <option value="">Not Reserved</option>
-                {hospitals.map(hospital => (
-                  <option key={hospital} value={hospital}>{hospital}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Batch No</label>
               <input
                 type="text"
@@ -1048,20 +982,6 @@ const Inventory = () => {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
               />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Screening Status</label>
-              <select
-                name="screeningStatus"
-                value={formData.screeningStatus}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-              >
-                {screeningStatuses.filter(status => status !== 'All').map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
             </div>
           </div>
           
@@ -1204,19 +1124,6 @@ const Inventory = () => {
                 className="w-full p-2 border rounded"
               />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Screening Status</label>
-              <select
-                value={advancedFilters.screeningStatus}
-                onChange={(e) => setAdvancedFilters({...advancedFilters, screeningStatus: e.target.value})}
-                className="w-full p-2 border rounded"
-              >
-                {screeningStatuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
           </div>
           
           <div className="flex justify-between mt-6">
@@ -1228,8 +1135,7 @@ const Inventory = () => {
                   collectedBefore: '',
                   expiryAfter: '',
                   expiryBefore: '',
-                  temperature: 'All',
-                  screeningStatus: 'All'
+                  temperature: 'All'
                 });
               }}
               className="px-4 py-2 border rounded text-gray-700"
@@ -1293,7 +1199,7 @@ const Inventory = () => {
             <div className="flex items-center mt-2">
               <span className={`px-3 py-1 rounded-full text-sm bg-white ${
                 currentDetailItem.status === 'Available' ? 'text-green-600' : 
-                currentDetailItem.status === 'Reserved' ? 'text-blue-600' : 
+ 
                 currentDetailItem.status === 'Quarantined' ? 'text-yellow-600' : 'text-red-600'
               }`}>
                 {currentDetailItem.status}
@@ -1357,12 +1263,6 @@ const Inventory = () => {
                         </span>
                       </td>
                     </tr>
-                    {currentDetailItem.hospital && (
-                      <tr className="border-b">
-                        <td className="py-2 text-gray-600 font-medium">Reserved For</td>
-                        <td className="py-2 text-gray-900">{currentDetailItem.hospital}</td>
-                      </tr>
-                    )}
                   </tbody>
                 </table>
               </div>
@@ -1391,40 +1291,6 @@ const Inventory = () => {
                         )}
                       </td>
                     </tr>
-                    <tr className="border-b">
-                      <td className="py-2 text-gray-600 font-medium">Shelf Life</td>
-                      <td className="py-2 text-gray-900">
-                        {(() => {
-                          const collected = new Date(currentDetailItem.collected);
-                          const expiry = new Date(currentDetailItem.expiry);
-                          const diffTime = expiry - collected;
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                          return `${diffDays} days`;
-                        })()}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
-                  <FiActivity className="mr-2 text-red-600" />
-                  Screening Information
-                </h2>
-                
-                <table className="w-full">
-                  <tbody>
-                    <tr className="border-b">
-                      <td className="py-2 text-gray-600 font-medium">Screening Status</td>
-                      <td className="py-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          currentDetailItem.screeningStatus === 'Passed' ? 'bg-green-100 text-green-800' :
-                          currentDetailItem.screeningStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {currentDetailItem.screeningStatus}
-                        </span>
-                      </td>
-                    </tr>
                   </tbody>
                 </table>
                 
@@ -1436,14 +1302,12 @@ const Inventory = () => {
                     <FiEdit className="mr-2" /> Edit Unit Details
                   </button>
                   
-                  {currentDetailItem.status !== 'Reserved' && (
-                    <button 
-                      onClick={handleShowBloodBagRequests}
-                      className="w-full py-2 bg-green-600 text-white rounded-md flex items-center justify-center"
-                    >
-                      <FiCornerUpRight className="mr-2" /> Process Donor Claim
-                    </button>
-                  )}
+                  <button 
+                    onClick={handleShowBloodBagRequests}
+                    className="w-full py-2 bg-green-600 text-white rounded-md flex items-center justify-center"
+                  >
+                    <FiCornerUpRight className="mr-2" /> Process Donor Claim
+                  </button>
                   
                   <button 
                     onClick={() => {
@@ -1574,7 +1438,6 @@ const Inventory = () => {
               <div key={type.type} className="border rounded-lg p-3 text-center">
                 <div className="text-xl font-bold">{type.type}</div>
                 <div className="text-sm text-gray-500">Available: <span className="font-medium text-green-600">{type.available}</span></div>
-                <div className="text-sm text-gray-500">Reserved: <span className="font-medium text-blue-600">{type.reserved}</span></div>
                 <div className="mt-1 h-1 bg-gray-200 rounded-full">
                   <div
                     className="h-1 bg-red-600 rounded-full"
@@ -1836,13 +1699,11 @@ const Inventory = () => {
                               <div>
                                 <h3 className="text-sm font-medium mb-2">Storage Information</h3>
                                 <p className="text-xs text-gray-600">Temperature: {item.temperature}</p>
-                                <p className="text-xs text-gray-600">Screening: {item.screeningStatus}</p>
                                 <p className="text-xs text-gray-600">Location: {item.location}</p>
                               </div>
                               <div>
                                 <h3 className="text-sm font-medium mb-2">Allocation Status</h3>
                                 <p className="text-xs text-gray-600">Status: {item.status}</p>
-                                <p className="text-xs text-gray-600">Reserved for: {item.hospital || 'Not reserved'}</p>
                                 <p className="text-xs text-gray-600">Expiry: {expiryInfo.message}</p>
                               </div>
                             </div>
