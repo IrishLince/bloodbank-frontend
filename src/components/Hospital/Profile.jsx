@@ -178,18 +178,16 @@ const ProfileManagement = () => {
             {/* Profile Image */}
             <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-full border-4 border-white flex items-center justify-center relative -mt-4 sm:mt-0">
               {hospitalData.profilePhotoUrl ? (
-                <img src={hospitalData.profilePhotoUrl} alt="Profile Photo" className="w-full h-full rounded-full object-cover" />
+                <img src={hospitalData.profilePhotoUrl} alt="Hospital Profile Photo" className="w-full h-full rounded-full object-cover" />
               ) : (
                 <Building className="w-14 h-14 sm:w-16 sm:h-16 text-red-600" />
               )}
-              <div className="absolute bottom-1 right-1 bg-green-500 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
-                <CheckCircle className="w-3 h-3 text-white" />
-              </div>
               
               {/* Camera Button for Profile Photo */}
               <button
                 onClick={() => setShowProfileModal(true)}
-                className="absolute bottom-0 left-0 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-105"
+                className="absolute bottom-0 right-0 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-105"
+                title="Change Profile Photo"
               >
                 {isUpdating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
