@@ -408,15 +408,6 @@ const ProfileManagement = () => {
           </div>
         )}
         
-        {/* Quick Action Button */}
-        <div className="mt-6 mb-8 text-center">
-          <button
-            onClick={() => navigate('/new-request')}
-            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-3 px-6 rounded-lg font-medium shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
-          >
-            Create New Blood Request
-          </button>
-        </div>
       </div>
     </div>
   )
