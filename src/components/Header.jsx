@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { Menu, X, UserCircle2, Settings, LogOut, User, Mail, Home, Calendar, Info, List, Star, FileText, Package, Building2 } from "lucide-react"
@@ -64,6 +62,27 @@ const useAuth = () => {
           role: localStorage.getItem(STORAGE_KEYS.ROLE)
         }
       }
+
+      // Check if user is a hospital and get hospital-specific data
+      const role = userData?.role || ''
+      if (role === 'HOSPITAL' || role === 'ROLE_HOSPITAL') {
+        try {
+          const hospitalDataStr = localStorage.getItem('hospitalData')
+          if (hospitalDataStr && hospitalDataStr !== 'undefined') {
+            const hospitalData = JSON.parse(hospitalDataStr)
+            // Use hospital-specific data for display
+            userData = {
+              ...userData,
+              id: hospitalData.id || userData.id,
+              name: hospitalData.hospitalName || hospitalData.name || userData.name,
+              email: hospitalData.email || userData.email,
+              profilePhotoUrl: hospitalData.profilePhotoUrl || userData.profilePhotoUrl
+            }
+          }
+        } catch (e) {
+          // Silently handle parsing error, fall back to regular userData
+        }
+      }
       
       // Determine display name priority: userData.name > email prefix > 'User'
       const displayName = userData?.name || 
@@ -75,12 +94,11 @@ const useAuth = () => {
         name: displayName,
         email: userData?.email || '',
         token: userData?.token || '',
-        role: userData?.role || '',
+        role: role,
         profilePhotoUrl: userData?.profilePhotoUrl || ''
       }
       
       const isAuth = !!userData?.token
-      const role = userData?.role || ''
       
       // Only update if values actually changed to prevent unnecessary re-renders
       setUserData(prev => {
@@ -103,9 +121,15 @@ const useAuth = () => {
     }
   }, [])
 
-  // Fetch complete user profile data
+  // Fetch complete user profile data (skip for hospitals as they use different endpoints)
   const fetchUserProfile = useCallback(async (userId) => {
     if (!userId) return
+    
+    // Skip fetching for hospitals as they use hospital-specific endpoints
+    const currentRole = localStorage.getItem(STORAGE_KEYS.ROLE)
+    if (currentRole === 'HOSPITAL' || currentRole === 'ROLE_HOSPITAL') {
+      return
+    }
 
     try {
       const response = await fetchWithAuth(`/user/${userId}`)
@@ -158,16 +182,20 @@ const useAuth = () => {
     }
     
     const handleStorageChange = (e) => {
-      if (Object.values(STORAGE_KEYS).includes(e.key)) {
+      if (Object.values(STORAGE_KEYS).includes(e.key) || e.key === 'hospitalData') {
         updateUserData()
-        // Also fetch profile data if user ID changed
-        if (e.key === STORAGE_KEYS.USER_ID && e.newValue) {
+        // Also fetch profile data if user ID changed (but not for hospitals)
+        if (e.key === STORAGE_KEYS.USER_ID && e.newValue && userRole !== 'HOSPITAL' && userRole !== 'ROLE_HOSPITAL') {
           fetchUserProfile(e.newValue)
         }
       }
     }
     
     const handleUserDataUpdated = () => {
+      updateUserData()
+    }
+
+    const handleHospitalDataUpdated = () => {
       updateUserData()
     }
     
@@ -183,12 +211,16 @@ const useAuth = () => {
     
     window.addEventListener('storage', handleStorageChange)
     window.addEventListener('userDataUpdated', handleUserDataUpdated)
+    window.addEventListener('hospitalDataUpdated', handleHospitalDataUpdated)
+    window.addEventListener('profilePhotoUpdated', handleUserDataUpdated)
     window.addEventListener('popstate', updateUserData)
     
     return () => {
       clearInterval(authCheckInterval)
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('userDataUpdated', handleUserDataUpdated)
+      window.removeEventListener('hospitalDataUpdated', handleHospitalDataUpdated)
+      window.removeEventListener('profilePhotoUpdated', handleUserDataUpdated)
       window.removeEventListener('popstate', updateUserData)
     }
   }, [updateUserData, isAuthenticated, userRole])
@@ -199,6 +231,9 @@ const useAuth = () => {
       Object.values(STORAGE_KEYS).forEach(key => {
         localStorage.removeItem(key)
       })
+      
+      // Clear hospital-specific data
+      localStorage.removeItem('hospitalData')
       
       setIsAuthenticated(false)
       setUserRole("")
