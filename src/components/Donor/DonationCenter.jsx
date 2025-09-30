@@ -95,6 +95,11 @@ export default function DonationCenter() {
         
         // Get hospitals (will use location-based filtering if available)
         console.log('🏥 Fetching hospitals...', { userLocation })
+        console.log('🏥 User location format check:', {
+          lat: userLocation?.lat || userLocation?.latitude,
+          lng: userLocation?.lng || userLocation?.longitude,
+          hasCoordinates: !!(userLocation?.lat || userLocation?.latitude) && !!(userLocation?.lng || userLocation?.longitude)
+        })
         const hospitalData = await hospitalService.getHospitalsForLocation(userLocation)
         console.log('🏥 Hospitals received:', hospitalData)
         console.log('🏥 First hospital data:', hospitalData[0])
@@ -104,6 +109,8 @@ export default function DonationCenter() {
           console.log('🏥 Hospital hours field:', hospitalData[0].hours)
           console.log('🏥 Hospital operatingHours field:', hospitalData[0].operatingHours)
           console.log('🏥 Hospital coordinates:', hospitalData[0].coordinates)
+          console.log('🏥 Hospital calculated distance:', hospitalData[0].calculatedDistance)
+          console.log('🏥 Hospital distance text:', hospitalData[0].distanceText)
         }
         setHospitals(hospitalData)
       } catch (error) {

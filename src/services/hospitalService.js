@@ -1,4 +1,4 @@
-// Hospital API Service
+// Hospital API Service with Enhanced Distance Calculation
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
 
 class HospitalService {
@@ -10,7 +10,7 @@ class HospitalService {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies for authentication if needed
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -19,10 +19,9 @@ class HospitalService {
 
       const hospitals = await response.json();
       
-      // Ensure each hospital has the required fields for distance calculation
       return hospitals.map(hospital => ({
         ...hospital,
-        distance: null, // Will be calculated by Google Maps
+        distance: null,
         coordinates: hospital.coordinates || null,
         address: hospital.address || hospital.location,
         name: hospital.hospitalName || hospital.name,
@@ -58,7 +57,7 @@ class HospitalService {
       
       return hospitals.map(hospital => ({
         ...hospital,
-        distance: null, // Will be calculated by Google Maps
+        distance: null,
         coordinates: hospital.coordinates || null,
         address: hospital.address || hospital.location,
         name: hospital.hospitalName || hospital.name,
@@ -72,77 +71,222 @@ class HospitalService {
     }
   }
 
-
-  // Calculate accurate distance between two coordinates using Haversine formula
+  // Improved Haversine formula with higher precision
   calculateDistance(lat1, lng1, lat2, lng2) {
+    // Validate inputs
+    if (!this.isValidCoordinate(lat1, lng1) || !this.isValidCoordinate(lat2, lng2)) {
+      console.warn('Invalid coordinates provided for distance calculation');
+      return null;
+    }
+
     const R = 6371; // Earth's radius in kilometers
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // Distance in kilometers
+    
+    // Convert to radians
+    const toRad = (deg) => deg * (Math.PI / 180);
+    
+    const lat1Rad = toRad(lat1);
+    const lat2Rad = toRad(lat2);
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+
+    // Haversine formula
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    return distance; // Returns distance in kilometers
   }
 
-  // Get hospitals with REALTIME location-based filtering
+  // Validate coordinate values
+  isValidCoordinate(lat, lng) {
+    return (
+      typeof lat === 'number' && 
+      typeof lng === 'number' &&
+      !isNaN(lat) && 
+      !isNaN(lng) &&
+      lat >= -90 && 
+      lat <= 90 &&
+      lng >= -180 && 
+      lng <= 180
+    );
+  }
+
+  // Extract coordinates from various formats
+  extractCoordinates(location) {
+    if (!location) return null;
+
+    // Handle different coordinate formats
+    const lat = location.lat || location.latitude || location.coords?.latitude;
+    const lng = location.lng || location.longitude || location.coords?.longitude;
+
+    if (this.isValidCoordinate(lat, lng)) {
+      return { lat: parseFloat(lat), lng: parseFloat(lng) };
+    }
+
+    return null;
+  }
+
+  // Format distance for display
+  formatDistance(distanceKm) {
+    if (distanceKm === null || distanceKm === undefined) {
+      return 'Distance unavailable';
+    }
+
+    if (distanceKm < 1) {
+      return `${Math.round(distanceKm * 1000)} m`;
+    } else if (distanceKm < 10) {
+      return `${distanceKm.toFixed(1)} km`;
+    } else {
+      return `${Math.round(distanceKm)} km`;
+    }
+  }
+
+  // Get hospitals with REALTIME location-based filtering and accurate distances
   async getHospitalsForLocation(userLocation = null, maxDistanceKm = 15) {
     try {
-      // Always get ALL hospitals first
       console.log('🌍 Fetching all hospitals for realtime distance calculation...');
       const allHospitals = await this.getAllHospitals();
       
-      if (!userLocation || !userLocation.lat || !userLocation.lng) {
-        console.log('🌍 No user location available, returning all hospitals');
-        return allHospitals;
+      // Extract user coordinates
+      const userCoords = this.extractCoordinates(userLocation);
+      
+      if (!userCoords) {
+        console.log('🌍 No valid user location coordinates, returning all hospitals');
+        console.log('🌍 User location received:', userLocation);
+        return allHospitals.map(hospital => ({
+          ...hospital,
+          calculatedDistance: null,
+          distanceText: 'Location not available',
+          hasValidCoordinates: false
+        }));
       }
 
-      console.log(`🌍 Calculating realtime distances from user location:`, userLocation);
+      console.log(`🌍 User location:`, userCoords);
       
       // Calculate realtime distance for each hospital
-      const hospitalsWithDistance = allHospitals.map(hospital => {
-        if (hospital.coordinates && hospital.coordinates.lat && hospital.coordinates.lng) {
+      const hospitalsWithDistance = allHospitals.map((hospital, index) => {
+        const hospitalCoords = this.extractCoordinates(hospital.coordinates);
+        
+        if (hospitalCoords) {
           const distance = this.calculateDistance(
-            userLocation.lat,
-            userLocation.lng,
-            hospital.coordinates.lat,
-            hospital.coordinates.lng
+            userCoords.lat,
+            userCoords.lng,
+            hospitalCoords.lat,
+            hospitalCoords.lng
           );
           
-          return {
-            ...hospital,
-            calculatedDistance: distance,
-            distanceText: `${distance.toFixed(1)} km`
-          };
-        } else {
-          // Hospital without coordinates - put at end
-          return {
-            ...hospital,
-            calculatedDistance: 999,
-            distanceText: 'Distance unavailable'
-          };
+          if (distance !== null) {
+            console.log(
+              `🏥 ${hospital.hospitalName || hospital.name}: ${this.formatDistance(distance)} away`
+            );
+            
+            return {
+              ...hospital,
+              calculatedDistance: distance,
+              distanceText: this.formatDistance(distance),
+              hasValidCoordinates: true,
+              coordinates: hospitalCoords // Ensure normalized coordinates
+            };
+          }
         }
+        
+        console.log(`⚠️ ${hospital.hospitalName || hospital.name}: Invalid coordinates`, hospital.coordinates);
+        
+        return {
+          ...hospital,
+          calculatedDistance: Infinity,
+          distanceText: 'Distance unavailable',
+          hasValidCoordinates: false
+        };
       });
 
-      // Filter hospitals within max distance and sort by distance
+      // Filter and sort hospitals
       const nearbyHospitals = hospitalsWithDistance
-        .filter(hospital => hospital.calculatedDistance <= maxDistanceKm)
+        .filter(hospital => {
+          // Include hospitals with valid distances within range
+          return hospital.hasValidCoordinates && 
+                 hospital.calculatedDistance <= maxDistanceKm;
+        })
         .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
 
       console.log(`🌍 Found ${nearbyHospitals.length} hospitals within ${maxDistanceKm}km`);
-      console.log('🌍 Nearest hospital:', nearbyHospitals[0]?.hospitalName, nearbyHospitals[0]?.distanceText);
+      
+      if (nearbyHospitals.length > 0) {
+        console.log(
+          `🏥 Nearest: ${nearbyHospitals[0].hospitalName || nearbyHospitals[0].name} - ${nearbyHospitals[0].distanceText}`
+        );
+      } else {
+        console.log(`⚠️ No hospitals found within ${maxDistanceKm}km radius`);
+      }
       
       return nearbyHospitals;
       
     } catch (error) {
-      console.error('Error in realtime location filtering:', error.message);
-      // Fallback to all hospitals
-      return await this.getAllHospitals();
+      console.error('Error in realtime location filtering:', error);
+      // Fallback to all hospitals without distance calculation
+      const allHospitals = await this.getAllHospitals();
+      return allHospitals.map(hospital => ({
+        ...hospital,
+        calculatedDistance: null,
+        distanceText: 'Error calculating distance',
+        hasValidCoordinates: false
+      }));
+    }
+  }
+
+  // Get N nearest hospitals regardless of distance
+  async getNearestHospitals(userLocation, limit = 5) {
+    try {
+      const allHospitals = await this.getAllHospitals();
+      const userCoords = this.extractCoordinates(userLocation);
+      
+      if (!userCoords) {
+        return allHospitals.slice(0, limit);
+      }
+
+      const hospitalsWithDistance = allHospitals
+        .map(hospital => {
+          const hospitalCoords = this.extractCoordinates(hospital.coordinates);
+          
+          if (hospitalCoords) {
+            const distance = this.calculateDistance(
+              userCoords.lat,
+              userCoords.lng,
+              hospitalCoords.lat,
+              hospitalCoords.lng
+            );
+            
+            return {
+              ...hospital,
+              calculatedDistance: distance,
+              distanceText: this.formatDistance(distance),
+              hasValidCoordinates: true
+            };
+          }
+          
+          return {
+            ...hospital,
+            calculatedDistance: Infinity,
+            distanceText: 'Distance unavailable',
+            hasValidCoordinates: false
+          };
+        })
+        .filter(hospital => hospital.hasValidCoordinates)
+        .sort((a, b) => a.calculatedDistance - b.calculatedDistance)
+        .slice(0, limit);
+
+      return hospitalsWithDistance;
+      
+    } catch (error) {
+      console.error('Error fetching nearest hospitals:', error);
+      throw error;
     }
   }
 }
 
 // Create singleton instance
 const hospitalService = new HospitalService();
-
 export default hospitalService;
