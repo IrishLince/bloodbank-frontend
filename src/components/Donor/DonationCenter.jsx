@@ -100,33 +100,8 @@ export default function DonationCenter() {
         const nearbyData = await hospitalService.getHospitalsForLocation(userLocation, 15) // 15km radius
         setNearbyHospitals(nearbyData)
         
-        // Fetch all hospitals and calculate distances if user location is available
-        let allData = await hospitalService.getAllHospitals()
-        
-        // If user has location, calculate distances and sort all hospitals by distance
-        if (userLocation) {
-          allData = allData.map(hospital => {
-            if (hospital.coordinates && hospital.coordinates.lat && hospital.coordinates.lng) {
-              const distance = calculateStraightLineDistance(
-                userLocation.lat || userLocation.latitude,
-                userLocation.lng || userLocation.longitude,
-                hospital.coordinates.lat,
-                hospital.coordinates.lng
-              );
-              return {
-                ...hospital,
-                calculatedDistance: distance,
-                distanceText: `${distance.toFixed(1)} km`
-              };
-            }
-            return {
-              ...hospital,
-              calculatedDistance: 999,
-              distanceText: 'Distance unavailable'
-            };
-          }).sort((a, b) => a.calculatedDistance - b.calculatedDistance); // Sort by distance
-        }
-        
+        // Fetch ALL hospitals with distance calculation (use very high limit to get all)
+        const allData = await hospitalService.getHospitalsForLocation(userLocation, 999) // 999km limit = gets ALL hospitals with distances
         setAllHospitals(allData)
         
         // Set current display based on active tab
@@ -169,6 +144,39 @@ export default function DonationCenter() {
       calculateMultipleDistances(hospitals)
     }
   }, [userLocation, hospitals, calculateMultipleDistances])
+
+  // Recalculate distances for all hospitals when location becomes available
+  useEffect(() => {
+    if (userLocation && allHospitals.length > 0) {
+      const updatedAllHospitals = allHospitals.map(hospital => {
+        if (hospital.coordinates && hospital.coordinates.lat && hospital.coordinates.lng) {
+          const distance = calculateStraightLineDistance(
+            userLocation.lat || userLocation.latitude,
+            userLocation.lng || userLocation.longitude,
+            hospital.coordinates.lat,
+            hospital.coordinates.lng
+          );
+          return {
+            ...hospital,
+            calculatedDistance: distance,
+            distanceText: `${distance.toFixed(1)} km`
+          };
+        }
+        return {
+          ...hospital,
+          calculatedDistance: 999,
+          distanceText: 'Distance unavailable'
+        };
+      }).sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+      
+      setAllHospitals(updatedAllHospitals);
+      
+      // Update current display if on "all" tab
+      if (activeTab === "all") {
+        setHospitals(updatedAllHospitals);
+      }
+    }
+  }, [userLocation, activeTab])
 
   // Loading simulation
   useEffect(() => {
@@ -342,7 +350,7 @@ export default function DonationCenter() {
             </motion.div>
             <h3 className="font-medium text-gray-900">{hospital.name}</h3>
           </div>
-          {(distanceInfo || hospital.calculatedDistance) && (
+          {(distanceInfo || hospital.calculatedDistance || hospital.distanceText) && (
             <div className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-full">
               <Navigation className="w-3 h-3" />
               <span className="text-xs font-medium">
@@ -365,7 +373,7 @@ export default function DonationCenter() {
             <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <span className="text-sm">{hospital.hours}</span>
           </div>
-          {distanceInfo && distanceInfo.duration && (
+          {distanceInfo?.duration && (
             <div className="flex items-center gap-2 text-gray-600">
               <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span className="text-sm">{distanceInfo.duration.text} drive</span>
@@ -615,11 +623,6 @@ export default function DonationCenter() {
         >
           <p className="text-sm text-gray-600">
             Found <span className="font-medium">{filteredAndSortedHospitals.length}</span> donation centers
-            {userLocation && (
-              <span className="ml-1 text-green-600">
-                • Sorted by distance from your location
-              </span>
-            )}
             {searchTerm && (
               <span className="ml-1">
                 matching "<span className="text-red-600">{searchTerm}</span>"
@@ -747,18 +750,16 @@ export default function DonationCenter() {
                             <SortIcon columnName="bloodTypes" />
                           </button>
                         </th>
-                        {userLocation && (
-                          <th className="text-left py-4 px-4 font-medium">
-                            <button
-                              onClick={() => requestSort("distance")}
-                              className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                            >
-                              <Navigation className="w-4 h-4 text-red-500" />
-                              Distance
-                              <SortIcon columnName="distance" />
-                            </button>
-                          </th>
-                        )}
+                        <th className="text-left py-4 px-4 font-medium">
+                          <button
+                            onClick={() => requestSort("distance")}
+                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
+                          >
+                            <Navigation className="w-4 h-4 text-red-500" />
+                            Distance
+                            <SortIcon columnName="distance" />
+                          </button>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -828,40 +829,89 @@ export default function DonationCenter() {
                                   ))}
                                 </div>
                               </td>
-                              {userLocation && (
-                                <td className="py-4 px-4">
-                                  {(() => {
-                                    const distanceInfo = getHospitalDistance(hospital.id)
-                                    return distanceInfo ? (
+                              <td className="py-4 px-4">
+                                {(() => {
+                                  const distanceInfo = getHospitalDistance(hospital.id)
+                                  
+                                  // Show distance if available from any source
+                                  if (distanceInfo?.distance?.text) {
+                                    return (
                                       <div className="flex items-center gap-2">
                                         <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                         <div className="flex flex-col">
                                           <span className="text-sm text-gray-900 font-medium">
-                                            {distanceInfo?.distance?.text || hospital.distanceText || `${hospital.calculatedDistance?.toFixed(1)} km`}
+                                            {distanceInfo.distance.text}
                                           </span>
-                                          {distanceInfo.duration && (
+                                          {distanceInfo?.duration && (
                                             <span className="text-xs text-gray-500">
                                               {distanceInfo.duration.text}
                                             </span>
                                           )}
                                         </div>
                                       </div>
-                                    ) : distanceLoading ? (
+                                    )
+                                  }
+                                  
+                                  // Show calculated distance
+                                  if (hospital.distanceText) {
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                        <span className="text-sm text-gray-900 font-medium">
+                                          {hospital.distanceText}
+                                        </span>
+                                      </div>
+                                    )
+                                  }
+                                  
+                                  // Show raw calculated distance
+                                  if (hospital.calculatedDistance && hospital.calculatedDistance !== 999) {
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                        <span className="text-sm text-gray-900 font-medium">
+                                          {hospital.calculatedDistance.toFixed(1)} km
+                                        </span>
+                                      </div>
+                                    )
+                                  }
+                                  
+                                  // Show loading state
+                                  if (distanceLoading) {
+                                    return (
                                       <div className="flex items-center gap-2">
                                         <Loader className="w-4 h-4 text-gray-400 animate-spin" />
                                         <span className="text-xs text-gray-500">Calculating...</span>
                                       </div>
-                                    ) : (
-                                      <span className="text-xs text-gray-400">N/A</span>
                                     )
-                                  })()}
-                                </td>
-                              )}
+                                  }
+                                  
+                                  // Show "Enable location" if no user location
+                                  if (!userLocation) {
+                                    return (
+                                      <span className="text-xs text-gray-400">Enable location</span>
+                                    )
+                                  }
+                                  
+                                  // Debug: Show what we have
+                                  console.log('Debug - Hospital:', hospital.name, {
+                                    coordinates: hospital.coordinates,
+                                    calculatedDistance: hospital.calculatedDistance,
+                                    distanceText: hospital.distanceText,
+                                    userLocation: userLocation
+                                  })
+                                  
+                                  // Default fallback
+                                  return (
+                                    <span className="text-xs text-gray-400">N/A</span>
+                                  )
+                                })()}
+                              </td>
                             </motion.tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={userLocation ? "6" : "5"}>
+                            <td colSpan="6">
                               <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
