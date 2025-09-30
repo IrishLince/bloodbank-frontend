@@ -23,7 +23,7 @@ class HospitalService {
 
       const finalOptions = { ...defaultOptions, ...options };
 
-      console.log('📍 Getting your ACTUAL GPS location with high accuracy...');
+      // Getting GPS location with high accuracy
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -39,24 +39,9 @@ class HospitalService {
           
           this.currentUserLocation = location;
           
-          console.log('✅ Got your ACTUAL GPS location:', {
-            coordinates: `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`,
-            accuracy: `${location.accuracy.toFixed(0)} meters`,
-            timestamp: new Date(location.timestamp).toLocaleString()
-          });
-          
-          // Warn if accuracy is poor
-          if (location.accuracy > 100) {
-            console.warn('⚠️ GPS accuracy is LOW:', location.accuracy.toFixed(0), 'meters');
-            console.warn('💡 Try moving to an open area or check if GPS is enabled');
-          } else if (location.accuracy < 50) {
-            console.log('✅ GPS accuracy is EXCELLENT:', location.accuracy.toFixed(0), 'meters');
-          }
-          
           resolve(location);
         },
         (error) => {
-          console.error('❌ Location error:', error.message);
           let errorMessage = 'Unable to get your location. ';
           
           switch(error.code) {
@@ -83,7 +68,6 @@ class HospitalService {
   // Watch user's location for continuous updates
   startWatchingLocation(callback) {
     if (!navigator.geolocation) {
-      console.error('Geolocation not supported');
       return null;
     }
 
@@ -93,7 +77,7 @@ class HospitalService {
       maximumAge: 0              // ✅ Always fresh location
     };
 
-    console.log('👀 Started watching your location...');
+    // Started watching location
 
     this.locationWatchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -105,15 +89,11 @@ class HospitalService {
         };
         
         this.currentUserLocation = location;
-        console.log('📍 Location updated:', {
-          coordinates: `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`,
-          accuracy: `${location.accuracy.toFixed(0)}m`
-        });
         
         if (callback) callback(location);
       },
       (error) => {
-        console.error('Location watch error:', error);
+        // Location watch error
       },
       options
     );
@@ -150,7 +130,6 @@ class HospitalService {
       return hospitals.map(hospital => ({
         ...hospital,
         distance: null,
-        coordinates: hospital.coordinates || null,
         address: hospital.address || hospital.location,
         name: hospital.hospitalName || hospital.name,
         hours: hospital.operatingHours || hospital.hours || '24/7',
@@ -158,15 +137,13 @@ class HospitalService {
         availability: hospital.availability || 'Medium'
       }));
     } catch (error) {
-      console.error('Error fetching hospitals:', error);
-      throw new Error(`Failed to fetch hospitals: ${error.message}`);
+      throw new Error(`Failed to fetch nearby hospitals: ${error.message}`);
     }
   }
 
   // ✅ ACCURATE Haversine formula for distance calculation
   calculateDistance(lat1, lng1, lat2, lng2) {
     if (!this.isValidCoordinate(lat1, lng1) || !this.isValidCoordinate(lat2, lng2)) {
-      console.warn('Invalid coordinates for distance calculation');
       return null;
     }
 
@@ -237,18 +214,13 @@ class HospitalService {
   // ✅ MAIN METHOD: Get hospitals with ACCURATE GPS-based filtering
   async getHospitalsForLocation(userLocation = null, maxDistanceKm = 15) {
     try {
-      console.log('🌍 Fetching hospitals based on your ACTUAL GPS location...');
-      
-      // ✅ Step 1: Get ACTUAL GPS location if not provided
+      // Get ACTUAL GPS location if not provided
       let actualLocation = userLocation;
       
       if (!actualLocation || !this.extractCoordinates(actualLocation)) {
-        console.log('📍 No valid location provided, getting ACTUAL GPS location...');
         try {
           actualLocation = await this.getCurrentLocation();
-          console.log('✅ Successfully got GPS location');
         } catch (locationError) {
-          console.error('❌ Could not get GPS location:', locationError.message);
           // Return all hospitals without distance
           const allHospitals = await this.getAllHospitals();
           return allHospitals.map(h => ({
@@ -260,15 +232,13 @@ class HospitalService {
         }
       }
 
-      // ✅ Step 2: Fetch all hospitals
+      // Fetch all hospitals
       const allHospitals = await this.getAllHospitals();
-      console.log(`📊 Total hospitals from backend: ${allHospitals.length}`);
 
-      // ✅ Step 3: Extract and validate user coordinates
+      // Extract and validate user coordinates
       const userCoords = this.extractCoordinates(actualLocation);
       
       if (!userCoords) {
-        console.log('❌ Invalid user coordinates');
         return allHospitals.map(h => ({
           ...h,
           calculatedDistance: null,
@@ -277,9 +247,7 @@ class HospitalService {
         }));
       }
 
-      console.log(`📍 Your ACTUAL location: ${userCoords.lat.toFixed(6)}, ${userCoords.lng.toFixed(6)}`);
-      
-      // ✅ Step 4: Calculate REAL distance for each hospital based on GPS coordinates
+      // Calculate REAL distance for each hospital based on GPS coordinates
       const hospitalsWithDistance = allHospitals.map((hospital, index) => {
         const hospitalCoords = this.extractCoordinates(hospital.coordinates);
         
@@ -292,11 +260,6 @@ class HospitalService {
           );
           
           if (distance !== null) {
-            const hospitalName = hospital.hospitalName || hospital.name;
-            console.log(
-              `🏥 [${index + 1}/${allHospitals.length}] ${hospitalName}: ${this.formatDistance(distance)} away`
-            );
-            
             return {
               ...hospital,
               calculatedDistance: distance,
@@ -308,8 +271,6 @@ class HospitalService {
           }
         }
         
-        console.log(`⚠️ ${hospital.hospitalName || hospital.name}: No valid coordinates`);
-        
         return {
           ...hospital,
           calculatedDistance: Infinity,
@@ -318,32 +279,14 @@ class HospitalService {
         };
       });
 
-      // ✅ Step 5: Filter hospitals within radius and sort by distance
+      // Filter hospitals within radius and sort by distance
       const nearbyHospitals = hospitalsWithDistance
         .filter(h => h.hasValidCoordinates && h.calculatedDistance <= maxDistanceKm)
         .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
-
-      // ✅ Step 6: Log results
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`✅ RESULTS: Found ${nearbyHospitals.length} hospitals within ${maxDistanceKm}km`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      if (nearbyHospitals.length > 0) {
-        console.log('🏆 TOP 5 NEAREST HOSPITALS:');
-        nearbyHospitals.slice(0, 5).forEach((h, i) => {
-          console.log(`  ${i + 1}. ${h.hospitalName || h.name} - ${h.distanceText}`);
-        });
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      } else {
-        console.log(`⚠️ No hospitals found within ${maxDistanceKm}km radius`);
-        console.log(`💡 Try increasing the radius or check if hospital coordinates are correct`);
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      }
       
       return nearbyHospitals;
       
     } catch (error) {
-      console.error('❌ Error in location-based filtering:', error);
       // Fallback: Return all hospitals without distance
       const allHospitals = await this.getAllHospitals();
       return allHospitals.map(h => ({
@@ -355,15 +298,12 @@ class HospitalService {
     }
   }
 
-  // ✅ Get N nearest hospitals from your ACTUAL GPS location
+  // Get N nearest hospitals from your ACTUAL GPS location
   async getNearestHospitals(userLocation = null, limit = 5) {
     try {
-      console.log(`📍 Finding ${limit} nearest hospitals from your ACTUAL location...`);
-      
       // Get actual GPS location if not provided
       let actualLocation = userLocation;
       if (!actualLocation || !this.extractCoordinates(actualLocation)) {
-        console.log('📍 Getting ACTUAL GPS location...');
         actualLocation = await this.getCurrentLocation();
       }
 
@@ -371,11 +311,8 @@ class HospitalService {
       const userCoords = this.extractCoordinates(actualLocation);
       
       if (!userCoords) {
-        console.log('❌ Could not get valid coordinates');
         return allHospitals.slice(0, limit);
       }
-
-      console.log(`📍 Calculating from: ${userCoords.lat.toFixed(6)}, ${userCoords.lng.toFixed(6)}`);
 
       const hospitalsWithDistance = allHospitals
         .map(hospital => {
@@ -409,15 +346,11 @@ class HospitalService {
         .sort((a, b) => a.calculatedDistance - b.calculatedDistance)
         .slice(0, limit);
 
-      console.log(`✅ Found ${limit} nearest hospitals:`);
-      hospitalsWithDistance.forEach((h, i) => {
-        console.log(`  ${i + 1}. ${h.hospitalName || h.name} - ${h.distanceText}`);
-      });
+      // Found nearest hospitals
 
       return hospitalsWithDistance;
       
     } catch (error) {
-      console.error('❌ Error fetching nearest hospitals:', error);
       throw error;
     }
   }
@@ -434,15 +367,10 @@ class HospitalService {
         far: allHospitals.filter(h => h.calculatedDistance >= 15)          // > 15km
       };
 
-      console.log('📊 Hospitals by distance:');
-      console.log(`  🟢 Very Near (< 5km): ${ranges.veryNear.length}`);
-      console.log(`  🟡 Near (5-10km): ${ranges.near.length}`);
-      console.log(`  🟠 Moderate (10-15km): ${ranges.moderate.length}`);
-      console.log(`  🔴 Far (> 15km): ${ranges.far.length}`);
+      // Hospitals categorized by distance ranges
 
       return ranges;
     } catch (error) {
-      console.error('Error getting hospitals by range:', error);
       throw error;
     }
   }

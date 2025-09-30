@@ -178,6 +178,7 @@ function App() {
               element={isLoggedIn ? <Navigate to="/" /> : <ForgotPassword />} 
             />
             <Route path="/about-us" element={<AboutUs />} />
+            
 
             {/* Protected routes */}
             {isLoggedIn ? (
