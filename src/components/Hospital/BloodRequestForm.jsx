@@ -580,124 +580,127 @@ const BloodRequestForm = () => {
             </div>
           </div>
 
-          {/* Middle Row - Request Timeline */}
-          <div className="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden transform hover:scale-105 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3">
-              <div className="flex items-center text-white">
-                <div className="bg-white bg-opacity-20 p-1.5 rounded-lg mr-2">
-                  <FiClock className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold">Request Timeline</h2>
-                  <p className="text-red-100 text-xs">Set your request and delivery dates</p>
+          {/* Middle Column - Request Timeline */}
+          <div className="xl:col-span-1">
+            {/* Request Timeline */}
+            <div className="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden transform hover:scale-105 transition-all duration-300">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3">
+                <div className="flex items-center text-white">
+                  <div className="bg-white bg-opacity-20 p-1.5 rounded-lg mr-2">
+                    <FiClock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">Request Timeline</h2>
+                    <p className="text-red-100 text-xs">Set your request and delivery dates</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Date Selection Buttons */}
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-800 mb-1">Request Date</label>
-                    <button
-                      type="button"
-                      disabled
-                      className={`w-full p-3 border-2 rounded-lg text-left font-medium text-sm transition-all ${
-                        activeCalendar === 'request'
-                          ? 'border-red-500 bg-red-50 text-red-700'
-                          : errors.requestDate
-                          ? 'border-red-500 bg-white text-gray-800'
-                          : 'border-gray-200 bg-white text-gray-800 hover:border-red-300'
-                      }`}
-                    >
-                      {requestDate ? new Date(requestDate + 'T00:00:00').toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      }) : 'Select Request Date'}
-                    </button>
-                    {errors.requestDate && (
-                      <p className="text-red-500 text-xs mt-1 flex items-center">
-                        <FiInfo className="w-3 h-3 mr-1" />
-                        {errors.requestDate}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-800 mb-1">Date Needed</label>
-                    <button
-                      type="button"
-                      onClick={() => setActiveCalendar('needed')}
-                      className={`w-full p-3 border-2 rounded-lg text-left font-medium text-sm transition-all ${
-                        activeCalendar === 'needed'
-                          ? 'border-red-500 bg-red-50 text-red-700'
-                          : errors.dateNeeded
-                          ? 'border-red-500 bg-white text-gray-800'
-                          : 'border-gray-200 bg-white text-gray-800 hover:border-red-300'
-                      }`}
-                    >
-                      {dateNeeded ? new Date(dateNeeded + 'T00:00:00').toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      }) : 'Select Date Needed'}
-                    </button>
-                    {errors.dateNeeded && (
-                      <p className="text-red-500 text-xs mt-1 flex items-center">
-                        <FiInfo className="w-3 h-3 mr-1" />
-                        {errors.dateNeeded}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Calendar Widget */}
-                <div className="lg:col-span-2">
-                  <div className="bg-white border-2 border-gray-200 rounded-lg p-4">
-                    {/* Calendar Header */}
-                    <div className="flex items-center justify-between mb-4">
+              
+              <div className="p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Date Selection Buttons */}
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-800 mb-1">Request Date</label>
                       <button
                         type="button"
-                        onClick={() => navigateMonth('prev')}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        disabled
+                        className={`w-full p-3 border-2 rounded-lg text-left font-medium text-sm transition-all ${
+                          activeCalendar === 'request'
+                            ? 'border-red-500 bg-red-50 text-red-700'
+                            : errors.requestDate
+                            ? 'border-red-500 bg-white text-gray-800'
+                            : 'border-gray-200 bg-white text-gray-800 hover:border-red-300'
+                        }`}
                       >
-                        <FiChevronLeft className="w-4 h-4 text-gray-600" />
+                        {requestDate ? new Date(requestDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        }) : 'Select Request Date'}
                       </button>
-                      
-                      <div className="text-center">
-                        <h3 className="text-sm font-bold text-gray-800">
-                          {monthNames[currentMonth]} {currentYear}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          Selecting for: {activeCalendar === 'request' ? 'Request Date' : 'Date Needed'}
+                      {errors.requestDate && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center">
+                          <FiInfo className="w-3 h-3 mr-1" />
+                          {errors.requestDate}
                         </p>
-                      </div>
-                      
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-800 mb-1">Date Needed</label>
                       <button
                         type="button"
-                        onClick={() => navigateMonth('next')}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        onClick={() => setActiveCalendar('needed')}
+                        className={`w-full p-3 border-2 rounded-lg text-left font-medium text-sm transition-all ${
+                          activeCalendar === 'needed'
+                            ? 'border-red-500 bg-red-50 text-red-700'
+                            : errors.dateNeeded
+                            ? 'border-red-500 bg-white text-gray-800'
+                            : 'border-gray-200 bg-white text-gray-800 hover:border-red-300'
+                        }`}
                       >
-                        <FiChevronRight className="w-4 h-4 text-gray-600" />
+                        {dateNeeded ? new Date(dateNeeded + 'T00:00:00').toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        }) : 'Select Date Needed'}
                       </button>
+                      {errors.dateNeeded && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center">
+                          <FiInfo className="w-3 h-3 mr-1" />
+                          {errors.dateNeeded}
+                        </p>
+                      )}
                     </div>
+                  </div>
 
-                    {/* Calendar Days Header */}
-                    <div className="grid grid-cols-7 gap-1 mb-2">
-                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="h-8 flex items-center justify-center">
-                          <span className="text-xs font-medium text-gray-500">{day}</span>
+                  {/* Calendar Widget */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-white border-2 border-gray-200 rounded-lg p-4">
+                      {/* Calendar Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <button
+                          type="button"
+                          onClick={() => navigateMonth('prev')}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <FiChevronLeft className="w-4 h-4 text-gray-600" />
+                        </button>
+                        
+                        <div className="text-center">
+                          <h3 className="text-sm font-bold text-gray-800">
+                            {monthNames[currentMonth]} {currentYear}
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            Selecting for: {activeCalendar === 'request' ? 'Request Date' : 'Date Needed'}
+                          </p>
                         </div>
-                      ))}
-                    </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => navigateMonth('next')}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <FiChevronRight className="w-4 h-4 text-gray-600" />
+                        </button>
+                      </div>
 
-                    {/* Calendar Days */}
-                    <div className="grid grid-cols-7 gap-1">
-                      {renderCalendar()}
+                      {/* Calendar Days Header */}
+                      <div className="grid grid-cols-7 gap-1 mb-2">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                          <div key={day} className="h-8 flex items-center justify-center">
+                            <span className="text-xs font-medium text-gray-500">{day}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Calendar Days */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {renderCalendar()}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -705,146 +708,149 @@ const BloodRequestForm = () => {
             </div>
           </div>
 
-           {/* Notes Section */}
-           <div className="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden transform hover:scale-105 transition-all duration-300">
-             <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3">
-               <div className="flex items-center text-white">
-                 <div className="bg-white bg-opacity-20 p-1.5 rounded-lg mr-2">
-                   <FiInfo className="w-4 h-4" />
-                 </div>
-                 <div>
-                   <h2 className="text-lg font-bold">Additional Notes</h2>
-                   <p className="text-red-100 text-xs">Any specific instructions or details</p>
-                 </div>
-               </div>
-             </div>
-             <div className="p-4">
-               <textarea
-                 className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
-                 rows="4"
-                 placeholder="Enter any additional notes here..."
-                 value={notes}
-                 onChange={(e) => setNotes(e.target.value)}
-               ></textarea>
-             </div>
-           </div>
-
-           {/* Bottom Row - Blood Requests (Full Width) */}
-           <div className="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden">
-             <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3">
-               <div className="flex items-center text-white">
-                 <div className="bg-white bg-opacity-20 p-1.5 rounded-lg mr-2">
-                   <FiPlus className="w-4 h-4" />
-                 </div>
-                 <div>
-                   <h2 className="text-lg font-bold">Blood Requests</h2>
-                   <p className="text-red-100 text-xs">Specify the blood types and quantities needed</p>
-                 </div>
-               </div>
-             </div>
-
-            <div className="p-6">
-              {/* Blood Requests Summary */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <h3 className="text-base font-bold text-gray-900 mb-3">Selected Blood Types</h3>
-                
-                {bloodRequests.filter(request => request.bloodType && request.unitsRequested).length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {bloodRequests
-                      .filter(request => request.bloodType && request.unitsRequested)
-                      .map((request, index) => (
-                        <div key={request.id} className="flex items-center justify-between bg-white rounded-md p-2 border border-gray-200 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                            <span className="font-medium text-gray-900">
-                              {request.bloodType} - {request.unitsRequested} units
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeBloodRequest(bloodRequests.findIndex(r => r.id === request.id))}
-                            className="text-red-500 hover:text-red-700 bg-red-100 hover:bg-red-200 rounded-md p-1 transition-all"
-                          >
-                            <FiPlus className="w-3 h-3 transform rotate-45" />
-                          </button>
-                        </div>
-                      ))}
+          {/* Right Column - Additional Notes & Blood Requests */}
+          <div className="xl:col-span-1 space-y-4">
+            {/* Additional Notes Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden transform hover:scale-105 transition-all duration-300">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-2">
+                <div className="flex items-center text-white">
+                  <div className="bg-white bg-opacity-20 p-1.5 rounded-lg mr-2">
+                    <FiInfo className="w-4 h-4" />
                   </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <div className="text-gray-400 mb-2">
-                      <FiInfo className="w-8 h-8 mx-auto mb-2" />
-                    </div>
-                    <p className="text-gray-500 font-medium text-sm">No blood types selected yet</p>
-                    <p className="text-gray-400 text-xs">Click "Add Another Blood Type" to get started</p>
+                  <div>
+                    <h2 className="text-lg font-bold">Additional Notes</h2>
+                    <p className="text-red-100 text-xs">Any specific instructions or details</p>
                   </div>
-                )}
+                </div>
+              </div>
+              <div className="p-3">
+                <textarea
+                  className="w-full p-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none"
+                  rows="2"
+                  placeholder="Enter any additional notes here..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                ></textarea>
+              </div>
+            </div>
+
+            {/* Blood Requests Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-red-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3">
+                <div className="flex items-center text-white">
+                  <div className="bg-white bg-opacity-20 p-1.5 rounded-lg mr-2">
+                    <FiPlus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">Blood Requests</h2>
+                    <p className="text-red-100 text-xs">Specify the blood types and quantities needed</p>
+                  </div>
+                </div>
               </div>
 
-              {/* Error Messages */}
-              {errors.submission && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                  <div className="flex items-center text-red-700">
-                    <FiInfo className="w-4 h-4 mr-2" />
-                    <span className="font-medium text-sm">{errors.submission}</span>
-                  </div>
+              <div className="p-6">
+                {/* Blood Requests Summary */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <h3 className="text-base font-bold text-gray-900 mb-3">Selected Blood Types</h3>
+                  
+                  {bloodRequests.filter(request => request.bloodType && request.unitsRequested).length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {bloodRequests
+                        .filter(request => request.bloodType && request.unitsRequested)
+                        .map((request, index) => (
+                          <div key={request.id} className="flex items-center justify-between bg-white rounded-md p-2 border border-gray-200 text-sm">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+                              <span className="font-medium text-gray-900">
+                                {request.bloodType} - {request.unitsRequested} units
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeBloodRequest(bloodRequests.findIndex(r => r.id === request.id))}
+                              className="text-red-500 hover:text-red-700 bg-red-100 hover:bg-red-200 rounded-md p-1 transition-all"
+                            >
+                              <FiPlus className="w-3 h-3 transform rotate-45" />
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <div className="text-gray-400 mb-2">
+                        <FiInfo className="w-8 h-8 mx-auto mb-2" />
+                      </div>
+                      <p className="text-gray-500 font-medium text-sm">No blood types selected yet</p>
+                      <p className="text-gray-400 text-xs">Click "Add Another Blood Type" to get started</p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {errors.bloodRequests && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                  <div className="flex items-center text-red-700">
-                    <FiInfo className="w-4 h-4 mr-2" />
-                    <span className="font-medium text-sm">{errors.bloodRequests}</span>
+                {/* Error Messages */}
+                {errors.submission && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center text-red-700">
+                      <FiInfo className="w-4 h-4 mr-2" />
+                      <span className="font-medium text-sm">{errors.submission}</span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {errors.duplicateBloodTypes && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                  <div className="flex items-center text-red-700">
-                    <FiInfo className="w-4 h-4 mr-2" />
-                    <span className="font-medium text-sm">{errors.duplicateBloodTypes}</span>
+                {errors.bloodRequests && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center text-red-700">
+                      <FiInfo className="w-4 h-4 mr-2" />
+                      <span className="font-medium text-sm">{errors.bloodRequests}</span>
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {errors.maxRequests && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                  <div className="flex items-center text-red-700">
-                    <FiInfo className="w-4 h-4 mr-2" />
-                    <span className="font-medium text-sm">{errors.maxRequests}</span>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {/* Individual Blood Type Errors */}
-              {Object.keys(errors).filter(key => key.startsWith('bloodType_')).map(errorKey => (
-                <div key={errorKey} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                  <div className="flex items-center text-red-700">
-                    <FiInfo className="w-4 h-4 mr-2" />
-                    <span className="font-medium text-sm">
-                      {errorKey.replace('bloodType_', '').toUpperCase()}: {errors[errorKey]}
-                    </span>
+                {errors.duplicateBloodTypes && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center text-red-700">
+                      <FiInfo className="w-4 h-4 mr-2" />
+                      <span className="font-medium text-sm">{errors.duplicateBloodTypes}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )}
+                
+                {errors.maxRequests && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center text-red-700">
+                      <FiInfo className="w-4 h-4 mr-2" />
+                      <span className="font-medium text-sm">{errors.maxRequests}</span>
+                    </div>
+                  </div>
+                )}
 
-              {/* Add Another Blood Type Button */}
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={addBloodRequest}
-                  disabled={!selectedAdminId}
-                  className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-3 ${
-                    selectedAdminId
-                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  <FiPlus className="w-6 h-6" />
-                  <span>Add Another Blood Type</span>
-                </button>
+                {/* Individual Blood Type Errors */}
+                {Object.keys(errors).filter(key => key.startsWith('bloodType_')).map(errorKey => (
+                  <div key={errorKey} className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center text-red-700">
+                      <FiInfo className="w-4 h-4 mr-2" />
+                      <span className="font-medium text-sm">
+                        {errorKey.replace('bloodType_', '').toUpperCase()}: {errors[errorKey]}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add Another Blood Type Button */}
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={addBloodRequest}
+                    disabled={!selectedAdminId}
+                    className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-3 ${
+                      selectedAdminId
+                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <FiPlus className="w-6 h-6" />
+                    <span>Add Another Blood Type</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -852,7 +858,6 @@ const BloodRequestForm = () => {
 
         {/* Full Width Submit Button */}
         <div className="mt-8">
-
           {/* Submit Button */}
           <div className="text-center pt-6">
             <button
@@ -890,296 +895,158 @@ const BloodRequestForm = () => {
             </div>
           </div>
         )}
+      </div>
 
-        {/* Blood Source Modal */}
-        {showAvailabilityModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl border-t-4 border-red-600">
-              <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
-                <h2 className="text-xl font-bold text-red-600 flex items-center">
-                  <span className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center mr-2">
-                    <FiInfo className="w-4 h-4" />
-                  </span>
-                  Select Blood Source
-                </h2>
-                <button
-                  onClick={() => setShowAvailabilityModal(false)}
-                  className="text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {loading ? (
-                  <p>Loading blood banks...</p>
-                ) : error ? (
-                  <p className="text-red-500">{error}</p>
-                ) : (
-                  bloodAdminCenters.map((admin) => (
-                    <div
-                      key={admin.id}
-                      className={`p-5 border-2 rounded-xl cursor-pointer hover:border-red-600 transition-all ${
-                        selectedAdminId === admin.id ? "bg-red-50 border-red-600" : "border-gray-200"
-                      }`}
-                      onClick={() => handleAdminSelect(admin.id)}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <div className="font-bold text-lg text-gray-800">{admin.name}</div>
-                          <div className="text-gray-600 text-sm flex items-center">
-                            <FiInfo className="w-3 h-3 mr-1" />
-                            {admin.location}
-                          </div>
-                        </div>
-                        {selectedAdminId === admin.id && (
-                          <div className="mt-2 sm:mt-0">
-                            <span className="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full flex items-center w-fit">
-                              <FiCheckCircle className="w-3 h-3 mr-1" /> Selected
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                        {admin.inventory && admin.inventory.map((item) => (
-                          <div
-                            key={item.bloodType}
-                            className={`p-3 rounded-lg text-center flex flex-col items-center ${
-                              item.units > 0
-                                ? "bg-green-50 text-green-800 border border-green-100"
-                                : "bg-gray-50 text-gray-400 border border-gray-100"
-                            }`}
-                          >
-                            <div className="text-lg font-bold">{item.bloodType}</div>
-                            <div className="text-sm mt-1">{item.units} units</div>
-                            {item.units === 0 && <div className="text-xs mt-1 text-red-500">Unavailable</div>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end">
-                <button
-                  onClick={() => setShowAvailabilityModal(false)}
-                  className="bg-red-600 hover:bg-red-700 text-white py-2 px-6 rounded-lg font-semibold transition-colors shadow-md"
-                >
-                  Close
-                </button>
-              </div>
+      {/* Blood Source Modal */}
+      {showAvailabilityModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl border-t-4 border-red-600">
+            <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
+              <h2 className="text-xl font-bold text-red-600 flex items-center">
+                <span className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center mr-2">
+                  <FiInfo className="w-4 h-4" />
+                </span>
+                Select Blood Source
+              </h2>
+              <button
+                onClick={() => setShowAvailabilityModal(false)}
+                className="text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
             </div>
-          </div>
-        )}
 
-        {/* Confirmation Modal */}
-        {showConfirmationModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-0 max-w-lg w-full shadow-2xl overflow-hidden">
-              <div className="bg-gradient-to-r from-[#C91C1C] to-[#8B0000] text-white p-5 text-center relative">
-                <img src={LogoSignup} alt="RedSource Logo" className="h-20 mx-auto mb-2" />
-                <h2 className="text-xl font-bold">Confirm Blood Request</h2>
-                <p className="text-white/80 text-sm mt-1">Please verify your submission</p>
-                <button
-                  onClick={resetConfirmation}
-                  className="absolute top-3 right-3 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="p-6">
-                <div className="space-y-5 text-center">
-                  <div className="bg-red-50 border border-red-100 rounded-lg p-4">
-                    <p className="font-medium text-gray-800 text-lg mb-4">Are you sure you want to submit this blood request?</p>
-                    
-                    <div className="inline-flex items-center justify-center gap-3 bg-white py-2 px-4 rounded-lg border border-red-200 shadow-sm">
-                      <div className="text-sm font-medium text-gray-700">Auto-cancel in:</div>
-                      <div className="text-xl font-bold text-[#C91C1C] flex items-center">
-                        <FiClock className="w-5 h-5 mr-1.5 text-[#C91C1C]" />
-                        <span>{countdown}</span>
-                        <span className="text-sm ml-0.5">sec</span>
+            <div className="space-y-6">
+              {loading ? (
+                <p>Loading blood banks...</p>
+              ) : error ? (
+                <p className="text-red-500">{error}</p>
+              ) : (
+                bloodAdminCenters.map((admin) => (
+                  <div
+                    key={admin.id}
+                    className={`p-5 border-2 rounded-xl cursor-pointer hover:border-red-600 transition-all ${
+                      selectedAdminId === admin.id ? "bg-red-50 border-red-600" : "border-gray-200"
+                    }`}
+                    onClick={() => handleAdminSelect(admin.id)}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="font-bold text-lg text-gray-800">{admin.name}</div>
+                        <div className="text-gray-600 text-sm flex items-center">
+                          <FiInfo className="w-3 h-3 mr-1" />
+                          {admin.location}
+                        </div>
                       </div>
+                      {selectedAdminId === admin.id && (
+                        <div className="mt-2 sm:mt-0">
+                          <span className="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full flex items-center w-fit">
+                            <FiCheckCircle className="w-3 h-3 mr-1" /> Selected
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                      {admin.inventory && admin.inventory.map((item) => (
+                        <div
+                          key={item.bloodType}
+                          className={`p-3 rounded-lg text-center flex flex-col items-center ${
+                            item.units > 0
+                              ? "bg-green-50 text-green-800 border border-green-100"
+                              : "bg-gray-50 text-gray-400 border border-gray-100"
+                          }`}
+                        >
+                          <div className="text-lg font-bold">{item.bloodType}</div>
+                          <div className="text-sm mt-1">{item.units} units</div>
+                          {item.units === 0 && <div className="text-xs mt-1 text-red-500">Unavailable</div>}
+                        </div>
+                      ))}
                     </div>
                   </div>
+                ))
+              )}
+            </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <button
-                      onClick={resetConfirmation}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-medium transition-colors border border-gray-200"
-                    >
-                      Cancel Request
-                    </button>
-                    <button
-                      onClick={handleConfirmSubmit}
-                      className="bg-[#C91C1C] hover:bg-[#A81A1A] text-white py-3 px-6 rounded-lg font-medium transition-colors shadow-md border border-[#C91C1C]"
-                    >
-                      Confirm Submission
-                    </button>
+            <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowAvailabilityModal(false)}
+                className="bg-red-600 hover:bg-red-700 text-white py-2 px-6 rounded-lg font-semibold transition-colors shadow-md"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-0 max-w-lg w-full shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-[#C91C1C] to-[#8B0000] text-white p-5 text-center relative">
+              <img src={LogoSignup} alt="RedSource Logo" className="h-20 mx-auto mb-2" />
+              <h2 className="text-xl font-bold">Confirm Blood Request</h2>
+              <p className="text-white/80 text-sm mt-1">Please verify your submission</p>
+              <button
+                onClick={resetConfirmation}
+                className="absolute top-3 right-3 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-5 text-center">
+                <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+                  <p className="font-medium text-gray-800 text-lg mb-4">Are you sure you want to submit this blood request?</p>
+                  
+                  <div className="inline-flex items-center justify-center gap-3 bg-white py-2 px-4 rounded-lg border border-red-200 shadow-sm">
+                    <div className="text-sm font-medium text-gray-700">Auto-cancel in:</div>
+                    <div className="text-xl font-bold text-[#C91C1C] flex items-center">
+                      <FiClock className="w-5 h-5 mr-1.5 text-[#C91C1C]" />
+                      <span>{countdown}</span>
+                      <span className="text-sm ml-0.5">sec</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Add Blood Type Modal */}
-        {showAddBloodModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-white bg-opacity-20 p-2 rounded-lg">
-                      <FiPlus className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold">Add Blood Type</h2>
-                      <p className="text-red-100 text-sm">Select blood type and quantity</p>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-2 gap-4 pt-2">
                   <button
-                    onClick={() => {
-                      setShowAddBloodModal(false);
-                      setNewBloodType('');
-                      setNewUnitsRequested('');
-                      const newErrors = { ...errors };
-                      delete newErrors.newBloodType;
-                      delete newErrors.newUnitsRequested;
-                      setErrors(newErrors);
-                    }}
-                    className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
+                    onClick={resetConfirmation}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-medium transition-colors border border-gray-200"
                   >
-                    <FiPlus className="w-5 h-5 transform rotate-45" />
+                    Cancel Request
+                  </button>
+                  <button
+                    onClick={handleConfirmSubmit}
+                    className="bg-[#C91C1C] hover:bg-[#A81A1A] text-white py-3 px-6 rounded-lg font-medium transition-colors shadow-md border border-[#C91C1C]"
+                  >
+                    Confirm Submission
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Modal Content */}
-              <div className="p-6 space-y-6">
-  {/* ✅ Reminder for specific blood types */}
-  {newBloodType && ["O+", "A+", "B+", "AB+"].includes(newBloodType) && (
-    <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-2 text-sm">
-      Please note: Maximum allowed units for{" "}
-      {newBloodType === "O+" && "O+ is 15 units"}
-      {newBloodType === "A+" && "A+ is 10 units"}
-      {newBloodType === "B+" && "B+ is 10 units"}
-      {newBloodType === "AB+" && "AB+ is 7 units"}
-    </div>
-  )}
-
-  {/* Blood Type Selection */}
-  <div className="space-y-3">
-    <label className="block text-sm font-bold text-gray-800">Blood Type</label>
-    <select
-      value={newBloodType}
-      onChange={(e) => {
-        setNewBloodType(e.target.value);
-        const newErrors = { ...errors };
-        delete newErrors.newBloodType;
-        setErrors(newErrors);
-      }}
-      className={`w-full p-4 border-2 ${
-        errors.newBloodType ? 'border-red-500' : 'border-gray-200'
-      } rounded-lg font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer text-base`}
-    >
-      <option value="">Select Blood Type</option>
-      {selectedAdmin && selectedAdmin.inventory
-        ? selectedAdmin.inventory
-            .filter((item) => item.units > 0)
-            .map((item) => {
-              const isAlreadyAdded = bloodRequests.some(req => req.bloodType === item.bloodType);
-              return (
-                <option 
-                  key={item.bloodType} 
-                  value={item.bloodType}
-                  disabled={isAlreadyAdded}
-                  className={isAlreadyAdded ? 'text-gray-400' : ''}
-                >
-                  🩸 {item.bloodType} - {item.units} units available
-                  {isAlreadyAdded ? ' (already added)' : ''}
-                </option>
-              );
-            })
-        : null}
-    </select>
-    {errors.newBloodType && (
-      <p className="text-red-500 text-sm mt-1 flex items-center">
-        <FiInfo className="w-4 h-4 mr-1" />
-        {errors.newBloodType}
-      </p>
-    )}
-  </div>
-
-                {/* Units Requested */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-bold text-gray-800">Units Requested</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={newUnitsRequested}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || (Number(value) >= 1 && Number(value) <= 50)) {
-                          setNewUnitsRequested(value);
-                          const newErrors = { ...errors };
-                          delete newErrors.newUnitsRequested;
-                          setErrors(newErrors);
-                        }
-                      }}
-                      className={`w-full p-4 border-2 ${errors.newUnitsRequested ? 'border-red-500' : 'border-gray-200'} rounded-lg bg-white text-gray-800 font-medium text-base focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all`}
-                      placeholder="Enter Units (1-50)"
-                      min="1"
-                      max="50"
-                    />
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium text-sm">
-                      units
-                    </div>
+      {/* Add Blood Type Modal */}
+      {showAddBloodModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white bg-opacity-20 p-2 rounded-lg">
+                    <FiPlus className="w-5 h-5" />
                   </div>
-                  {errors.newUnitsRequested && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <FiInfo className="w-4 h-4 mr-1" />
-                      {errors.newUnitsRequested}
-                    </p>
-                  )}
+                  <div>
+                    <h2 className="text-xl font-bold">Add Blood Type</h2>
+                    <p className="text-red-100 text-sm">Select blood type and quantity</p>
+                  </div>
                 </div>
-
-                {/* Availability Info */}
-                {newBloodType && selectedAdmin && (() => {
-                  const inventory = selectedAdmin.inventory.find(item => item.bloodType === newBloodType);
-                  return (
-                    <div className={`rounded-lg p-4 border ${
-                      inventory && inventory.units > 0 
-                        ? 'bg-green-50 border-green-200' 
-                        : 'bg-red-50 border-red-200'
-                    }`}>
-                      <div className={`flex items-center ${
-                        inventory && inventory.units > 0 
-                          ? 'text-green-700' 
-                          : 'text-red-700'
-                      }`}>
-                        {inventory && inventory.units > 0 ? (
-                          <FiCheckCircle className="w-5 h-5 mr-2" />
-                        ) : (
-                          <FiInfo className="w-5 h-5 mr-2" />
-                        )}
-                        <span className="font-medium">
-                          {inventory 
-                            ? `Available: ${inventory.units} units at ${selectedAdmin.name}`
-                            : 'Not available'
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex space-x-3">
                 <button
                   onClick={() => {
                     setShowAddBloodModal(false);
@@ -1190,21 +1057,159 @@ const BloodRequestForm = () => {
                     delete newErrors.newUnitsRequested;
                     setErrors(newErrors);
                   }}
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-all"
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddBloodType}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all"
-                >
-                  Add Blood Type
+                  <FiPlus className="w-5 h-5 transform rotate-45" />
                 </button>
               </div>
             </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* ✅ Reminder for specific blood types */}
+              {newBloodType && ["O+", "A+", "B+", "AB+"].includes(newBloodType) && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-2 text-sm">
+                  Please note: Maximum allowed units for{" "}
+                  {newBloodType === "O+" && "O+ is 15 units"}
+                  {newBloodType === "A+" && "A+ is 10 units"}
+                  {newBloodType === "B+" && "B+ is 10 units"}
+                  {newBloodType === "AB+" && "AB+ is 7 units"}
+                </div>
+              )}
+
+              {/* Blood Type Selection */}
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-800">Blood Type</label>
+                <select
+                  value={newBloodType}
+                  onChange={(e) => {
+                    setNewBloodType(e.target.value);
+                    const newErrors = { ...errors };
+                    delete newErrors.newBloodType;
+                    setErrors(newErrors);
+                  }}
+                  className={`w-full p-4 border-2 ${
+                    errors.newBloodType ? 'border-red-500' : 'border-gray-200'
+                  } rounded-lg font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer text-base`}
+                >
+                  <option value="">Select Blood Type</option>
+                  {selectedAdmin && selectedAdmin.inventory
+                    ? selectedAdmin.inventory
+                        .filter((item) => item.units > 0)
+                        .map((item) => {
+                          const isAlreadyAdded = bloodRequests.some(req => req.bloodType === item.bloodType);
+                          return (
+                            <option 
+                              key={item.bloodType} 
+                              value={item.bloodType}
+                              disabled={isAlreadyAdded}
+                              className={isAlreadyAdded ? 'text-gray-400' : ''}
+                            >
+                              🩸 {item.bloodType} - {item.units} units available
+                              {isAlreadyAdded ? ' (already added)' : ''}
+                            </option>
+                          );
+                        })
+                    : null}
+                </select>
+                {errors.newBloodType && (
+                  <p className="text-red-500 text-sm mt-1 flex items-center">
+                    <FiInfo className="w-4 h-4 mr-1" />
+                    {errors.newBloodType}
+                  </p>
+                )}
+              </div>
+
+              {/* Units Requested */}
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-800">Units Requested</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={newUnitsRequested}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || (Number(value) >= 1 && Number(value) <= 50)) {
+                        setNewUnitsRequested(value);
+                        const newErrors = { ...errors };
+                        delete newErrors.newUnitsRequested;
+                        setErrors(newErrors);
+                      }
+                    }}
+                    className={`w-full p-4 border-2 ${errors.newUnitsRequested ? 'border-red-500' : 'border-gray-200'} rounded-lg bg-white text-gray-800 font-medium text-base focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all`}
+                    placeholder="Enter Units (1-50)"
+                    min="1"
+                    max="50"
+                  />
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium text-sm">
+                    units
+                  </div>
+                </div>
+                {errors.newUnitsRequested && (
+                  <p className="text-red-500 text-sm mt-1 flex items-center">
+                    <FiInfo className="w-4 h-4 mr-1" />
+                    {errors.newUnitsRequested}
+                  </p>
+                )}
+              </div>
+
+              {/* Availability Info */}
+              {newBloodType && selectedAdmin && (() => {
+                const inventory = selectedAdmin.inventory.find(item => item.bloodType === newBloodType);
+                return (
+                  <div className={`rounded-lg p-4 border ${
+                    inventory && inventory.units > 0 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <div className={`flex items-center ${
+                      inventory && inventory.units > 0 
+                        ? 'text-green-700' 
+                        : 'text-red-700'
+                    }`}>
+                      {inventory && inventory.units > 0 ? (
+                        <FiCheckCircle className="w-5 h-5 mr-2" />
+                      ) : (
+                        <FiInfo className="w-5 h-5 mr-2" />
+                      )}
+                      <span className="font-medium">
+                        {inventory 
+                          ? `Available: ${inventory.units} units at ${selectedAdmin.name}`
+                          : 'Not available'
+                        }
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowAddBloodModal(false);
+                  setNewBloodType('');
+                  setNewUnitsRequested('');
+                  const newErrors = { ...errors };
+                  delete newErrors.newBloodType;
+                  delete newErrors.newUnitsRequested;
+                  setErrors(newErrors);
+                }}
+                className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddBloodType}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all"
+              >
+                Add Blood Type
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
