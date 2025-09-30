@@ -41,6 +41,9 @@ export default function DonationCenter() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedHospital, setSelectedHospital] = useState(null)
+  const [activeTab, setActiveTab] = useState("nearby") // "nearby" or "all"
+  const [allHospitals, setAllHospitals] = useState([])
+  const [nearbyHospitals, setNearbyHospitals] = useState([])
 
   // Helper function to calculate straight-line distance between two coordinates
   const calculateStraightLineDistance = (lat1, lng1, lat2, lng2) => {
@@ -93,26 +96,45 @@ export default function DonationCenter() {
         setHospitalsLoading(true)
         setHospitalsError(null)
         
-        // Get hospitals (will use location-based filtering if available)
-        console.log('🏥 Fetching hospitals...', { userLocation })
-        console.log('🏥 User location format check:', {
-          lat: userLocation?.lat || userLocation?.latitude,
-          lng: userLocation?.lng || userLocation?.longitude,
-          hasCoordinates: !!(userLocation?.lat || userLocation?.latitude) && !!(userLocation?.lng || userLocation?.longitude)
-        })
-        const hospitalData = await hospitalService.getHospitalsForLocation(userLocation)
-        console.log('🏥 Hospitals received:', hospitalData)
-        console.log('🏥 First hospital data:', hospitalData[0])
-        if (hospitalData[0]) {
-          console.log('🏥 Hospital name field:', hospitalData[0].name)
-          console.log('🏥 Hospital hospitalName field:', hospitalData[0].hospitalName)
-          console.log('🏥 Hospital hours field:', hospitalData[0].hours)
-          console.log('🏥 Hospital operatingHours field:', hospitalData[0].operatingHours)
-          console.log('🏥 Hospital coordinates:', hospitalData[0].coordinates)
-          console.log('🏥 Hospital calculated distance:', hospitalData[0].calculatedDistance)
-          console.log('🏥 Hospital distance text:', hospitalData[0].distanceText)
+        // Fetch nearby hospitals (with location filtering)
+        const nearbyData = await hospitalService.getHospitalsForLocation(userLocation, 15) // 15km radius
+        setNearbyHospitals(nearbyData)
+        
+        // Fetch all hospitals and calculate distances if user location is available
+        let allData = await hospitalService.getAllHospitals()
+        
+        // If user has location, calculate distances and sort all hospitals by distance
+        if (userLocation) {
+          allData = allData.map(hospital => {
+            if (hospital.coordinates && hospital.coordinates.lat && hospital.coordinates.lng) {
+              const distance = calculateStraightLineDistance(
+                userLocation.lat || userLocation.latitude,
+                userLocation.lng || userLocation.longitude,
+                hospital.coordinates.lat,
+                hospital.coordinates.lng
+              );
+              return {
+                ...hospital,
+                calculatedDistance: distance,
+                distanceText: `${distance.toFixed(1)} km`
+              };
+            }
+            return {
+              ...hospital,
+              calculatedDistance: 999,
+              distanceText: 'Distance unavailable'
+            };
+          }).sort((a, b) => a.calculatedDistance - b.calculatedDistance); // Sort by distance
         }
-        setHospitals(hospitalData)
+        
+        setAllHospitals(allData)
+        
+        // Set current display based on active tab
+        if (activeTab === "nearby") {
+          setHospitals(nearbyData)
+        } else {
+          setHospitals(allData)
+        }
       } catch (error) {
         setHospitalsError(error.message)
         console.error('Failed to fetch hospitals:', error)
@@ -122,7 +144,24 @@ export default function DonationCenter() {
     }
 
     fetchHospitals()
-  }, [userLocation]) // Re-fetch when user location changes
+  }, [userLocation, activeTab]) // Re-fetch when user location or tab changes
+
+  // Handle tab switching
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    if (tab === "nearby") {
+      setHospitals(nearbyHospitals)
+    } else {
+      // Ensure all hospitals are sorted by distance when switching to "all" tab
+      const sortedAllHospitals = [...allHospitals].sort((a, b) => {
+        if (a.calculatedDistance && b.calculatedDistance) {
+          return a.calculatedDistance - b.calculatedDistance;
+        }
+        return 0;
+      });
+      setHospitals(sortedAllHospitals)
+    }
+  }
 
   // Calculate distances when user location is available and hospitals are loaded
   useEffect(() => {
@@ -362,6 +401,48 @@ export default function DonationCenter() {
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="flex justify-center">
+            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleTabChange("nearby")}
+                className={`
+                  px-6 py-2 rounded-md text-sm font-medium transition-all duration-200
+                  ${activeTab === "nearby" 
+                    ? "bg-white text-red-600 shadow-sm" 
+                    : "text-gray-600 hover:text-gray-900"
+                  }
+                `}
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Nearby ({nearbyHospitals.length})
+                </div>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleTabChange("all")}
+                className={`
+                  px-6 py-2 rounded-md text-sm font-medium transition-all duration-200
+                  ${activeTab === "all" 
+                    ? "bg-white text-red-600 shadow-sm" 
+                    : "text-gray-600 hover:text-gray-900"
+                  }
+                `}
+              >
+                <div className="flex items-center gap-2">
+                  <Building className="w-4 h-4" />
+                  All Hospitals ({allHospitals.length})
+                </div>
+              </motion.button>
+            </div>
+          </div>
+        </div>
 
         {/* Search Section */}
         <div className="mb-6">
