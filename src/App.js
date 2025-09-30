@@ -11,6 +11,7 @@ import ForgotPassword from './components/Forgotpassword';
 import AboutUs from './components/abousus';
 import SuccessfulLogin from './components/SuccesfulLogin';
 import DonationCenter from './components/Donor/DonationCenter';
+import AccurateLocationComponent from './components/AccurateLocationComponent';
 import Schedule from './components/Donor/Schedule';
 import EligibilityCheck from './components/Donor/EligibilityCheck';
 import EligibilityCheck2 from './components/Donor/EligibilityCheck2';
@@ -178,6 +179,7 @@ function App() {
               element={isLoggedIn ? <Navigate to="/" /> : <ForgotPassword />} 
             />
             <Route path="/about-us" element={<AboutUs />} />
+            <Route path="/test-location" element={<AccurateLocationComponent />} />
 
             {/* Protected routes */}
             {isLoggedIn ? (
