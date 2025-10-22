@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Truck, 
@@ -9,19 +9,36 @@ import {
   MapPin,
   CheckCircle,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 
-export default function TrackDelivery({ delivery, onClose }) {
+export default function TrackDelivery({ delivery, onClose, onRefresh }) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   if (!delivery) return null;
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (onRefresh) {
+      await onRefresh();
+    }
+    // Add a small delay to show the animation
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 500);
+  };
   
   // Get status step (0 = Pending, 1 = Scheduled, 2 = In Transit, 3 = Complete)
   const getStatusStep = (status) => {
-    switch(status) {
-      case 'Pending': return 0;
-      case 'Scheduled': return 1;
-      case 'In Transit': return 2;
-      case 'Complete': return 3;
+    const normalizedStatus = status?.toUpperCase();
+    switch(normalizedStatus) {
+      case 'PENDING': return 0;
+      case 'SCHEDULED': return 1;
+      case 'IN_TRANSIT': 
+      case 'IN TRANSIT': return 2;
+      case 'COMPLETE': 
+      case 'DELIVERED': return 3;
       default: return 0;
     }
   };
@@ -30,11 +47,14 @@ export default function TrackDelivery({ delivery, onClose }) {
   
   // Get ETA text based on status
   const getETAText = () => {
-    switch(delivery.status) {
-      case 'Pending': return 'Not scheduled yet';
-      case 'Scheduled': return `Scheduled for ${delivery.date} at ${delivery.estimatedTime}`;
-      case 'In Transit': return `Expected by ${delivery.estimatedTime}`;
-      case 'Complete': return 'Delivered';
+    const normalizedStatus = delivery.status?.toUpperCase();
+    switch(normalizedStatus) {
+      case 'PENDING': return 'Not scheduled yet';
+      case 'SCHEDULED': return `Scheduled for ${delivery.date} at ${delivery.estimatedTime}`;
+      case 'IN_TRANSIT':
+      case 'IN TRANSIT': return `Expected by ${delivery.estimatedTime}`;
+      case 'COMPLETE':
+      case 'DELIVERED': return 'Delivered';
       default: return 'Unknown';
     }
   };
@@ -56,7 +76,17 @@ export default function TrackDelivery({ delivery, onClose }) {
         </div>
         
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 relative">
+          {/* Loading Overlay */}
+          {isRefreshing && (
+            <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-b-lg">
+              <div className="text-center">
+                <RefreshCw className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-700">Refreshing delivery status...</p>
+              </div>
+            </div>
+          )}
+          
           {/* Delivery ID and Hospital */}
           <div className="flex flex-col md:flex-row md:items-center mb-6 border-b pb-4">
             <div className="font-bold text-xl text-gray-800 md:mr-4">
@@ -136,19 +166,19 @@ export default function TrackDelivery({ delivery, onClose }) {
           
           {/* Current Status */}
           <div className={`rounded-lg p-4 mb-6 ${
-            delivery.status === 'Complete' ? 'bg-green-50 border border-green-200' :
-            delivery.status === 'In Transit' ? 'bg-blue-50 border border-blue-200' :
-            delivery.status === 'Scheduled' ? 'bg-purple-50 border border-purple-200' :
+            getStatusStep(delivery.status) === 3 ? 'bg-green-50 border border-green-200' :
+            getStatusStep(delivery.status) === 2 ? 'bg-blue-50 border border-blue-200' :
+            getStatusStep(delivery.status) === 1 ? 'bg-purple-50 border border-purple-200' :
             'bg-yellow-50 border border-yellow-200'
           }`}>
             <h3 className="font-medium text-gray-800 mb-3">Current Status</h3>
             
             <div className="flex items-start">
-              {delivery.status === 'Complete' ? (
+              {getStatusStep(delivery.status) === 3 ? (
                 <CheckCircle className="h-5 w-5 mr-2 text-green-500 mt-0.5" />
-              ) : delivery.status === 'In Transit' ? (
+              ) : getStatusStep(delivery.status) === 2 ? (
                 <Truck className="h-5 w-5 mr-2 text-blue-500 mt-0.5" />
-              ) : delivery.status === 'Scheduled' ? (
+              ) : getStatusStep(delivery.status) === 1 ? (
                 <CalendarCheck className="h-5 w-5 mr-2 text-purple-500 mt-0.5" />
               ) : (
                 <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500 mt-0.5" />
@@ -156,24 +186,36 @@ export default function TrackDelivery({ delivery, onClose }) {
               
               <div>
                 <p className="font-medium text-gray-800">
-                  {delivery.status === 'Complete' ? 'Delivery completed' :
-                   delivery.status === 'In Transit' ? 'Delivery in progress' :
-                   delivery.status === 'Scheduled' ? 'Delivery scheduled' :
+                  {getStatusStep(delivery.status) === 3 ? 'Delivery completed' :
+                   getStatusStep(delivery.status) === 2 ? 'Delivery in progress' :
+                   getStatusStep(delivery.status) === 1 ? 'Delivery scheduled' :
                    'Awaiting scheduling'}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  {delivery.status === 'Complete' ? 'The blood products have been successfully delivered.' :
-                   delivery.status === 'In Transit' ? 'The blood products are currently being transported to the destination.' :
-                   delivery.status === 'Scheduled' ? 'The delivery has been scheduled and is awaiting dispatch.' :
+                  {getStatusStep(delivery.status) === 3 ? 'The blood products have been successfully delivered.' :
+                   getStatusStep(delivery.status) === 2 ? 'The blood products are currently being transported to the destination.' :
+                   getStatusStep(delivery.status) === 1 ? 'The delivery has been scheduled and is awaiting dispatch.' :
                    'The delivery request is pending and needs to be scheduled.'}
                 </p>
               </div>
             </div>
           </div>
           
-          {/* Action Button */}
-          <div className="flex justify-end">
+          {/* Action Buttons */}
+          <div className="flex justify-between">
             <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center transition-all ${
+                isRefreshing ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh Status'}
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
             >
@@ -184,4 +226,4 @@ export default function TrackDelivery({ delivery, onClose }) {
       </div>
     </div>
   );
-} 
+}

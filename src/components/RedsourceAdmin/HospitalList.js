@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   FiTruck, 
@@ -24,13 +24,15 @@ import TrackDelivery from './TrackDelivery'
 import UpdateDelivery from './UpdateDelivery'
 import CreateDelivery from './CreateDelivery'
 import ViewRequests from './ViewRequests'
+import { fetchWithAuth, deliveryAPI } from '../../utils/api'
+import Pagination from '../Pagination'
 
 // Delivery status constants
 const DELIVERY_STATUS = {
-  PENDING: 'Pending',
-  SCHEDULED: 'Scheduled',
-  IN_TRANSIT: 'In Transit',
-  COMPLETE: 'Complete'
+  PENDING: 'PENDING',
+  SCHEDULED: 'SCHEDULED',
+  IN_TRANSIT: 'IN TRANSIT',
+  COMPLETE: 'COMPLETE'
 };
 
 export default function HospitalList() {
@@ -45,166 +47,200 @@ export default function HospitalList() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRequestsModal, setShowRequestsModal] = useState(false);
+  const [hospitals, setHospitals] = useState([]);
+  const [deliveries, setDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(true);
+  const [error, setError] = useState(null);
+  const [deliveryError, setDeliveryError] = useState(null);
+  
+  // Pagination states
+  const [hospitalsCurrentPage, setHospitalsCurrentPage] = useState(1);
+  const [deliveriesCurrentPage, setDeliveriesCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const hospitals = [
-    {
-      name: "St. Mary's General Hospital",
-      location: "123 Maple St., Cityville",
-      phone: "(555) 123-4567",
-      bloodTypes: "O+, A+, B-, O-",
-      requests: 3,
-      deliveryStatus: "Scheduled",
-      dateRequest: "2023-08-18\n3:00 PM"
-    },
-    {
-      name: "Riverside Community Medical Center",
-      location: "456 River Ave., Townsville",
-      phone: "(555) 987-6543",
-      bloodTypes: "AB+, O-, A+, B-",
-      requests: 2,
-      deliveryStatus: "Pending",
-      dateRequest: "2023-08-19\n10:30 AM"
-    },
-    {
-      name: "Pinecrest Medical Center",
-      location: "789 Hill Rd., Greendale",
-      phone: "(555) 456-7890",
-      bloodTypes: "A-, B+, O+, AB+",
-      requests: 0,
-      deliveryStatus: "Complete",
-      dateRequest: "2023-08-15\n2:45 PM"
-    },
-    {
-      name: "Mount Hope Regional Hospital",
-      location: "101 Mountain Dr., Hope City",
-      phone: "(555) 222-3333",
-      bloodTypes: "O+, A-, A+, B-",
-      requests: 1,
-      deliveryStatus: "In Transit",
-      dateRequest: "2023-08-17\n1:15 PM"
-    },
-    {
-      name: "Cityview Medical Center",
-      location: "202 Cityview Blvd., Metropolis",
-      phone: "(555) 111-4444",
-      bloodTypes: "AB-, B+, A-, O-",
-      requests: 0,
-      deliveryStatus: "Complete",
-      dateRequest: "2023-08-14\n11:20 AM"
-    },
-    {
-      name: "Lakeside General Hospital",
-      location: "303 Lakeside Dr., Lakeview",
-      phone: "(555) 555-7777",
-      bloodTypes: "O-, AB+, A+, B-",
-      requests: 4,
-      deliveryStatus: "Pending",
-      dateRequest: "2023-08-16\n9:00 AM"
-    },
-    {
-      name: "Sunrise Healthcare Facility",
-      location: "606 Sunrise Dr., Sunnyside",
-      phone: "(555) 444-6666",
-      bloodTypes: "A+, B-, B+, AB-",
-      requests: 1,
-      deliveryStatus: "Scheduled",
-      dateRequest: "2023-08-20\n4:30 PM"
-    },
-    {
-      name: "Evergreen Medical Hospital",
-      location: "707 Evergreen Ave., Greentown",
-      phone: "(555) 999-8888",
-      bloodTypes: "AB-, O+, O-, A+",
-      requests: 0,
-      deliveryStatus: "Complete",
-      dateRequest: "2023-08-13\n8:45 AM"
-    }
-  ]
+  // Get current blood bank ID from localStorage
+  const bloodBankId = localStorage.getItem('userId');
 
-  const deliveries = [
-    {
-      id: "DEL-1001",
-      hospital: "St. Mary's General Hospital",
-      date: "2023-08-18",
-      status: "Scheduled",
-      items: "O+ (5 units), A+ (3 units)",
-      estimatedTime: "3:00 PM"
-    },
-    {
-      id: "DEL-1002",
-      hospital: "Riverside Community Medical Center",
-      date: "2023-08-19",
-      status: "Pending",
-      items: "AB+ (2 units), O- (1 unit)",
-      estimatedTime: "10:30 AM"
-    },
-    {
-      id: "DEL-1003",
-      hospital: "Mount Hope Regional Hospital",
-      date: "2023-08-17",
-      status: "In Transit",
-      items: "A- (4 units)",
-      estimatedTime: "1:15 PM"
-    },
-    {
-      id: "DEL-1004",
-      hospital: "Lakeside General Hospital",
-      date: "2023-08-16",
-      status: "Pending",
-      items: "O- (3 units), B- (2 units)",
-      estimatedTime: "ASAP"
-    },
-    {
-      id: "DEL-1005",
-      hospital: "Pinecrest Medical Center",
-      date: "2023-08-15",
-      status: DELIVERY_STATUS.COMPLETE,
-      items: "A+ (2 units), B+ (3 units)",
-      estimatedTime: "Delivered at 2:45 PM"
-    },
-    {
-      id: "DEL-1006",
-      hospital: "Cityview Medical Center",
-      date: "2023-08-14",
-      status: DELIVERY_STATUS.COMPLETE,
-      items: "O+ (4 units), AB- (1 unit)",
-      estimatedTime: "Delivered at 11:20 AM"
-    },
-    {
-      id: "DEL-1007",
-      hospital: "Evergreen Medical Hospital",
-      date: "2023-08-13",
-      status: DELIVERY_STATUS.COMPLETE,
-      items: "B- (3 units), A- (2 units)",
-      estimatedTime: "Delivered at 4:30 PM"
+  // Fetch hospital requests from backend
+  useEffect(() => {
+    const fetchHospitalRequests = async () => {
+      if (!bloodBankId) {
+        setError('Blood bank ID not found');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log(`Fetching requests for blood bank: ${bloodBankId}`);
+        
+        const response = await fetchWithAuth(`/hospital-requests/bloodbank/${bloodBankId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Hospital requests response:', data);
+          
+          const hospitalRequests = data.data || [];
+          
+          // Group requests by hospital
+          const hospitalMap = {};
+          hospitalRequests.forEach(request => {
+            const hospitalId = request.hospital_id || request.hospitalId;
+            if (!hospitalMap[hospitalId]) {
+              hospitalMap[hospitalId] = {
+                id: hospitalId,
+                name: request.hospital_name || request.hospitalName,
+                location: request.hospital_address || request.hospitalAddress || request.contactInformation || 'N/A',
+                phone: request.contact_information || request.contactInformation || request.hospital_phone || request.hospitalPhone || 'N/A',
+                bloodTypes: [],
+                requests: 0,
+                deliveryStatus: request.status || 'PENDING',
+                dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleString(),
+                dateRequest: new Date(request.request_date || request.requestDate).toLocaleString()
+              };
+            }
+            
+            // Add blood types from this request
+            const bloodItems = request.blood_items || request.bloodItems || [];
+            bloodItems.forEach(item => {
+              const bloodType = item.blood_type || item.bloodType;
+              if (!hospitalMap[hospitalId].bloodTypes.includes(bloodType)) {
+                hospitalMap[hospitalId].bloodTypes.push(bloodType);
+              }
+              
+              // Sum up the actual units from each blood item
+              const units = item.units || 0;
+              hospitalMap[hospitalId].requests += units;
+            });
+          });
+          
+          // Convert map to array and format blood types
+          const hospitalsArray = Object.values(hospitalMap).map(hospital => ({
+            ...hospital,
+            bloodTypes: hospital.bloodTypes.join(', ')
+          }));
+          
+          console.log('Transformed hospitals:', hospitalsArray);
+          setHospitals(hospitalsArray);
+        } else {
+          const errorData = await response.json();
+          setError(errorData.message || 'Failed to fetch hospital requests');
+        }
+      } catch (err) {
+        console.error('Error fetching hospital requests:', err);
+        setError('Failed to load hospital requests');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHospitalRequests();
+  }, [bloodBankId]);
+
+  // Fetch deliveries function
+  const fetchDeliveries = async () => {
+    try {
+      setLoadingDeliveries(true);
+      console.log('Fetching all deliveries');
+      
+      const response = await fetchWithAuth('/deliveries');
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Raw deliveries response:', data);
+        
+        // Handle different response structures
+        let deliveriesArray = [];
+        if (Array.isArray(data)) {
+          deliveriesArray = data;
+        } else if (data.data && Array.isArray(data.data)) {
+          deliveriesArray = data.data;
+        } else if (data.deliveries && Array.isArray(data.deliveries)) {
+          deliveriesArray = data.deliveries;
+        }
+        
+        console.log('Deliveries array:', deliveriesArray);
+        
+        // Transform delivery data
+        const transformedDeliveries = deliveriesArray.map(delivery => {
+          console.log('Processing delivery:', delivery);
+          console.log('Available fields:', Object.keys(delivery));
+          console.log('Hospital name field:', delivery.hospitalName);
+          console.log('Items summary field:', delivery.itemsSummary);
+          console.log('Scheduled date field:', delivery.scheduledDate);
+          console.log('Status field:', delivery.status);
+          
+          // Determine items display
+          let itemsDisplay = 'Blood products pending';
+          
+          if (delivery.bloodItems && delivery.bloodItems.length > 0) {
+            itemsDisplay = delivery.bloodItems.map(item => `${item.bloodType} (${item.units} units)`).join(', ');
+          } else if (delivery.itemsSummary && delivery.itemsSummary !== 'undefined' && delivery.itemsSummary.trim() !== '') {
+            itemsDisplay = delivery.itemsSummary;
+          } else if (delivery.items_summary && delivery.items_summary !== 'undefined' && delivery.items_summary.trim() !== '') {
+            itemsDisplay = delivery.items_summary;
+          }
+          
+          return {
+            id: delivery.id || delivery._id,
+            hospital: delivery.hospitalName || delivery.hospital_name || 'City General Hospital',
+            date: delivery.scheduledDate ? new Date(delivery.scheduledDate).toLocaleDateString() : new Date().toLocaleDateString(),
+            status: delivery.status || 'PENDING',
+            items: itemsDisplay,
+            estimatedTime: delivery.estimatedTime || delivery.estimated_time || 'TBD'
+          };
+        });
+        
+        console.log('Transformed deliveries:', transformedDeliveries);
+        setDeliveries(transformedDeliveries);
+      } else {
+        const errorData = await response.json();
+        setDeliveryError(errorData.message || 'Failed to fetch deliveries');
+      }
+    } catch (err) {
+      console.error('Error fetching deliveries:', err);
+      setDeliveryError('Failed to load deliveries: ' + err.message);
+    } finally {
+      setLoadingDeliveries(false);
     }
-  ]
+  };
+
+  // Fetch deliveries from backend on component mount
+  useEffect(() => {
+    fetchDeliveries();
+  }, []);
 
   const handleViewRequests = (hospital) => {
     setSelectedHospital(hospital);
     setShowRequestsModal(true);
   }
 
-  const handleCreateDelivery = (hospital) => {
-    navigate('/schedule', { state: { selectedHospital: hospital } })
-  }
 
   const getStatusColor = (status) => {
-    switch(status) {
-      case 'Complete': return 'bg-green-100 text-green-800 border-green-200'
-      case 'In Transit': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'Scheduled': return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'Pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    const normalizedStatus = status?.toUpperCase();
+    switch(normalizedStatus) {
+      case 'COMPLETE': 
+      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200'
+      case 'IN TRANSIT': 
+      case 'IN_TRANSIT': return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'SCHEDULED': return 'bg-purple-100 text-purple-800 border-purple-200'
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
   const getStatusIcon = (status) => {
-    switch(status) {
-      case 'Complete': return <FiCheck className="mr-1.5" />
-      case 'In Transit': return <FiTruck className="mr-1.5" />
-      case 'Scheduled': return <FiCalendar className="mr-1.5" />
-      case 'Pending': return <FiClock className="mr-1.5" />
+    const normalizedStatus = status?.toUpperCase();
+    switch(normalizedStatus) {
+      case 'COMPLETE': 
+      case 'COMPLETED': return <FiCheck className="mr-1.5" />
+      case 'IN TRANSIT': 
+      case 'IN_TRANSIT': return <FiTruck className="mr-1.5" />
+      case 'SCHEDULED': return <FiCalendar className="mr-1.5" />
+      case 'PENDING': return <FiClock className="mr-1.5" />
       default: return null
     }
   }
@@ -226,25 +262,35 @@ export default function HospitalList() {
       d.id.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
+  // Pagination logic for hospitals
+  const hospitalsStartIndex = (hospitalsCurrentPage - 1) * itemsPerPage
+  const hospitalsEndIndex = hospitalsStartIndex + itemsPerPage
+  const paginatedHospitals = filteredHospitals.slice(hospitalsStartIndex, hospitalsEndIndex)
+
+  // Pagination logic for deliveries
+  const deliveriesStartIndex = (deliveriesCurrentPage - 1) * itemsPerPage
+  const deliveriesEndIndex = deliveriesStartIndex + itemsPerPage
+  const paginatedDeliveries = filteredDeliveries.slice(deliveriesStartIndex, deliveriesEndIndex)
+
+  const handleHospitalsPageChange = (page) => {
+    setHospitalsCurrentPage(page)
+  }
+
+  const handleDeliveriesPageChange = (page) => {
+    setDeliveriesCurrentPage(page)
+  }
+
   const formatBloodTypes = (bloodTypesStr) => {
     return bloodTypesStr.split(', ').map((type, index) => {
-      let bgColor;
-      
-      if (type.includes('O-')) bgColor = 'bg-red-100 text-red-800';
-      else if (type.includes('O+')) bgColor = 'bg-red-50 text-red-800';
-      else if (type.includes('A-')) bgColor = 'bg-blue-100 text-blue-800';
-      else if (type.includes('A+')) bgColor = 'bg-blue-50 text-blue-800';
-      else if (type.includes('B-')) bgColor = 'bg-green-100 text-green-800';
-      else if (type.includes('B+')) bgColor = 'bg-green-50 text-green-800';
-      else if (type.includes('AB-')) bgColor = 'bg-purple-100 text-purple-800';
-      else if (type.includes('AB+')) bgColor = 'bg-purple-50 text-purple-800';
+      // Use consistent red styling for all blood types to match design
+      const bgColor = 'bg-red-50 text-red-800 border border-red-200';
       
       return (
         <span 
           key={index} 
           className={`inline-flex items-center px-2 py-0.5 mr-1.5 mb-1 rounded-full text-xs font-medium ${bgColor}`}
         >
-          <FiDroplet className="mr-1 w-3 h-3" />
+          <FiDroplet className="mr-1 w-3 h-3 text-red-600" />
           {type}
         </span>
       );
@@ -255,33 +301,98 @@ export default function HospitalList() {
     setMobileFilterVisible(!mobileFilterVisible);
   }
 
+  const handleMarkAsInTransit = async (delivery) => {
+    const originalDeliveries = deliveries;
+    try {
+      // Optimistically update the UI
+      const updatedDeliveries = deliveries.map(d =>
+        d.id === delivery.id ? { ...d, status: DELIVERY_STATUS.IN_TRANSIT } : d
+      );
+      setDeliveries(updatedDeliveries);
+
+      // Call the API to update the status
+      const response = await fetchWithAuth(`/deliveries/${delivery.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: DELIVERY_STATUS.IN_TRANSIT }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update delivery status');
+      }
+
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      // Revert the UI change if the API call fails
+      setDeliveries(originalDeliveries);
+      alert('Failed to update delivery status.');
+    }
+  };
+
   // Track delivery handler
   const handleTrackDelivery = (delivery) => {
     setSelectedDelivery(delivery);
     setShowTrackModal(true);
   };
   
-  // Update delivery handler
-  const handleUpdateDelivery = (delivery) => {
-    setSelectedDelivery(delivery);
-    setShowUpdateModal(true);
+  // Refresh single delivery in modal
+  const handleRefreshDelivery = async () => {
+    if (!selectedDelivery) return;
+    
+    try {
+      console.log('Refreshing delivery:', selectedDelivery.id);
+      
+      const response = await fetchWithAuth(`/deliveries/${selectedDelivery.id}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Refreshed delivery data:', data);
+        
+        // Handle different response structures
+        let delivery = data;
+        if (data.data) {
+          delivery = data.data;
+        }
+        
+        // Determine items display
+        let itemsDisplay = 'Blood products pending';
+        
+        if (delivery.bloodItems && delivery.bloodItems.length > 0) {
+          itemsDisplay = delivery.bloodItems.map(item => `${item.bloodType} (${item.units} units)`).join(', ');
+        } else if (delivery.itemsSummary && delivery.itemsSummary !== 'undefined' && delivery.itemsSummary.trim() !== '') {
+          itemsDisplay = delivery.itemsSummary;
+        } else if (delivery.items_summary && delivery.items_summary !== 'undefined' && delivery.items_summary.trim() !== '') {
+          itemsDisplay = delivery.items_summary;
+        }
+        
+        // Update selected delivery with fresh data
+        const updatedDelivery = {
+          id: delivery.id || delivery._id,
+          hospital: delivery.hospitalName || delivery.hospital_name || 'City General Hospital',
+          date: delivery.scheduledDate ? new Date(delivery.scheduledDate).toLocaleDateString() : new Date().toLocaleDateString(),
+          status: delivery.status || 'PENDING',
+          items: itemsDisplay,
+          estimatedTime: delivery.estimatedTime || delivery.estimated_time || 'TBD'
+        };
+        
+        setSelectedDelivery(updatedDelivery);
+        
+        // Also update in the deliveries list
+        setDeliveries(prev => prev.map(d => 
+          d.id === updatedDelivery.id ? updatedDelivery : d
+        ));
+        
+        console.log('Delivery refreshed successfully');
+      } else {
+        console.error('Failed to refresh delivery');
+      }
+    } catch (error) {
+      console.error('Error refreshing delivery:', error);
+    }
   };
   
-  // Update delivery status
-  const updateDeliveryStatus = (updatedDelivery) => {
-    // In a real app, this would call an API
-    // For demo, we'll update the state directly
-    const updatedDeliveries = deliveries.map(d => 
-      d.id === updatedDelivery.id ? updatedDelivery : d
-    );
-    
-    // This won't persist on refresh since it's just state
-    // In a real app, you'd update a database
-    
-    // Show success notification (optional)
-    alert(`Delivery ${updatedDelivery.id} updated to ${updatedDelivery.status}`);
-  };
-
   // Create new delivery
   const createNewDelivery = (newDelivery) => {
     // In a real app, this would call an API
@@ -331,7 +442,7 @@ export default function HospitalList() {
               }`}
             >
               <FiActivity className="mr-1.5 sm:mr-2 lg:mr-3 lg:w-5 lg:h-5" />
-              Hospital Directory
+              Hospital Requests
             </button>
             <button 
               onClick={() => setActiveTab('deliveries')}
@@ -386,10 +497,10 @@ export default function HospitalList() {
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="all">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="In Transit">In Transit</option>
-              <option value="Complete">Complete</option>
+              <option value="PENDING">Pending</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="IN TRANSIT">In Transit</option>
+              <option value="COMPLETE">Complete</option>
             </select>
             <button 
               className="flex items-center bg-white border border-gray-300 text-gray-700 px-4 py-2.5 lg:py-3 rounded-lg hover:bg-gray-50 transition-all text-sm lg:text-base w-full sm:w-auto justify-center"
@@ -405,26 +516,20 @@ export default function HospitalList() {
             <div className="p-4 sm:p-5 lg:p-6 border-b border-gray-200 flex justify-between items-center bg-white">
               <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold flex items-center text-gray-800">
                 <FiActivity className="mr-2 lg:mr-3 text-[#C91C1C] lg:w-6 lg:h-6" /> 
-                Hospital Directory
+                Hospital Requests
               </h2>
             </div>
             
             {/* Mobile Card View */}
             <div className="md:hidden">
-              {filteredHospitals.length > 0 ? filteredHospitals.map((hospital, index) => (
+              {paginatedHospitals.length > 0 ? paginatedHospitals.map((hospital, index) => (
                 <div key={index} className="p-4 border-b last:border-b-0">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-medium text-gray-800">{hospital.name}</h3>
-                      <div className="text-sm text-gray-500 flex items-center mt-1">
-                        <FiPhoneCall className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-                        {hospital.phone}
-                      </div>
+                  <div className="mb-3">
+                    <h3 className="font-medium text-gray-800">{hospital.name}</h3>
+                    <div className="text-sm text-gray-500 flex items-center mt-1">
+                      <FiPhoneCall className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                      {hospital.phone}
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center border ${getStatusColor(hospital.deliveryStatus)}`}>
-                      {getStatusIcon(hospital.deliveryStatus)}
-                      {hospital.deliveryStatus}
-                    </span>
                   </div>
                   
                   <div className="flex items-center text-gray-700 text-sm mb-3">
@@ -436,13 +541,6 @@ export default function HospitalList() {
                     <div className="text-xs font-medium text-gray-500 mb-1">Blood Types</div>
                     <div className="flex flex-wrap">
                       {formatBloodTypes(hospital.bloodTypes)}
-                    </div>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <div className="text-xs font-medium text-gray-500 mb-1">Date Request</div>
-                    <div className="text-sm text-gray-800 whitespace-pre-line">
-                      {hospital.dateRequest}
                     </div>
                   </div>
                   
@@ -463,25 +561,26 @@ export default function HospitalList() {
                       >
                         <FiEye className="mr-1" /> View
                       </button>
-                      <button
-                        onClick={() => handleCreateDelivery(hospital)}
-                        disabled={hospital.deliveryStatus !== 'Pending'}
-                        className={`px-3 py-1.5 text-xs text-white ${
-                          hospital.deliveryStatus !== 'Pending' 
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-blue-500 hover:bg-blue-600'
-                        } rounded-lg transition-all shadow-sm flex items-center`}
-                      >
-                        <FiTruck className="mr-1" /> 
-                        {hospital.deliveryStatus === 'Scheduled' ? 'Delivery Scheduled' : 
-                         hospital.deliveryStatus === 'In Transit' ? 'Delivery In Transit' :
-                         hospital.deliveryStatus === 'Complete' ? 'Delivery Complete' :
-                         'Schedule Delivery'}
-                      </button>
                     </div>
                   </div>
                 </div>
-              )) : (
+              )) : loading ? (
+                <div className="p-8 text-center text-gray-500">
+                  <FiClock className="w-12 h-12 mx-auto mb-4 animate-spin" />
+                  <p className="text-lg font-medium">Loading hospital requests...</p>
+                </div>
+              ) : error ? (
+                <div className="p-8 text-center text-red-500">
+                  <p className="text-lg font-medium mb-2">Error loading requests</p>
+                  <p className="text-sm">{error}</p>
+                </div>
+              ) : hospitals.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <FiDatabase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No hospital requests yet</p>
+                  <p className="text-sm mt-2">Hospital requests will appear here once they are submitted.</p>
+                </div>
+              ) : (
                 <div className="p-8 text-center text-gray-500">
                   No hospitals match your search criteria. Try adjusting your filters.
                 </div>
@@ -496,15 +595,13 @@ export default function HospitalList() {
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Hospital</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Location</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Blood Types</th>
-                    <th className="text-left p-4 lg:p-5 border-b font-semibold">Date Request</th>
                     <th className="text-left p-4 lg:p-5 border-b font-semibold">Units</th>
-                    <th className="text-left p-4 lg:p-5 border-b font-semibold">Request Status</th>
                     <th className="p-4 lg:p-5 border-b text-center font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredHospitals.length > 0 ? (
-                    filteredHospitals.map((hospital, index) => (
+                  {paginatedHospitals.length > 0 ? (
+                    paginatedHospitals.map((hospital, index) => (
                       <tr key={index} className="border-b hover:bg-gray-50 transition-colors lg:transition-all lg:cursor-pointer group">
                         <td className="p-4 lg:p-5">
                           <div className="font-medium text-gray-800 lg:text-lg">{hospital.name}</div>
@@ -525,21 +622,10 @@ export default function HospitalList() {
                           </div>
                         </td>
                         <td className="p-4 lg:p-5">
-                          <div className="text-gray-800 lg:text-base whitespace-pre-line">
-                            {hospital.dateRequest}
-                          </div>
-                        </td>
-                        <td className="p-4 lg:p-5">
                           <span className={`inline-flex items-center justify-center w-7 h-7 lg:w-9 lg:h-9 rounded-full font-medium lg:text-base ${
                             hospital.requests > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                           }`}>
                             {hospital.requests}
-                          </span>
-                        </td>
-                        <td className="p-4 lg:p-5">
-                          <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium inline-flex items-center border ${getStatusColor(hospital.deliveryStatus)}`}>
-                            {getStatusIcon(hospital.deliveryStatus)}
-                            {hospital.deliveryStatus}
                           </span>
                         </td>
                         <td className="p-4 lg:p-5">
@@ -550,28 +636,13 @@ export default function HospitalList() {
                             >
                               <FiEye className="mr-1 lg:mr-1.5 w-3 h-3 lg:w-4 lg:h-4" /> View
                             </button>
-                            <button
-                              onClick={() => handleCreateDelivery(hospital)}
-                              disabled={hospital.deliveryStatus !== 'Pending'}
-                              className={`px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-white ${
-                                hospital.deliveryStatus !== 'Pending' 
-                                  ? 'bg-gray-400 cursor-not-allowed' 
-                                  : 'bg-blue-500 hover:bg-blue-600'
-                              } rounded-md transition-all shadow-sm flex items-center`}
-                            >
-                              <FiTruck className="mr-1 lg:mr-1.5 w-3 h-3 lg:w-4 lg:h-4" /> 
-                              {hospital.deliveryStatus === 'Scheduled' ? 'Scheduled' : 
-                               hospital.deliveryStatus === 'In Transit' ? 'In Transit' :
-                               hospital.deliveryStatus === 'Complete' ? 'Complete' :
-                               'Schedule'}
-                            </button>
                           </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="p-8 lg:p-12 text-center text-gray-500 lg:text-lg">
+                      <td colSpan="5" className="p-8 lg:p-12 text-center text-gray-500 lg:text-lg">
                         No hospitals match your search criteria. Try adjusting your filters.
                       </td>
                     </tr>
@@ -579,6 +650,17 @@ export default function HospitalList() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Hospitals Pagination */}
+            {filteredHospitals.length > 0 && (
+              <Pagination
+                currentPage={hospitalsCurrentPage}
+                totalItems={filteredHospitals.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handleHospitalsPageChange}
+                className="border-t"
+              />
+            )}
           </div>
         )}
 
@@ -590,21 +672,31 @@ export default function HospitalList() {
             
             {/* Deliveries Table/Cards Section - Enhanced for Desktop */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8 border border-gray-200 lg:transition-all lg:hover:shadow-xl">
-              <div className="p-4 sm:p-5 lg:p-6 border-b border-gray-200 flex justify-between items-center">
+              <div className="p-4 sm:p-5 lg:p-6 border-b border-gray-200">
                 <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold flex items-center text-gray-800">
                   <FiTruck className="mr-2 lg:mr-3 text-[#C91C1C] lg:w-6 lg:h-6" /> Manage Blood Deliveries
                 </h2>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base bg-[#C91C1C] text-white rounded-lg hover:bg-[#b01818] transition-all flex items-center shadow-sm"
-                >
-                  <FiPlus className="mr-1.5 w-3.5 h-3.5 lg:w-4 lg:h-4" /> New Delivery
-                </button>
               </div>
               
               {/* Mobile Card View */}
               <div className="md:hidden">
-                {filteredDeliveries.length > 0 ? filteredDeliveries.map((delivery, index) => (
+                {loadingDeliveries ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <FiClock className="w-12 h-12 mx-auto mb-4 animate-spin" />
+                    <p className="text-lg font-medium">Loading deliveries...</p>
+                  </div>
+                ) : deliveryError ? (
+                  <div className="p-8 text-center text-red-500">
+                    <p className="text-lg font-medium mb-2">Error loading deliveries</p>
+                    <p className="text-sm">{deliveryError}</p>
+                  </div>
+                ) : deliveries.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <FiDatabase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No deliveries yet</p>
+                    <p className="text-sm mt-2">Scheduled deliveries will appear here.</p>
+                  </div>
+                ) : paginatedDeliveries.length > 0 ? paginatedDeliveries.map((delivery, index) => (
                   <div key={index} className="p-4 border-b last:border-b-0">
                     <div className="flex justify-between items-start mb-3">
                       <div className="font-medium text-gray-800">{delivery.id}</div>
@@ -622,9 +714,9 @@ export default function HospitalList() {
                         {delivery.items.split(', ').map((item, i) => (
                           <span 
                             key={i} 
-                            className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-800 rounded-lg text-xs"
+                            className="inline-flex items-center px-2 py-0.5 bg-red-50 text-red-800 rounded-lg text-xs font-medium border border-red-200"
                           >
-                            <FiDroplet className="mr-1 w-3 h-3" />
+                            <FiDroplet className="mr-1 w-3 h-3 text-red-600" />
                             {item}
                           </span>
                         ))}
@@ -654,14 +746,14 @@ export default function HospitalList() {
                       </button>
                       <button 
                         className={`px-3 py-1.5 text-xs rounded-lg transition-all flex items-center shadow-sm ${
-                          delivery.status === DELIVERY_STATUS.COMPLETE
+                          delivery.status === DELIVERY_STATUS.IN_TRANSIT || delivery.status === DELIVERY_STATUS.COMPLETE
                             ? 'bg-gray-400 text-white cursor-not-allowed'
                             : 'bg-green-600 text-white hover:bg-green-700'
                         }`}
-                        onClick={() => handleUpdateDelivery(delivery)}
-                        disabled={delivery.status === DELIVERY_STATUS.COMPLETE}
+                        onClick={() => handleMarkAsInTransit(delivery)}
+                        disabled={delivery.status === DELIVERY_STATUS.IN_TRANSIT || delivery.status === DELIVERY_STATUS.COMPLETE}
                       >
-                        <FiArrowRight className="mr-1 w-3 h-3" /> Update
+                        <FiTruck className="mr-1 w-3 h-3" /> Mark as In Transit
                       </button>
                     </div>
                   </div>
@@ -680,14 +772,36 @@ export default function HospitalList() {
                       <th className="text-left p-4 lg:p-5 border-b font-semibold">Delivery ID</th>
                       <th className="text-left p-4 lg:p-5 border-b font-semibold">Hospital</th>
                       <th className="text-left p-4 lg:p-5 border-b font-semibold">Blood Products</th>
-                      <th className="text-left p-4 lg:p-5 border-b font-semibold">Date & Time</th>
+                      <th className="text-left p-4 lg:p-5 border-b font-semibold">Date &amp; Time</th>
                       <th className="text-left p-4 lg:p-5 border-b font-semibold">Request Status</th>
                       <th className="p-4 lg:p-5 border-b text-center font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDeliveries.length > 0 ? (
-                      filteredDeliveries.map((delivery, index) => (
+                    {loadingDeliveries ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 lg:p-12 text-center text-gray-500 lg:text-lg">
+                          <FiClock className="w-12 h-12 mx-auto mb-4 animate-spin" />
+                          <p className="text-lg font-medium">Loading deliveries...</p>
+                        </td>
+                      </tr>
+                    ) : deliveryError ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 lg:p-12 text-center text-red-500 lg:text-lg">
+                          <p className="text-lg font-medium mb-2">Error loading deliveries</p>
+                          <p className="text-sm">{deliveryError}</p>
+                        </td>
+                      </tr>
+                    ) : deliveries.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 lg:p-12 text-center text-gray-500 lg:text-lg">
+                          <FiDatabase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg font-medium">No deliveries yet</p>
+                          <p className="text-sm mt-2">Scheduled deliveries will appear here.</p>
+                        </td>
+                      </tr>
+                    ) : paginatedDeliveries.length > 0 ? (
+                      paginatedDeliveries.map((delivery, index) => (
                         <tr key={index} className="border-b hover:bg-gray-50 transition-colors lg:transition-all lg:cursor-pointer group">
                           <td className="p-4 lg:p-5 font-medium text-gray-800 lg:text-lg">{delivery.id}</td>
                           <td className="p-4 lg:p-5 text-gray-700 lg:text-base">{delivery.hospital}</td>
@@ -696,9 +810,9 @@ export default function HospitalList() {
                               {delivery.items.split(', ').map((item, i) => (
                                 <span 
                                   key={i} 
-                                  className="inline-flex items-center px-2 py-0.5 lg:px-3 lg:py-1 bg-blue-50 text-blue-800 rounded-lg text-xs lg:text-sm"
+                                  className="inline-flex items-center px-2 py-0.5 lg:px-3 lg:py-1 bg-red-50 text-red-800 rounded-lg text-xs lg:text-sm font-medium border border-red-200"
                                 >
-                                  <FiDroplet className="mr-1 w-3 h-3 lg:w-4 lg:h-4" />
+                                  <FiDroplet className="mr-1 w-3 h-3 lg:w-4 lg:h-4 text-red-600" />
                                   {item}
                                 </span>
                               ))}
@@ -727,14 +841,14 @@ export default function HospitalList() {
                               </button>
                               <button 
                                 className={`px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base rounded-lg transition-all flex items-center shadow-sm lg:shadow-md ${
-                                  delivery.status === DELIVERY_STATUS.COMPLETE
+                                  delivery.status === DELIVERY_STATUS.IN_TRANSIT || delivery.status === DELIVERY_STATUS.COMPLETE
                                     ? 'bg-gray-400 text-white cursor-not-allowed'
                                     : 'bg-green-600 text-white hover:bg-green-700'
                                 }`}
-                                onClick={() => handleUpdateDelivery(delivery)}
-                                disabled={delivery.status === DELIVERY_STATUS.COMPLETE}
+                                onClick={() => handleMarkAsInTransit(delivery)}
+                                disabled={delivery.status === DELIVERY_STATUS.IN_TRANSIT || delivery.status === DELIVERY_STATUS.COMPLETE}
                               >
-                                <FiArrowRight className="mr-1.5 w-3.5 h-3.5 lg:w-4 lg:h-4" /> Update
+                                <FiTruck className="mr-1.5 w-3.5 h-3.5 lg:w-4 lg:h-4" /> Mark as In Transit
                               </button>
                             </div>
                           </td>
@@ -750,6 +864,17 @@ export default function HospitalList() {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Deliveries Pagination */}
+              {filteredDeliveries.length > 0 && (
+                <Pagination
+                  currentPage={deliveriesCurrentPage}
+                  totalItems={filteredDeliveries.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handleDeliveriesPageChange}
+                  className="border-t"
+                />
+              )}
             </div>
             
             
@@ -761,16 +886,8 @@ export default function HospitalList() {
       {showTrackModal && selectedDelivery && (
         <TrackDelivery 
           delivery={selectedDelivery} 
-          onClose={() => setShowTrackModal(false)} 
-        />
-      )}
-      
-      {/* Update Delivery Modal */}
-      {showUpdateModal && selectedDelivery && (
-        <UpdateDelivery 
-          delivery={selectedDelivery} 
-          onClose={() => setShowUpdateModal(false)}
-          onUpdate={updateDeliveryStatus}
+          onClose={() => setShowTrackModal(false)}
+          onRefresh={handleRefreshDelivery}
         />
       )}
       

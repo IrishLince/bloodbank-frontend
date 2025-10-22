@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { fetchWithAuth } from '../../utils/api';
 import {
   FiSearch,
   FiClock,
@@ -143,7 +144,8 @@ const BloodBagRequests = ({
   setView, 
   setShowValidationModal, 
   formatDate, 
-  getRequestStatusColor 
+  getRequestStatusColor,
+  refreshRequests 
 }) => {
   // State
   const [requestSearchTerm, setRequestSearchTerm] = useState('');
@@ -236,6 +238,86 @@ const BloodBagRequests = ({
     setShowValidationModal(true);
   }, [setShowValidationModal]);
   
+  // Handle accept voucher - this will accept the voucher and deduct units
+  const handleAcceptVoucher = useCallback(async (request) => {
+    // Debug the request object
+    console.log('Attempting to accept voucher:', request);
+    console.log('Request status:', request.status);
+    console.log('Request backend status:', request.backendStatus);
+    
+    if (!window.confirm(`Accept this blood bag voucher for ${request.donorName}? This will deduct ${request.units} unit(s) from your inventory.`)) {
+      return;
+    }
+
+    try {
+      // Get blood bank ID
+      const userResponse = await fetchWithAuth('/auth/me');
+      const userData = await userResponse.json();
+      const bloodBankId = userData.id;
+      
+      console.log('Sending accept request:', {
+        voucherId: request.id,
+        bloodBankId: bloodBankId,
+        storageLocation: request.storageLocation || 'Storage A',
+        currentStatus: request.backendStatus || request.status
+      });
+      
+      // Accept the voucher (change from PENDING to PROCESSING) - same as rewards page flow
+      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${request.id}/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bloodBankId: bloodBankId,
+          storageId: request.storageId // Pass the specific storage ID for inventory deduction
+        })
+      });
+
+      if (response.ok) {
+        alert(`Voucher accepted successfully! ${request.units} unit(s) of ${request.bloodType} blood deducted from inventory.`);
+        // Refresh the requests list
+        if (refreshRequests) {
+          refreshRequests();
+        }
+      } else {
+        const error = await response.json();
+        console.error('Accept voucher error response:', error);
+        alert('Failed to accept voucher: ' + (error.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error accepting voucher:', error);
+      alert('Failed to accept voucher. Please try again.');
+    }
+  }, [refreshRequests]);
+  
+  // Handle mark complete
+  const handleMarkComplete = useCallback(async (request) => {
+    if (!window.confirm(`Mark this blood bag claim as complete for ${request.donorName}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${request.id}/complete`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        alert('Blood bag claim marked as complete!');
+        // Refresh the requests list
+        if (refreshRequests) {
+          refreshRequests();
+        }
+      } else {
+        const error = await response.json();
+        alert('Failed to mark as complete: ' + (error.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error marking blood bag claim as complete:', error);
+      alert('Failed to mark as complete. Please try again.');
+    }
+  }, [refreshRequests]);
+  
   return (
     <main className="flex-grow max-w-[1920px] mx-auto px-6 py-8">
       {/* Header with title and actions */}
@@ -265,21 +347,13 @@ const BloodBagRequests = ({
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <StatusCard 
           title="Pending Requests" 
           count={requestCounts.pending} 
           icon={<FiClock className="text-yellow-600 text-xl" />}
           bgColor="bg-yellow-100"
           textColor="text-yellow-600"
-        />
-        
-        <StatusCard 
-          title="Accepted Requests" 
-          count={requestCounts.accepted} 
-          icon={<FiCheckCircle className="text-blue-600 text-xl" />}
-          bgColor="bg-blue-100"
-          textColor="text-blue-600"
         />
         
         <StatusCard 
@@ -334,7 +408,7 @@ const BloodBagRequests = ({
                   onSort={requestSort} 
                 />
                 <SortableTableHeader 
-                  title="Donor" 
+                  title="Redeemer" 
                   column="donorName" 
                   sortConfig={requestSortConfig} 
                   onSort={requestSort} 
@@ -405,20 +479,15 @@ const BloodBagRequests = ({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                     {request.status === 'Pending' ? (
                       <button 
-                        onClick={() => handleAccept(request)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center justify-end w-full transition-colors focus:outline-none focus:underline"
-                        aria-label={`Accept request from ${request.donorName}`}
+                        onClick={() => handleAcceptVoucher(request)}
+                        className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        aria-label={`Accept voucher for ${request.donorName}`}
                       >
-                        <span>Accept</span>
-                        <FiArrowRight className="ml-1" aria-hidden="true" />
+                        <FiCheck className="w-4 h-4 mr-1" aria-hidden="true" />
+                        Accept
                       </button>
-                    ) : request.status === 'Accepted' ? (
-                      <span className="text-gray-500 flex items-center justify-end">
-                        <FiClock className="mr-1 text-gray-400" aria-hidden="true" />
-                        Awaiting Donor
-                      </span>
                     ) : (
-                      <span className="text-green-600 flex items-center justify-end">
+                      <span className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-md">
                         <FiCheckCircle className="mr-1" aria-hidden="true" />
                         Completed
                       </span>
@@ -474,7 +543,8 @@ BloodBagRequests.propTypes = {
   setView: PropTypes.func.isRequired,
   setShowValidationModal: PropTypes.func.isRequired,
   formatDate: PropTypes.func.isRequired,
-  getRequestStatusColor: PropTypes.func.isRequired
+  getRequestStatusColor: PropTypes.func.isRequired,
+  refreshRequests: PropTypes.func
 };
 
 export default BloodBagRequests;

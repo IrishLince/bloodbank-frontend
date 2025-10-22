@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   FiFilter, 
   FiDownload, 
@@ -30,8 +31,11 @@ import {
 } from 'react-icons/fi';
 import { Calendar } from 'lucide-react';
 import BloodBagRequests from './BloodBagRequests';
+import VoucherValidationModal from './VoucherValidationModal';
+import { fetchWithAuth } from '../../utils/api';
 
 const Inventory = () => {
+  const location = useLocation();
   const [view, setView] = useState('inventory');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBloodType, setSelectedBloodType] = useState('All');
@@ -48,6 +52,9 @@ const Inventory = () => {
   const [showRequestsView, setShowRequestsView] = useState(false);
   const [currentDetailItem, setCurrentDetailItem] = useState(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [showPreferredBloodTypesModal, setShowPreferredBloodTypesModal] = useState(false);
+  const [preferredBloodTypes, setPreferredBloodTypes] = useState([]);
+  const [bloodBankId, setBloodBankId] = useState(null);
   const [advancedFilters, setAdvancedFilters] = useState({
     location: 'All',
     collectedAfter: '',
@@ -72,6 +79,79 @@ const Inventory = () => {
     batchNo: ''
   });
   
+  // Handle add blood unit
+  const handleAddBloodUnit = async () => {
+    try {
+      // Get the logged-in user's blood bank ID
+      const userResponse = await fetchWithAuth('/auth/me')
+      if (!userResponse.ok) {
+        alert('Failed to get user information')
+        return
+      }
+      
+      const userData = await userResponse.json()
+      // Use MongoDB ID instead of custom bloodBankId
+      const bloodBankId = userData.id
+      
+      if (!bloodBankId) {
+        console.error('Blood bank ID not found in user data:', userData)
+        alert('Blood bank ID not found. Please make sure you are logged in as a blood bank.')
+        return
+      }
+      
+      // Prepare data for backend
+      const bloodInventoryData = {
+        bloodBankId: bloodBankId, // Now using MongoDB ID
+        bloodTypeId: formData.type,
+        quantity: parseInt(formData.units),
+        status: formData.status,
+        expirationDate: formData.expiry ? new Date(formData.expiry).toISOString() : null,
+        createdAt: formData.collected ? new Date(formData.collected).toISOString() : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      console.log('Sending blood inventory data:', bloodInventoryData)
+
+      const response = await fetchWithAuth('/blood-inventory', {
+        method: 'POST',
+        body: JSON.stringify(bloodInventoryData)
+      });
+
+      console.log('Add inventory response status:', response.status)
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Add inventory result:', result)
+        alert('Blood unit added successfully!');
+        setShowAddModal(false);
+        
+        // Reset form
+        setFormData({
+          id: '',
+          type: 'A+',
+          units: 1,
+          location: 'Storage A',
+          collected: '',
+          expiry: '',
+          status: 'Available',
+          temperature: '4°C',
+          donorId: '',
+          hospital: '',
+          batchNo: ''
+        });
+        
+        // Refresh inventory
+        fetchBloodInventory();
+      } else {
+        const error = await response.json();
+        alert('Failed to add blood unit: ' + (error.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error adding blood unit:', error);
+      alert('Failed to add blood unit. Please try again.');
+    }
+  };
+
   // Ref for print functionality
   const printSectionRef = useRef(null);
 
@@ -100,8 +180,149 @@ const Inventory = () => {
     { id: 'D-1005', name: 'Michael Brown', points: 190, date: '2023-09-08' }
   ];
   
-  // Mock data for blood inventory
-  const [bloodInventory, setBloodInventory] = useState([
+  // Blood inventory state
+  const [bloodInventory, setBloodInventory] = useState([])
+  const [isLoadingInventory, setIsLoadingInventory] = useState(true)
+
+  // Fetch blood inventory on component mount
+  useEffect(() => {
+    fetchBloodInventory()
+  }, [])
+
+  // Check for navigation state to show requests view
+  useEffect(() => {
+    if (location.state?.view === 'requests') {
+      setView('requests');
+    }
+  }, [location.state])
+
+  const fetchBloodInventory = async () => {
+    try {
+      setIsLoadingInventory(true)
+      
+      // First get the logged-in user to get blood bank ID
+      const userResponse = await fetchWithAuth('/auth/me')
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user information')
+      }
+      
+      const userData = await userResponse.json()
+      // Use MongoDB ID instead of custom bloodBankId
+      const bloodBankId = userData.id
+      
+      if (!bloodBankId) {
+        console.error('Blood bank ID not found in user data:', userData)
+        throw new Error('Blood bank ID not found')
+      }
+      
+      // Fetch inventory for this blood bank
+      const response = await fetchWithAuth(`/blood-inventory/bloodbank/${bloodBankId}`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Inventory API response:', result)
+        
+        if (result.data) {
+          // Transform backend data to match frontend format
+          const transformedData = result.data.map(item => {
+            console.log('Transforming item:', item)
+            return {
+              id: item.id,
+              type: item.bloodTypeId || 'Unknown',
+              units: item.quantity || 0,
+              location: 'Storage A', // Default location
+              collected: item.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : '',
+              expiry: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
+              status: item.status || 'Available',
+              temperature: '4°C', // Default temperature
+              donorId: `D-${Math.floor(1000 + Math.random() * 9000)}`,
+              hospital: null,
+              batchNo: `B-${new Date(item.createdAt).getFullYear()}${String(new Date(item.createdAt).getMonth() + 1).padStart(2, '0')}-01`
+            }
+          })
+          console.log('Transformed data:', transformedData)
+          setBloodInventory(transformedData)
+        } else {
+          console.log('No data in result')
+        }
+      } else {
+        console.error('Failed to fetch inventory:', response.status)
+      }
+    } catch (error) {
+      console.error('Error fetching blood inventory:', error)
+    } finally {
+      setIsLoadingInventory(false)
+    }
+  }
+
+  // Fetch blood bank user data to get preferred blood types
+  const fetchBloodBankUser = async () => {
+    try {
+      const userResponse = await fetchWithAuth('/auth/me')
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user information')
+      }
+      
+      const userData = await userResponse.json()
+      const bloodBankId = userData.id
+      setBloodBankId(bloodBankId)
+      
+      // Fetch blood bank user details
+      const response = await fetchWithAuth(`/bloodbank-users/${bloodBankId}`)
+      if (response.ok) {
+        const result = await response.json()
+        const bloodBankUser = result.data || result
+        setPreferredBloodTypes(bloodBankUser.preferredBloodTypes || [])
+      }
+    } catch (error) {
+      console.error('Error fetching blood bank user:', error)
+    }
+  }
+
+  // Handle opening preferred blood types modal
+  const handleOpenPreferredBloodTypes = async () => {
+    await fetchBloodBankUser()
+    setShowPreferredBloodTypesModal(true)
+  }
+
+  // Handle saving preferred blood types
+  const handleSavePreferredBloodTypes = async () => {
+    try {
+      const response = await fetchWithAuth(`/bloodbank-users/${bloodBankId}/preferred-bloodtypes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          preferredBloodTypes: preferredBloodTypes
+        })
+      })
+      
+      if (response.ok) {
+        alert('Preferred blood types updated successfully!')
+        setShowPreferredBloodTypesModal(false)
+      } else {
+        alert('Failed to update preferred blood types')
+      }
+    } catch (error) {
+      console.error('Error updating preferred blood types:', error)
+      alert('Error updating preferred blood types')
+    }
+  }
+
+  // Toggle blood type selection
+  const toggleBloodType = (bloodType) => {
+    setPreferredBloodTypes(prev => {
+      if (prev.includes(bloodType)) {
+        return prev.filter(type => type !== bloodType)
+      } else {
+        return [...prev, bloodType]
+      }
+    })
+  }
+
+  // Mock data for blood inventory (fallback)
+  const [mockBloodInventory] = useState([
     { 
       id: 'BU-1001', 
       type: 'A+', 
@@ -208,20 +429,25 @@ const Inventory = () => {
     }
   ]);
 
-  // Blood type summary
-  const bloodTypeSummary = [
-    { type: 'A+', available: 150, total: 150 },
-    { type: 'A-', available: 30, total: 30 },
-    { type: 'B+', available: 120, total: 120 },
-    { type: 'B-', available: 35, total: 35 },
-    { type: 'AB+', available: 50, total: 50 },
-    { type: 'AB-', available: 20, total: 20 },
-    { type: 'O+', available: 200, total: 200 },
-    { type: 'O-', available: 75, total: 75 },
-  ];
-
   const bloodTypes = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
   const statuses = ['All', 'Available', 'Quarantined', 'Critical'];
+
+  // Calculate blood type summary from actual inventory data
+  const bloodTypeSummary = bloodTypes
+    .filter(type => type !== 'All')
+    .map(type => {
+      const typeInventory = bloodInventory.filter(item => item.type === type);
+      const availableUnits = typeInventory
+        .filter(item => item.status === 'Available')
+        .reduce((sum, item) => sum + item.units, 0);
+      const totalUnits = typeInventory.reduce((sum, item) => sum + item.units, 0);
+      
+      return {
+        type: type,
+        available: availableUnits,
+        total: totalUnits
+      };
+    });
 
   // Filter blood inventory based on search term and selected filters
   const filteredInventory = bloodInventory.filter(item => {
@@ -361,51 +587,94 @@ const Inventory = () => {
   // Open edit modal
   const openEditModal = (item) => {
     setFormData({
-      ...item
+      ...item,
+      expiry: item.expiry ? (item.expiry.includes('T') ? item.expiry.split('T')[0] : item.expiry) : '',
+      collected: item.collected ? (item.collected.includes('T') ? item.collected.split('T')[0] : item.collected) : '',
     });
     setShowEditModal(true);
   };
 
-  // Handle add blood unit
-  const handleAddBloodUnit = () => {
-    setBloodInventory([formData, ...bloodInventory]);
-    setShowAddModal(false);
-    
-    // Update blood type summary
-    const updatedSummary = bloodTypeSummary.map(type => {
-      if (type.type === formData.type) {
-        return {
-          ...type,
-          available: formData.status === 'Available' ? type.available + formData.units : type.available,
-          total: type.total + formData.units
-        };
-      }
-      return type;
-    });
-    
-    // Here you would typically make an API call to save the data
-  };
-
   // Handle edit blood unit
-  const handleEditBloodUnit = () => {
-    const updatedInventory = bloodInventory.map(item => 
-      item.id === formData.id ? formData : item
-    );
-    setBloodInventory(updatedInventory);
-    setShowEditModal(false);
-    
-    // Here you would typically make an API call to update the data
+  const handleEditBloodUnit = async () => {
+    try {
+      // Get the logged-in user's blood bank ID
+      const userResponse = await fetchWithAuth('/auth/me')
+      if (!userResponse.ok) {
+        alert('Failed to get user information')
+        return
+      }
+      
+      const userData = await userResponse.json()
+      const bloodBankId = userData.id
+      
+      if (!bloodBankId) {
+        alert('Blood bank ID not found')
+        return
+      }
+      
+      // Prepare data for backend
+      const bloodInventoryData = {
+        bloodBankId: bloodBankId,
+        bloodTypeId: formData.type,
+        quantity: parseInt(formData.units),
+        status: formData.status,
+        expirationDate: formData.expiry ? new Date(formData.expiry).toISOString() : null,
+        createdAt: formData.collected ? new Date(formData.collected).toISOString() : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const response = await fetchWithAuth(`/blood-inventory/${formData.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(bloodInventoryData)
+      });
+
+      if (response.ok) {
+        alert('Blood unit updated successfully!');
+        setShowEditModal(false);
+        
+        // Refresh inventory
+        fetchBloodInventory();
+      } else {
+        const error = await response.json();
+        alert('Failed to update blood unit: ' + (error.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating blood unit:', error);
+      alert('Failed to update blood unit. Please try again.');
+    }
   };
 
   // Handle delete blood units
-  const handleDeleteBloodUnits = () => {
-    const updatedInventory = bloodInventory.filter(item => !selectedItems.includes(item.id));
-    setBloodInventory(updatedInventory);
-    setShowDeleteModal(false);
-    setSelectedItems([]);
-    setIsSelectMode(false);
-    
-    // Here you would typically make an API call to delete the data
+  const handleDeleteBloodUnits = async () => {
+    try {
+      // Delete each selected item
+      const deletePromises = selectedItems.map(itemId => 
+        fetchWithAuth(`/blood-inventory/${itemId}`, {
+          method: 'DELETE'
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      
+      // Check if all deletions were successful
+      const allSuccessful = results.every(response => response.ok);
+      
+      if (allSuccessful) {
+        alert(`Successfully deleted ${selectedItems.length} blood unit(s)`);
+        setShowDeleteModal(false);
+        setSelectedItems([]);
+        setIsSelectMode(false);
+        
+        // Refresh inventory
+        fetchBloodInventory();
+      } else {
+        const failedCount = results.filter(r => !r.ok).length;
+        alert(`Failed to delete ${failedCount} out of ${selectedItems.length} items. Please try again.`);
+      }
+    } catch (error) {
+      console.error('Error deleting blood units:', error);
+      alert('Failed to delete blood units. Please try again.');
+    }
   };
 
   // Handle view details
@@ -1296,17 +1565,13 @@ const Inventory = () => {
                 
                 <div className="mt-8 space-y-4">
                   <button 
-                    onClick={() => openEditModal(currentDetailItem)}
+                    onClick={() => {
+                      setCurrentDetailItem(currentDetailItem);
+                      setShowEditModal(true);
+                    }}
                     className="w-full py-2 bg-blue-600 text-white rounded-md flex items-center justify-center"
                   >
                     <FiEdit className="mr-2" /> Edit Unit Details
-                  </button>
-                  
-                  <button 
-                    onClick={handleShowBloodBagRequests}
-                    className="w-full py-2 bg-green-600 text-white rounded-md flex items-center justify-center"
-                  >
-                    <FiCornerUpRight className="mr-2" /> Process Donor Claim
                   </button>
                   
                   <button 
@@ -1324,12 +1589,23 @@ const Inventory = () => {
           </div>
         </div>
         
-        
       </div>
     );
   };
 
   const renderInventoryOverview = () => {
+    // Show loading state
+    if (isLoadingInventory) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading blood inventory...</p>
+          </div>
+        </div>
+      )
+    }
+
     // Apply advanced filters to the filtered inventory
     const advancedFilteredInventory = applyAdvancedFilters(filteredInventory);
     
@@ -1343,7 +1619,7 @@ const Inventory = () => {
       }
       return 0;
     });
-    
+
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
@@ -1351,16 +1627,24 @@ const Inventory = () => {
             <h1 className="text-2xl font-bold text-gray-800">Blood Inventory Management</h1>
             <p className="text-gray-600">Track, manage, and monitor blood supplies</p>
           </div>
-          <button 
-            onClick={() => setShowValidationModal(true)}
-            className="mt-2 sm:mt-0 flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <FiCheck className="mr-2" /> Validate Donor Voucher
-          </button>
+          <div className="mt-2 sm:mt-0 flex gap-2">
+            <button 
+              onClick={handleOpenPreferredBloodTypes}
+              className="flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <FiLayers className="mr-2" /> Manage Preferred Blood Types
+            </button>
+            <button 
+              onClick={handleShowBloodBagRequests}
+              className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <FiCornerUpRight className="mr-2" /> View Blood Bag Requests
+            </button>
+          </div>
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center justify-between">
               <div>
@@ -1378,41 +1662,13 @@ const Inventory = () => {
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Expiring Soon</p>
+                <p className="text-sm text-gray-500">Expiring Soon (Within 1 Week)</p>
                 <p className="text-2xl font-bold">
-                  {bloodInventory.filter(item => getDaysUntilExpiry(item.expiry) <= 3).length}
+                  {bloodInventory.filter(item => getDaysUntilExpiry(item.expiry) <= 7 && getDaysUntilExpiry(item.expiry) > 0).length}
                 </p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
                 <FiClock className="text-orange-600 text-xl" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Critical Storage</p>
-                <p className="text-2xl font-bold">
-                  {bloodInventory.filter(item => item.status === 'Critical').length}
-                </p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-full">
-                <FiAlertCircle className="text-red-600 text-xl" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Temperature Monitoring</p>
-                <p className="text-2xl font-bold">
-                  Normal
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <FiThermometer className="text-blue-600 text-xl" />
               </div>
             </div>
           </div>
@@ -1761,159 +2017,74 @@ const Inventory = () => {
 
   // State for validation modal
   const [showValidationModal, setShowValidationModal] = useState(false);
-  const [validationCode, setValidationCode] = useState('');
-  const [validationResult, setValidationResult] = useState(null);
   
-  // ... existing code ...
-  
-  // Handle voucher validation
-  const handleValidateVoucher = () => {
-    // Validate the voucher code
-    if (!validationCode.trim()) {
-      setValidationResult({
-        status: 'error',
-        message: 'Please enter a validation code'
-      });
-      return;
-    }
-    
-    // Parse the validation code (format: REQ-XXXX-D-XXXX)
-    const parts = validationCode.split('-');
-    if (parts.length < 3) {
-      setValidationResult({
-        status: 'error',
-        message: 'Invalid voucher format. Expected format: REQ-XXXX-D-XXXX'
-      });
-      return;
-    }
-    
-    // Simulate validation success (in a real app, this would check against a database)
-    setValidationResult({
-      status: 'success',
-      message: 'Voucher validated successfully!',
-      details: {
-        requestId: `${parts[0]}-${parts[1]}`,
-        donorId: `${parts[2]}-${parts[3]}`,
-        validatedOn: new Date().toLocaleString()
+  // Handle voucher validation result - Accept voucher to put it in PROCESSING status
+  const handleVoucherValidation = async (voucherData, selectedStorage) => {
+    try {
+      // Get blood bank ID
+      const userResponse = await fetchWithAuth('/auth/me');
+      const userData = await userResponse.json();
+      const bloodBankId = userData.id;
+      
+      // Extract storage location string from storage object
+      let storageLocation;
+      if (typeof selectedStorage === 'object' && selectedStorage.location) {
+        storageLocation = selectedStorage.location;
+      } else if (typeof selectedStorage === 'string') {
+        storageLocation = selectedStorage;
+      } else {
+        storageLocation = 'Storage A'; // Default fallback
       }
-    });
-  };
-  
-  // Reset validation
-  const resetValidation = () => {
-    setValidationCode('');
-    setValidationResult(null);
-  };
-  
-  // Validation modal
-  const renderValidationModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between bg-gray-100 px-6 py-3 rounded-t-lg">
-          <h3 className="text-lg font-medium">Validate Donor Voucher</h3>
-          <button 
-            onClick={() => {
-              setShowValidationModal(false);
-              resetValidation();
-            }}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <FiX size={20} />
-          </button>
-        </div>
-        
-        <div className="p-6">
-          {!validationResult ? (
-            <>
-              <p className="text-gray-700 mb-4">
-                Enter the validation code from the donor's voucher to verify its authenticity.
-              </p>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Validation Code</label>
-                <input
-                  type="text"
-                  value={validationCode}
-                  onChange={(e) => setValidationCode(e.target.value)}
-                  placeholder="e.g. REQ-1234-D-5678"
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setShowValidationModal(false);
-                    resetValidation();
-                  }}
-                  className="px-4 py-2 border rounded text-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleValidateVoucher}
-                  className="px-4 py-2 bg-green-600 text-white rounded flex items-center"
-                >
-                  <FiCheck className="mr-1" /> Validate
-                </button>
-              </div>
-            </>
-          ) : (
-            <div>
-              {validationResult.status === 'success' ? (
-                <div className="text-center">
-                  <div className="flex items-center justify-center mb-4 text-green-600">
-                    <div className="bg-green-100 p-3 rounded-full">
-                      <FiCheck size={30} />
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-green-600 mb-2">Voucher Validated!</h3>
-                  <p className="text-gray-600 mb-4">{validationResult.message}</p>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg text-left mb-4">
-                    <p className="text-sm text-gray-700"><strong>Request ID:</strong> {validationResult.details.requestId}</p>
-                    <p className="text-sm text-gray-700"><strong>Donor ID:</strong> {validationResult.details.donorId}</p>
-                    <p className="text-sm text-gray-700"><strong>Validated On:</strong> {validationResult.details.validatedOn}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="flex items-center justify-center mb-4 text-red-600">
-                    <div className="bg-red-100 p-3 rounded-full">
-                      <FiX size={30} />
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-red-600 mb-2">Validation Failed</h3>
-                  <p className="text-gray-600 mb-4">{validationResult.message}</p>
-                </div>
-              )}
-              
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={() => {
-                    resetValidation();
-                  }}
-                  className="px-4 py-2 border rounded text-gray-700 mr-2"
-                >
-                  Try Again
-                </button>
-                <button
-                  onClick={() => {
-                    setShowValidationModal(false);
-                    resetValidation();
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+      
+      console.log('Voucher validated successfully:', voucherData);
+      console.log('Selected storage:', selectedStorage);
+      
+      // Extract voucher ID from validation response
+      const voucherId = voucherData.data?.voucher?.id || voucherData.data?.id || voucherData.id;
+      
+      if (!voucherId) {
+        alert('Error: Could not find voucher ID in validation response');
+        return;
+      }
+      
+      // Accept the voucher to put it in PROCESSING status (so it appears in Blood Bag Requests)
+      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${voucherId}/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bloodBankId: bloodBankId,
+          storageLocation: storageLocation,
+          storageId: selectedStorage.id // Pass the specific storage ID for inventory deduction
+        })
+      });
 
+      if (response.ok) {
+        // Show success message - voucher is now in PROCESSING status
+        alert(`Voucher validated and accepted successfully! 
+        
+Voucher Code: ${voucherData.data?.voucher?.voucherCode || 'N/A'}
+Donor: ${voucherData.data?.donorName || 'Unknown'}
+Storage: ${storageLocation} (ID: ${selectedStorage.id || 'N/A'})
+
+The voucher is now in processing status and will appear in Blood Bag Requests.`);
+        
+        // Refresh the Blood Bag Requests to show the newly processed voucher
+        if (fetchBloodBagRequests) {
+          fetchBloodBagRequests();
+        }
+      } else {
+        const error = await response.json();
+        alert('Voucher validated but failed to accept: ' + (error.message || 'Unknown error'));
+      }
+      
+    } catch (error) {
+      console.error('Error handling voucher validation:', error);
+      alert('Failed to process voucher. Please try again.');
+    }
+  };
+  
   // Format date helper function
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -1929,46 +2100,167 @@ const Inventory = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-  
-  // Mock data for blood bag requests
-  const [pendingRequests, setPendingRequests] = useState([
-    {
-      id: 'REQ-001',
-      donorName: 'Irish Lince',
-      donorId: 'D-4578',
-      bloodType: 'O+',
-      units: 1,
-      requestDate: '2024-04-18',
-      status: 'Pending'
-    },
-    {
-      id: 'REQ-002',
-      donorName: 'Jane Smith',
-      donorId: 'D-3692',
-      bloodType: 'A-',
-      units: 2,
-      requestDate: '2024-04-17',
-      status: 'Pending'
-    },
-    {
-      id: 'REQ-003',
-      donorName: 'Mark Johnson',
-      donorId: 'D-5123',
-      bloodType: 'AB+',
-      units: 1,
-      requestDate: '2024-04-15',
-      status: 'Accepted'
-    },
-    {
-      id: 'REQ-004',
-      donorName: 'Sarah Williams',
-      donorId: 'D-4211',
-      bloodType: 'B+',
-      units: 1,
-      requestDate: '2024-04-10',
-      status: 'Complete'
+
+  // State for blood bag requests
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+
+  // Fetch blood bag voucher redemptions
+  const fetchBloodBagRequests = async () => {
+    try {
+      setIsLoadingRequests(true);
+      
+      // Get logged-in blood bank ID
+      const userResponse = await fetchWithAuth('/auth/me');
+      if (!userResponse.ok) {
+        console.error('Failed to get user information');
+        return;
+      }
+      
+      const userData = await userResponse.json();
+      const bloodBankId = userData.id; // Use MongoDB ID
+      
+      if (!bloodBankId) {
+        console.error('Blood bank ID not found');
+        return;
+      }
+      
+      // Fetch vouchers validated by this blood bank (PROCESSING or COMPLETED status)
+      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers?bloodBankId=${bloodBankId}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Blood bag vouchers response:', result);
+        console.log('First voucher data:', result.data?.[0]);
+        
+        if (result.data && Array.isArray(result.data)) {
+          // Filter only blood bag vouchers
+          const bloodBagVouchers = result.data.filter(voucher => 
+            voucher.rewardType === 'BLOOD_BAG_VOUCHER'
+          );
+          
+          console.log('Filtered blood bag vouchers:', bloodBagVouchers.length, 'out of', result.data.length);
+          
+          // First, transform vouchers without donor info (fast initial display)
+          const initialRequests = bloodBagVouchers.map(voucher => {
+            // Extract blood type from API response or rewardTitle
+            console.log('Processing voucher:', voucher);
+            console.log('Voucher bloodType field:', voucher.bloodType);
+            console.log('Voucher rewardTitle:', voucher.rewardTitle);
+            
+            let bloodType = voucher.bloodType || 'Unknown';
+            
+            // Fallback: Extract from rewardTitle if bloodType is not provided or is Unknown
+            if ((!voucher.bloodType || voucher.bloodType === 'Unknown') && voucher.rewardTitle) {
+              // Format: "Blood Bag Voucher - A+" or similar
+              console.log('Attempting to extract from rewardTitle:', voucher.rewardTitle);
+              const parts = voucher.rewardTitle.split(' - ');
+              console.log('Split parts:', parts, 'Length:', parts.length);
+              if (parts.length >= 2) {
+                bloodType = parts[1].trim();
+                console.log('Extracted from title parts[1]:', bloodType);
+              } else if (parts.length === 1) {
+                // Try different separators
+                const dashParts = voucher.rewardTitle.split('-');
+                console.log('Trying dash separator:', dashParts);
+                if (dashParts.length >= 2) {
+                  bloodType = dashParts[dashParts.length - 1].trim();
+                  console.log('Extracted from dash separator:', bloodType);
+                } else {
+                  // Try regex as last resort
+                  const bloodTypeMatch = voucher.rewardTitle.match(/\b([ABO]|AB)[+-]\b/i);
+                  console.log('Regex match result:', bloodTypeMatch);
+                  if (bloodTypeMatch) {
+                    bloodType = bloodTypeMatch[0].toUpperCase();
+                    console.log('Extracted from regex:', bloodType);
+                  }
+                }
+              }
+            } else if (!voucher.rewardTitle) {
+              console.log('WARNING: rewardTitle is missing or null for voucher:', voucher.id);
+            }
+            
+            console.log('Final blood type:', bloodType);
+            
+            // Map backend status to frontend status
+            let displayStatus = voucher.status;
+            if (voucher.status === 'PROCESSING') {
+              displayStatus = 'Pending';
+            } else if (voucher.status === 'COMPLETED') {
+              displayStatus = 'Complete';
+            }
+            
+            return {
+              id: voucher.id,
+              donorName: 'Loading...', // Placeholder
+              donorId: voucher.donorId,
+              donorEmail: '',
+              bloodType: bloodType,
+              units: 1,
+              requestDate: voucher.redeemedDate ? 
+                new Date(voucher.redeemedDate).toISOString().split('T')[0] : '',
+              status: displayStatus,
+              backendStatus: voucher.status,
+              voucherCode: voucher.voucherCode,
+              pointsCost: voucher.pointsCost,
+              expiryDate: voucher.expiryDate,
+              rewardTitle: voucher.rewardTitle
+            };
+          });
+          
+          // Set initial data immediately
+          setPendingRequests(initialRequests);
+          
+          // Fetch donor info in parallel (in background)
+          const donorInfoPromises = bloodBagVouchers.map(async (voucher, index) => {
+            try {
+              const donorResponse = await fetchWithAuth(`/reward-points/donor/${voucher.donorId}/summary`);
+              if (donorResponse.ok) {
+                const donorData = await donorResponse.json();
+                return {
+                  index,
+                  donorName: donorData.data?.donorName || 'Unknown',
+                  donorEmail: donorData.data?.email || ''
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching donor info:', error);
+            }
+            return { index, donorName: 'Unknown', donorEmail: '' };
+          });
+          
+          // Update with donor info as they come in
+          Promise.all(donorInfoPromises).then(donorInfos => {
+            setPendingRequests(prev => {
+              const updated = [...prev];
+              donorInfos.forEach(info => {
+                if (updated[info.index]) {
+                  updated[info.index].donorName = info.donorName;
+                  updated[info.index].donorEmail = info.donorEmail;
+                }
+              });
+              return updated;
+            });
+          });
+        }
+      } else {
+        console.error('Failed to fetch vouchers:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching blood bag requests:', error);
+    } finally {
+      setIsLoadingRequests(false);
     }
-  ]);
+  };
+
+  // Fetch requests when view changes to 'requests'
+  useEffect(() => {
+    if (view === 'requests') {
+      fetchBloodBagRequests();
+    }
+  }, [view]);
+
+  // Render main component
 
   return (
     <div>
@@ -1982,6 +2274,7 @@ const Inventory = () => {
           setShowValidationModal={setShowValidationModal}
           formatDate={formatDate}
           getRequestStatusColor={getRequestStatusColor}
+          refreshRequests={fetchBloodBagRequests}
         />
       )}
       
@@ -1990,7 +2283,71 @@ const Inventory = () => {
       {showEditModal && renderEditModal()}
       {showDeleteModal && renderDeleteModal()}
       {showAdvancedFilterModal && renderAdvancedFilterModal()}
-      {showValidationModal && renderValidationModal()}
+      <VoucherValidationModal
+        isOpen={showValidationModal}
+        onClose={() => setShowValidationModal(false)}
+        onValidate={handleVoucherValidation}
+      />
+
+      {/* Preferred Blood Types Modal */}
+      {showPreferredBloodTypesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Manage Preferred Blood Types</h3>
+                  <p className="text-sm text-gray-600">Select the blood types you prefer to receive</p>
+                </div>
+                <button
+                  onClick={() => setShowPreferredBloodTypesModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bloodType) => (
+                    <button
+                      key={bloodType}
+                      onClick={() => toggleBloodType(bloodType)}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        preferredBloodTypes.includes(bloodType)
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        {preferredBloodTypes.includes(bloodType) && (
+                          <FiCheck className="w-5 h-5 mr-2" />
+                        )}
+                        <span className="font-semibold">{bloodType}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowPreferredBloodTypesModal(false)}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSavePreferredBloodTypes}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

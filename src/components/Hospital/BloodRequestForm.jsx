@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiPlus, FiInfo, FiCheckCircle, FiClock, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import LogoSignup from '../../assets/LogoSignup.png';
-import { bloodBankAPI, hospitalRequestAPI } from '../../utils/api';
+import { bloodBankAPI, hospitalRequestAPI, hospitalProfileAPI, fetchWithAuth } from '../../utils/api';
 
 const BloodRequestForm = () => {
   const hospitalName = localStorage.getItem('userName') || 'Hospital';
@@ -29,21 +29,198 @@ const BloodRequestForm = () => {
   const [bloodAdminCenters, setBloodAdminCenters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [hospitalData, setHospitalData] = useState(null);
+  const [hospitalLoading, setHospitalLoading] = useState(true);
+
+  // Get the selected admin details
+  const selectedAdmin = useMemo(() => {
+    return bloodAdminCenters.find((admin) => admin.id === selectedAdminId);
+  }, [bloodAdminCenters, selectedAdminId]);
 
   useEffect(() => {
-    const fetchBloodBanks = async () => {
-      try {
-        const response = await bloodBankAPI.getAll();
-        setBloodAdminCenters(response.data || []);
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBloodBanks();
+    fetchBloodBanksWithInventory();
+    fetchHospitalProfile();
   }, []);
+
+  // Fetch hospital profile data
+  const fetchHospitalProfile = async () => {
+    try {
+      setHospitalLoading(true);
+      console.log('Fetching hospital profile...');
+      const response = await hospitalProfileAPI.getCurrentProfile();
+      console.log('Hospital Profile Response:', response);
+      
+      // Handle different response structures
+      const data = response.data || response;
+      console.log('Hospital Profile Data:', data);
+      
+      setHospitalData({
+        hospitalName: data.hospitalName || data.name || localStorage.getItem('userName') || 'Hospital',
+        address: data.address || data.hospitalAddress || 'Address not available',
+        phone: data.phone || data.phoneNumber || data.contactNumber || 'Contact not available',
+        email: data.email || 'Email not available',
+        id: data.id || localStorage.getItem('userId'),
+        licenseNumber: data.licenseNumber || 'License not available',
+        profilePhotoUrl: data.profilePhotoUrl
+      });
+      
+      console.log('Hospital data set successfully');
+    } catch (error) {
+      console.error('Error fetching hospital profile:', error);
+      
+      // Fallback to localStorage data
+      const hospitalName = localStorage.getItem('userName') || 'Hospital';
+      const hospitalId = localStorage.getItem('userId');
+      
+      setHospitalData({
+        hospitalName: hospitalName,
+        address: localStorage.getItem('userAddress') || 'Address not available',
+        phone: localStorage.getItem('userPhone') || 'Contact not available',
+        email: localStorage.getItem('userEmail') || 'Email not available',
+        id: hospitalId
+      });
+    } finally {
+      setHospitalLoading(false);
+    }
+  };
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const intervalId = setInterval(() => {
+      console.log('Auto-refreshing blood bank inventory...');
+      fetchBloodBanksWithInventory();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [autoRefresh]);
+
+  // Update "X ago" text every second
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setLastRefresh(prev => prev); // Trigger re-render
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const fetchBloodBanksWithInventory = async () => {
+    setLoading(true);
+    try {
+      const response = await bloodBankAPI.getAll();
+      console.log('Blood Bank API Response:', response);
+      
+      // Handle different response structures
+      const bloodBanks = response.data?.data || response.data || response || [];
+      console.log('Extracted blood banks:', bloodBanks);
+      console.log('First blood bank object:', bloodBanks[0]);
+      console.log('First blood bank address:', bloodBanks[0]?.address);
+      
+      // Fetch inventory for each blood bank
+      const centersWithInventory = await Promise.all(
+        bloodBanks.map(async (bloodBank) => {
+          const bankName = bloodBank.bloodBankName || bloodBank.name || 'Unnamed Blood Bank';
+          console.log(`Fetching inventory for: ${bankName} (ID: ${bloodBank.id})`);
+          try {
+            const inventoryResponse = await fetchWithAuth(`/blood-inventory/bloodbank/${bloodBank.id}`);
+            console.log(`Inventory response status for ${bankName}:`, inventoryResponse.status);
+            
+            if (inventoryResponse.ok) {
+              const inventoryData = await inventoryResponse.json();
+              console.log(`Inventory data for ${bankName}:`, inventoryData);
+              console.log(`Inventory data structure:`, inventoryData.data);
+              const inventory = inventoryData.data || [];
+              console.log(`Inventory array:`, inventory);
+              console.log(`All inventory items:`, inventory);
+              inventory.forEach((item, index) => {
+                console.log(`Item ${index}:`, item);
+                console.log(`  bloodTypeId: ${item.bloodTypeId}, quantity: ${item.quantity}`);
+              });
+
+              // Transform inventory to the format needed - sum quantities for same blood type
+              const sumQuantityByType = (bloodType) => {
+                return inventory
+                  .filter(i => i.bloodTypeId === bloodType)
+                  .reduce((sum, item) => sum + (item.quantity || 0), 0);
+              };
+
+              const formattedInventory = [
+                { type: "A+", available: sumQuantityByType("A+") },
+                { type: "A-", available: sumQuantityByType("A-") },
+                { type: "B+", available: sumQuantityByType("B+") },
+                { type: "B-", available: sumQuantityByType("B-") },
+                { type: "AB+", available: sumQuantityByType("AB+") },
+                { type: "AB-", available: sumQuantityByType("AB-") },
+                { type: "O+", available: sumQuantityByType("O+") },
+                { type: "O-", available: sumQuantityByType("O-") },
+              ];
+
+              console.log(`Formatted inventory for ${bankName}:`, formattedInventory);
+              const aplusItem = inventory.find(i => i.bloodTypeId === "A+");
+              console.log(`A+ quantity check:`, aplusItem);
+              console.log(`A+ quantity value:`, aplusItem?.quantity);
+
+              return {
+                id: bloodBank.id,
+                name: bankName,
+                location: bloodBank.address || bloodBank.location || bloodBank.city || "Location not specified",
+                inventory: formattedInventory,
+              };
+            } else {
+              console.error(`Failed to fetch inventory for ${bankName}. Status: ${inventoryResponse.status}`);
+            }
+          } catch (error) {
+            console.error(`Error fetching inventory for ${bankName}:`, error);
+          }
+
+          // Return blood bank with empty inventory if fetch fails
+          return {
+            id: bloodBank.id,
+            name: bankName,
+            location: bloodBank.address || bloodBank.location || bloodBank.city || "Location not specified",
+            inventory: [
+              { type: "A+", available: 0 },
+              { type: "A-", available: 0 },
+              { type: "B+", available: 0 },
+              { type: "B-", available: 0 },
+              { type: "AB+", available: 0 },
+              { type: "AB-", available: 0 },
+              { type: "O+", available: 0 },
+              { type: "O-", available: 0 },
+            ],
+          };
+        })
+      );
+
+      setBloodAdminCenters(centersWithInventory);
+      setLastRefresh(new Date());
+      console.log('Blood Admin Centers with inventory loaded:', centersWithInventory);
+      console.log('Sample center:', centersWithInventory[0]);
+    } catch (error) {
+      console.error('Error fetching blood banks:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManualRefresh = () => {
+    console.log('Manual refresh triggered');
+    fetchBloodBanksWithInventory();
+  };
+
+  const formatLastRefresh = () => {
+    const now = new Date();
+    const diff = Math.floor((now - lastRefresh) / 1000); // seconds
+    if (diff < 60) return `${diff}s ago`;
+    const minutes = Math.floor(diff / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+  };
 
   // Get today's date for date validation
   const today = new Date().toISOString().split('T')[0];
@@ -193,11 +370,11 @@ const BloodRequestForm = () => {
   
     // Check availability if blood center is selected
     if (selectedAdmin && newBloodType) {
-      const inventory = selectedAdmin.inventory.find(item => item.bloodType === newBloodType);
-      if (!inventory || inventory.units === 0) {
+      const inventory = selectedAdmin.inventory.find(item => item.type === newBloodType);
+      if (!inventory || inventory.available === 0) {
         newErrors.newBloodType = 'This blood type is not available at selected center';
-      } else if (newUnitsRequested && Number(newUnitsRequested) > inventory.units) {
-        newErrors.newUnitsRequested = `Only ${inventory.units} units available`;
+      } else if (newUnitsRequested && Number(newUnitsRequested) > inventory.available) {
+        newErrors.newUnitsRequested = `Only ${inventory.available} units available`;
       }
     }
   
@@ -331,6 +508,67 @@ const BloodRequestForm = () => {
       const response = await hospitalRequestAPI.create(requestData);
       console.log('Request submitted successfully:', response);
 
+      // Deduct inventory for reserved blood units
+      try {
+        console.log('Deducting inventory for reserved blood units...');
+        const selectedBank = bloodAdminCenters.find(admin => admin.id === selectedAdminId);
+        
+        for (const request of validBloodRequests) {
+          // Find the inventory item for this blood type
+          const inventoryItem = selectedBank.inventory.find(item => item.type === request.bloodType);
+          
+          if (inventoryItem && inventoryItem.available >= request.unitsRequested) {
+            // Get all inventory records for this blood type from the backend
+            const inventoryResponse = await fetchWithAuth(`/blood-inventory/bloodbank/${selectedAdminId}`);
+            if (inventoryResponse.ok) {
+              const inventoryData = await inventoryResponse.json();
+              const inventoryRecords = inventoryData.data || [];
+              
+              // Filter records for this blood type
+              const bloodTypeRecords = inventoryRecords.filter(rec => rec.bloodTypeId === request.bloodType);
+              
+              let remainingToDeduct = parseInt(request.unitsRequested, 10);
+              
+              // Deduct from each record until we've deducted the full amount
+              for (const record of bloodTypeRecords) {
+                if (remainingToDeduct <= 0) break;
+                
+                const deductAmount = Math.min(record.quantity, remainingToDeduct);
+                const newQuantity = record.quantity - deductAmount;
+                
+                // Update the inventory record
+                const updateResponse = await fetchWithAuth(`/blood-inventory/${record.id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    ...record,
+                    quantity: newQuantity,
+                    status: newQuantity === 0 ? 'Unavailable' : record.status
+                  })
+                });
+                
+                if (updateResponse.ok) {
+                  console.log(`Deducted ${deductAmount} units of ${request.bloodType} from inventory record ${record.id}`);
+                  remainingToDeduct -= deductAmount;
+                } else {
+                  console.error(`Failed to update inventory record ${record.id}`);
+                }
+              }
+              
+              if (remainingToDeduct > 0) {
+                console.warn(`Could not deduct all ${request.unitsRequested} units of ${request.bloodType}. ${remainingToDeduct} units remaining.`);
+              }
+            }
+          }
+        }
+        console.log('Inventory deduction completed');
+      } catch (inventoryError) {
+        console.error('Error deducting inventory:', inventoryError);
+        // Don't fail the request if inventory deduction fails
+      }
+
       navigate('/successful-request', {
         state: {
           bloodRequests: validBloodRequests,
@@ -394,11 +632,11 @@ const BloodRequestForm = () => {
 
       // Check availability if blood center is selected
       if (selectedAdmin && request.bloodType) {
-        const inventory = selectedAdmin.inventory.find(item => item.bloodType === request.bloodType);
-        if (!inventory || inventory.units === 0) {
+        const inventory = selectedAdmin.inventory.find(item => item.type === request.bloodType);
+        if (!inventory || inventory.available === 0) {
           newErrors[`bloodType_${request.bloodType}`] = 'This blood type is not available';
-        } else if (Number(request.unitsRequested) > inventory.units) {
-          newErrors[`bloodType_${request.bloodType}`] = `Only ${inventory.units} units available`;
+        } else if (Number(request.unitsRequested) > inventory.available) {
+          newErrors[`bloodType_${request.bloodType}`] = `Only ${inventory.available} units available`;
         }
       }
     });
@@ -433,9 +671,6 @@ const BloodRequestForm = () => {
     setShowConfirmationModal(true);
     setCountdownActive(true);
   };
-
-  // Get the selected admin details
-  const selectedAdmin = bloodAdminCenters.find((admin) => admin.id === selectedAdminId);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-red-50/30">
@@ -505,24 +740,36 @@ const BloodRequestForm = () => {
               </div>
               
               <div className="p-4">
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <label className="block text-xs font-bold text-gray-800 mb-1">Hospital Name</label>
-                    <div className="text-sm font-semibold text-gray-900">Riverside Community Medical Center</div>
+                {hospitalLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <label className="block text-xs font-bold text-gray-800 mb-1">Hospital Name</label>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {hospitalData?.hospitalName || 'Hospital Name Not Available'}
+                      </div>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <label className="block text-xs font-bold text-gray-800 mb-1">Hospital Address</label>
-                      <div className="text-gray-900 font-medium text-sm">456 River Ave., Townsville</div>
-                    </div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <label className="block text-xs font-bold text-gray-800 mb-1">Contact Information</label>
-                      <div className="text-gray-900 font-medium">(555) 987-6543</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <label className="block text-xs font-bold text-gray-800 mb-1">Hospital Address</label>
+                        <div className="text-gray-900 font-medium text-sm">
+                          {hospitalData?.address || 'Address not available'}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <label className="block text-xs font-bold text-gray-800 mb-1">Contact Information</label>
+                        <div className="text-gray-900 font-medium">
+                          {hospitalData?.phone || 'Contact not available'}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -902,12 +1149,36 @@ const BloodRequestForm = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl border-t-4 border-red-600">
             <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
-              <h2 className="text-xl font-bold text-red-600 flex items-center">
-                <span className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center mr-2">
-                  <FiInfo className="w-4 h-4" />
-                </span>
-                Select Blood Source
-              </h2>
+              <div>
+                <h2 className="text-xl font-bold text-red-600 flex items-center">
+                  <span className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center mr-2">
+                    <FiInfo className="w-4 h-4" />
+                  </span>
+                  Select Blood Source
+                </h2>
+                <div className="flex items-center gap-3 mt-2 ml-10">
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={loading}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <FiClock className="w-3 h-3" />
+                    Refresh Now
+                  </button>
+                  <span className="text-xs text-gray-500">
+                    Updated {formatLastRefresh()}
+                  </span>
+                  <label className="flex items-center gap-1 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={autoRefresh}
+                      onChange={(e) => setAutoRefresh(e.target.checked)}
+                      className="w-3 h-3"
+                    />
+                    Auto-refresh (30s)
+                  </label>
+                </div>
+              </div>
               <button
                 onClick={() => setShowAvailabilityModal(false)}
                 className="text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
@@ -950,16 +1221,16 @@ const BloodRequestForm = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                       {admin.inventory && admin.inventory.map((item) => (
                         <div
-                          key={item.bloodType}
+                          key={item.type}
                           className={`p-3 rounded-lg text-center flex flex-col items-center ${
-                            item.units > 0
+                            item.available > 0
                               ? "bg-green-50 text-green-800 border border-green-100"
                               : "bg-gray-50 text-gray-400 border border-gray-100"
                           }`}
                         >
-                          <div className="text-lg font-bold">{item.bloodType}</div>
-                          <div className="text-sm mt-1">{item.units} units</div>
-                          {item.units === 0 && <div className="text-xs mt-1 text-red-500">Unavailable</div>}
+                          <div className="text-lg font-bold">{item.type}</div>
+                          <div className="text-sm mt-1">{item.available} units</div>
+                          {item.available === 0 && <div className="text-xs mt-1 text-red-500">Unavailable</div>}
                         </div>
                       ))}
                     </div>
@@ -1095,18 +1366,24 @@ const BloodRequestForm = () => {
                   <option value="">Select Blood Type</option>
                   {selectedAdmin && selectedAdmin.inventory
                     ? selectedAdmin.inventory
-                        .filter((item) => item.units > 0)
                         .map((item) => {
-                          const isAlreadyAdded = bloodRequests.some(req => req.bloodType === item.bloodType);
+                          const isAlreadyAdded = bloodRequests.some(req => req.bloodType === item.type);
+                          const isUnavailable = item.available === 0;
+                          const isDisabled = isAlreadyAdded || isUnavailable;
+                          
                           return (
                             <option 
-                              key={item.bloodType} 
-                              value={item.bloodType}
-                              disabled={isAlreadyAdded}
-                              className={isAlreadyAdded ? 'text-gray-400' : ''}
+                              key={item.type} 
+                              value={item.type}
+                              disabled={isDisabled}
+                              style={{
+                                color: isDisabled ? '#9CA3AF' : '#111827',
+                                backgroundColor: isUnavailable ? '#F3F4F6' : 'white'
+                              }}
                             >
-                              🩸 {item.bloodType} - {item.units} units available
+                              {isUnavailable ? '⚫' : '🩸'} {item.type} - {item.available} units available
                               {isAlreadyAdded ? ' (already added)' : ''}
+                              {isUnavailable ? ' (unavailable)' : ''}
                             </option>
                           );
                         })
@@ -1155,26 +1432,26 @@ const BloodRequestForm = () => {
 
               {/* Availability Info */}
               {newBloodType && selectedAdmin && (() => {
-                const inventory = selectedAdmin.inventory.find(item => item.bloodType === newBloodType);
+                const inventory = selectedAdmin.inventory.find(item => item.type === newBloodType);
                 return (
                   <div className={`rounded-lg p-4 border ${
-                    inventory && inventory.units > 0 
+                    inventory && inventory.available > 0 
                       ? 'bg-green-50 border-green-200' 
                       : 'bg-red-50 border-red-200'
                   }`}>
                     <div className={`flex items-center ${
-                      inventory && inventory.units > 0 
+                      inventory && inventory.available > 0 
                         ? 'text-green-700' 
                         : 'text-red-700'
                     }`}>
-                      {inventory && inventory.units > 0 ? (
+                      {inventory && inventory.available > 0 ? (
                         <FiCheckCircle className="w-5 h-5 mr-2" />
                       ) : (
                         <FiInfo className="w-5 h-5 mr-2" />
                       )}
                       <span className="font-medium">
                         {inventory 
-                          ? `Available: ${inventory.units} units at ${selectedAdmin.name}`
+                          ? `Available: ${inventory.available} units at ${selectedAdmin.name}`
                           : 'Not available'
                         }
                       </span>

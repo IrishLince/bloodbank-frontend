@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, Droplet, Package, Eye, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import Header from '../Header';
 import { hospitalRequestAPI } from '../../utils/api';
+import Pagination from '../Pagination';
 
 const REQUEST_STATUS = {
   PENDING: 'PENDING',
   PROCESSING: 'PROCESSING',
-  COMPLETE: 'COMPLETE'
+  FULFILLED: 'FULFILLED'
 };
 
 export default function RequestStatus() {
@@ -20,6 +21,8 @@ export default function RequestStatus() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -64,8 +67,8 @@ export default function RequestStatus() {
               bloodType: item.bloodType || 'Unknown',
               units: parseInt(item.units) || 0,
               unitsRequested: parseInt(item.units) || 0,
-              unitsFulfilled: req.status === REQUEST_STATUS.COMPLETE ? (parseInt(item.units) || 0) : 
-                            (req.status === REQUEST_STATUS.PROCESSING ? Math.floor((parseInt(item.units) || 0) / 2) : 0)
+              unitsFulfilled: (req.status === REQUEST_STATUS.FULFILLED || req.status === 'COMPLETE') ? (parseInt(item.units) || 0) : 
+                            (req.status === REQUEST_STATUS.PROCESSING || req.status === 'SCHEDULED' ? Math.floor((parseInt(item.units) || 0) / 2) : 0)
             }));
             
             return { 
@@ -108,7 +111,7 @@ export default function RequestStatus() {
 
     // Apply status filter
     if (statusFilter !== 'All') {
-      filtered = filtered.filter(request => request.status === statusFilter);
+      filtered = filtered.filter(request => getDisplayStatus(request.status) === statusFilter);
     }
 
     // Apply date filter
@@ -131,15 +134,30 @@ export default function RequestStatus() {
     }
 
     setFilteredRequests(filtered);
+    // Reset to first page when filters change
+    setCurrentPage(1);
   }, [requests, searchTerm, statusFilter, dateFilter]);
 
+  // Pagination logic
+  const totalItems = filteredRequests.length;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const getStatusIcon = (status) => {
-    switch (status) {
+    // Map backend statuses to frontend display statuses
+    const displayStatus = getDisplayStatus(status);
+    
+    switch (displayStatus) {
       case REQUEST_STATUS.PENDING:
         return <Clock className="w-4 h-4 text-yellow-500" />;
       case REQUEST_STATUS.PROCESSING:
         return <RefreshCw className="w-4 h-4 text-blue-500" />;
-      case REQUEST_STATUS.COMPLETE:
+      case REQUEST_STATUS.FULFILLED:
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-500" />;
@@ -147,16 +165,26 @@ export default function RequestStatus() {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
+    // Map backend statuses to frontend display statuses
+    const displayStatus = getDisplayStatus(status);
+    
+    switch (displayStatus) {
       case REQUEST_STATUS.PENDING:
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case REQUEST_STATUS.PROCESSING:
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case REQUEST_STATUS.COMPLETE:
+      case REQUEST_STATUS.FULFILLED:
         return 'bg-green-100 text-green-800 border-green-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const getDisplayStatus = (status) => {
+    // Map backend statuses to frontend display statuses
+    if (status === 'SCHEDULED') return REQUEST_STATUS.PROCESSING;
+    if (status === 'COMPLETE') return REQUEST_STATUS.FULFILLED;
+    return status;
   };
 
   const getTotalUnitsRequested = (bloodRequests) => {
@@ -258,7 +286,7 @@ export default function RequestStatus() {
                     { value: 'All', label: 'All Status' },
                     { value: REQUEST_STATUS.PENDING, label: 'Pending' },
                     { value: REQUEST_STATUS.PROCESSING, label: 'Processing' },
-                    { value: REQUEST_STATUS.COMPLETE, label: 'Complete' }
+                    { value: REQUEST_STATUS.FULFILLED, label: 'Fulfilled' }
                   ].map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
@@ -283,9 +311,9 @@ export default function RequestStatus() {
             {[
               { status: REQUEST_STATUS.PENDING, label: 'Pending' },
               { status: REQUEST_STATUS.PROCESSING, label: 'Processing' },
-              { status: REQUEST_STATUS.COMPLETE, label: 'Complete' }
+              { status: REQUEST_STATUS.FULFILLED, label: 'Fulfilled' }
             ].map(({ status, label }) => {
-              const count = requests.filter(req => req.status === status).length;
+              const count = requests.filter(req => getDisplayStatus(req.status) === status).length;
               return (
                 <div key={status} className="bg-gradient-to-br from-white to-red-50 rounded-xl shadow-lg border border-red-100 p-3 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between">
@@ -348,7 +376,7 @@ export default function RequestStatus() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-red-50">
-                    {filteredRequests.map((request, index) => (
+                    {paginatedRequests.map((request, index) => (
                       <tr key={request.id} className={`hover:bg-red-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-red-25'}`}>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
                           {request.id}
@@ -399,7 +427,7 @@ export default function RequestStatus() {
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border shadow-sm ${getStatusColor(request.status)}`}>
                             {getStatusIcon(request.status)}
-                            <span className="ml-1">{request.status}</span>
+                            <span className="ml-1">{getDisplayStatus(request.status)}</span>
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -422,6 +450,17 @@ export default function RequestStatus() {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Pagination */}
+            {totalItems > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                className="mt-4"
+              />
             )}
           </div>
         </div>
@@ -451,7 +490,7 @@ export default function RequestStatus() {
                 <div className="flex items-center">
                   <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold border shadow-md ${getStatusColor(selectedRequest.status)}`}>
                     {getStatusIcon(selectedRequest.status)}
-                    <span className="ml-2">{selectedRequest.status}</span>
+                    <span className="ml-2">{getDisplayStatus(selectedRequest.status)}</span>
                   </span>
                 </div>
 
@@ -477,7 +516,7 @@ export default function RequestStatus() {
                           <span className="font-medium">{br.bloodType}</span>
                         </div>
                         <div className="text-sm text-gray-600">
-                          {selectedRequest.status === REQUEST_STATUS.PROCESSING || selectedRequest.status === REQUEST_STATUS.FULFILLED ? (
+                          {selectedRequest.status === REQUEST_STATUS.PROCESSING || selectedRequest.status === 'SCHEDULED' || selectedRequest.status === REQUEST_STATUS.FULFILLED || selectedRequest.status === 'COMPLETE' ? (
                             <span>{br.unitsFulfilled || 0} / {br.units} units</span>
                           ) : (
                             <span>{br.units} units requested</span>

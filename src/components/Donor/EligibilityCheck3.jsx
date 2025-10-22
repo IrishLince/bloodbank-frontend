@@ -356,7 +356,6 @@ const EligibilityCheck3 = () => {
       // Additional Information
       occupation: previousFormData.occupation || "",
       patientName: previousFormData.patientName || "",
-      donorType: previousFormData.donorType || "",
 
       // Parental consent (if applicable)
       parentalConsent: previousFormData.parentalConsent || "",
@@ -365,6 +364,8 @@ const EligibilityCheck3 = () => {
 
       // Appointment Details
       donationCenter: previousFormData.donationCenter || "",
+      bloodBankId: previousFormData.bloodBankId || "",
+      selectedHospital: previousFormData.selectedHospital || null, // Preserve the selected hospital/blood bank object
       appointmentDate: previousFormData.appointmentDate || "",
       appointmentTime: previousFormData.appointmentTime || "",
 
@@ -518,12 +519,6 @@ const EligibilityCheck3 = () => {
                   <span className="text-gray-600">Last Donation Place:</span>
                   <span className="font-medium">
                     {previousFormData?.medicalHistory?.lastDonationPlace || "Not provided"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Donor Type:</span>
-                  <span className="font-medium">
-                    {previousFormData?.medicalHistory?.donationType || "Not specified"}
                   </span>
                 </div>
               </>

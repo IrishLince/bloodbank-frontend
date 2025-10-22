@@ -260,6 +260,17 @@ export const removeHospitalProfilePhoto = async (hospitalId) => {
 
 // Delivery API functions
 export const deliveryAPI = {
+  create: async (deliveryData) => {
+    const response = await fetchWithAuth('/deliveries', {
+      method: 'POST',
+      body: JSON.stringify(deliveryData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create delivery');
+    }
+    return response.json();
+  },
   getDeliveriesByRequestId: async (requestId) => {
     const response = await fetchWithAuth(`/deliveries/request/${requestId}`);
     if (!response.ok) {
@@ -280,6 +291,14 @@ export const deliveryAPI = {
 
 // Hospital Request API functions
 export const hospitalRequestAPI = {
+  getAll: async () => {
+    const response = await fetchWithAuth('/hospital-requests');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch all hospital requests');
+    }
+    return response.json();
+  },
   create: async (requestData) => {
     const response = await fetchWithAuth('/hospital-requests', {
       method: 'POST',
@@ -309,13 +328,35 @@ export const hospitalRequestAPI = {
     }
     return response.json();
   },
+  updateRequestStatus: async (requestId, status) => {
+    const response = await fetchWithAuth(`/hospital-requests/${requestId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update request status');
+    }
+    return response.json();
+  },
+  updateStatus: async (requestId, status) => {
+    const response = await fetchWithAuth(`/hospital-requests/${requestId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update request status');
+    }
+    return response.json();
+  },
 };
 
 // Blood Bank API functions
 export const bloodBankAPI = {
-  // Get all blood banks
+  // Get all blood banks (from users_bloodbank collection)
   getAll: async () => {
-    const response = await fetchWithAuth('/bloodbanks');
+    const response = await fetchWithAuth('/bloodbank-users');
     if (!response.ok) {
       throw new Error('Failed to fetch blood banks');
     }

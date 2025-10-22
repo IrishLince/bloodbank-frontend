@@ -110,10 +110,10 @@ class HospitalService {
     }
   }
 
-  // Fetch all hospitals from backend
+  // Fetch all blood bank users from backend
   async getAllHospitals() {
     try {
-      const response = await fetch(`${API_BASE_URL}/hospitals/donation-centers`, {
+      const response = await fetch(`${API_BASE_URL}/bloodbanks/donation-centers`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -125,19 +125,33 @@ class HospitalService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const hospitals = await response.json();
+      const bloodBanks = await response.json();
       
-      return hospitals.map(hospital => ({
-        ...hospital,
-        distance: null,
-        address: hospital.address || hospital.location,
-        name: hospital.hospitalName || hospital.name,
-        hours: hospital.operatingHours || hospital.hours || '24/7',
-        urgent: hospital.urgentNeed || hospital.urgent || false,
-        availability: hospital.availability || 'Medium'
-      }));
+      return bloodBanks.map(bloodBank => {
+        // Extract preferred blood types from various possible field names
+        // Priority: preferred_bloodtypes (DB field) > bloodTypesAvailable > preferredBloodTypes
+        const preferredTypes = bloodBank.preferred_bloodtypes || 
+                              bloodBank.bloodTypesAvailable || 
+                              bloodBank.preferredBloodTypes || 
+                              [];
+        
+        return {
+          ...bloodBank,
+          distance: null,
+          address: bloodBank.address,
+          name: bloodBank.bloodBankName || bloodBank.name,
+          hours: bloodBank.operatingHours || '24/7',
+          urgent: false,
+          availability: 'Available',
+          hospitalName: bloodBank.bloodBankName, // For compatibility
+          phone: bloodBank.phone,
+          email: bloodBank.email,
+          bloodTypesAvailable: preferredTypes,
+          preferredBloodTypes: preferredTypes // Also set this for clarity
+        };
+      });
     } catch (error) {
-      throw new Error(`Failed to fetch nearby hospitals: ${error.message}`);
+      throw new Error(`Failed to fetch blood bank centers: ${error.message}`);
     }
   }
 

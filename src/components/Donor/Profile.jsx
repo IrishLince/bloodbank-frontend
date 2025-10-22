@@ -78,7 +78,10 @@ const ProfileManagement = () => {
     age: "",
     bloodType: "Unknown",
     sex: "",
-    profilePhotoUrl: ""
+    profilePhotoUrl: "",
+    accountStatus: "ACTIVE",
+    createdAt: null,
+    lastDonationDate: null
   })
   
   // Modal state for profile picture actions
@@ -217,6 +220,36 @@ const ProfileManagement = () => {
     return `${age} years`;
   };
 
+  // Helper function to format "Active Since" date
+  const formatActiveSince = (createdAt) => {
+    if (!createdAt) return "Active since N/A";
+    const date = new Date(createdAt);
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return `Active since ${date.toLocaleDateString('en-US', options)}`;
+  };
+
+  // Helper function to format "Last Donation" relative time
+  const formatLastDonation = (lastDonationDate) => {
+    if (!lastDonationDate) return "No donations yet";
+    
+    const now = new Date();
+    const lastDonation = new Date(lastDonationDate);
+    const diffTime = Math.abs(now - lastDonation);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+    
+    if (diffYears > 0) {
+      return `Last donation: ${diffYears} year${diffYears > 1 ? 's' : ''} ago`;
+    } else if (diffMonths > 0) {
+      return `Last donation: ${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+    } else if (diffDays > 0) {
+      return `Last donation: ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else {
+      return "Last donation: Today";
+    }
+  };
+
   // Fetch user profile from backend
   const fetchUserProfile = async () => {
     try {
@@ -252,7 +285,10 @@ const ProfileManagement = () => {
           sex: data.sex || "",
           role: data.role || "DONOR", // Ensure role is stored
           profilePhotoUrl: data.profilePhotoUrl || "",
-          rawBirthDate: data.dateOfBirth // Keep raw date for calculations
+          rawBirthDate: data.dateOfBirth, // Keep raw date for calculations
+          accountStatus: data.accountStatus || "ACTIVE",
+          createdAt: data.createdAt || null,
+          lastDonationDate: data.lastDonationDate || null
         };
         
         // Extract name parts including potential middle initial
@@ -979,6 +1015,58 @@ const ProfileManagement = () => {
     setPendingProfileUpdate(null);
     // Reset blood type to original value
     setFormData(prev => ({ ...prev, bloodType: userData.bloodType }));
+  };
+
+  // Handle account archiving
+  const handleArchiveAccount = async () => {
+    try {
+      setIsUpdating(true);
+      setError(null);
+
+      const response = await fetchWithAuth(`/user/${userData.id}/archive`, {
+        method: 'PUT'
+      });
+
+      if (response.ok) {
+        // Account archived successfully - log out user
+        localStorage.clear();
+        navigate('/login');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to archive account');
+      }
+    } catch (error) {
+      console.error('Error archiving account:', error);
+      setError(error.message || 'Failed to archive account');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Handle account activation
+  const handleActivateAccount = async () => {
+    try {
+      setIsUpdating(true);
+      setError(null);
+
+      const response = await fetchWithAuth(`/user/${userData.id}/activate`, {
+        method: 'PUT'
+      });
+
+      if (response.ok) {
+        // Update local state
+        setUserData(prev => ({ ...prev, accountStatus: "ACTIVE" }));
+        alert('Your account has been activated successfully!');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to activate account');
+      }
+    } catch (error) {
+      console.error('Error activating account:', error);
+      setError(error.message || 'Failed to activate account');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // Render profile picture modal
@@ -1929,26 +2017,45 @@ const ProfileManagement = () => {
               </button>
             </div>
 
-            {/* Enhanced Archive Account */}
+            {/* Enhanced Archive/Activate Account */}
             <div className="text-center mt-8 pt-6">
-              <div className="inline-block bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-4 border border-red-100">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <p className="text-xs text-red-600 font-medium">Danger Zone</p>
+              {userData.accountStatus === "ARCHIVED" ? (
+                <div className="inline-block bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-xs text-green-600 font-medium">Account Status</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleActivateAccount}
+                    disabled={isUpdating}
+                    className="px-6 py-2.5 text-sm text-green-600 bg-white/60 border border-green-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all duration-200 font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdating ? 'Activating...' : 'Activate Account'}
+                  </button>
                 </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setShowArchiveModal(true);
-                }}
-                  className="px-6 py-2.5 text-sm text-red-600 bg-white/60 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all duration-200 font-medium shadow-sm"
-              >
-                Archive Account
-              </button>
-              </div>
+              ) : (
+                <div className="inline-block bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-4 border border-red-100">
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-xs text-red-600 font-medium">Danger Zone</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setShowArchiveModal(true);
+                    }}
+                    className="px-6 py-2.5 text-sm text-red-600 bg-white/60 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all duration-200 font-medium shadow-sm"
+                  >
+                    Archive Account
+                  </button>
+                </div>
+              )}
             </div>
           </form>
         </div>
@@ -2011,10 +2118,10 @@ const ProfileManagement = () => {
           <button
             onClick={() => {
               if (confirmText === userData.name.toUpperCase()) {
-        
+                handleArchiveAccount();
                 setShowArchiveConfirmModal(false);
               } else {
-        
+                setError('Name does not match. Please type your full name exactly as shown.');
               }
             }}
             disabled={confirmText !== userData.name.toUpperCase()}
@@ -2240,7 +2347,7 @@ const ProfileManagement = () => {
                 </div>
                 
                 <div className="text-center sm:text-left flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                     <div>
                       <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white tracking-wide drop-shadow-sm">
                         {isLoading ? (
@@ -2251,10 +2358,20 @@ const ProfileManagement = () => {
                       </h2>
                       <div className="flex flex-wrap justify-center sm:justify-start gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 md:mt-3">
                         <span className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-sm">
-                          Active since 2020
+                          {isLoading ? (
+                            <div className="w-24 h-4 bg-white/20 rounded animate-pulse inline-block" />
+                          ) : (
+                            formatActiveSince(userData.createdAt)
+                          )}
                         </span>
                         <span className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-sm">
-                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" /> Last donation: 3 months ago
+                          {isLoading ? (
+                            <div className="w-32 h-4 bg-white/20 rounded animate-pulse inline-block" />
+                          ) : (
+                            <>
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" /> {formatLastDonation(userData.lastDonationDate)}
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -2451,6 +2568,41 @@ const ProfileManagement = () => {
       {showArchiveConfirmModal && renderArchiveConfirmationInput()}
       {showProfileModal && renderProfilePictureModal()}
       {showBloodTypeConfirmModal && renderBloodTypeConfirmationModal()}
+      
+      {/* Archived Account Overlay */}
+      {userData.accountStatus === "ARCHIVED" && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Account Archived</h2>
+              <p className="text-gray-600 mb-6">
+                Your account is currently archived. All features are disabled until you reactivate your account.
+              </p>
+              <button
+                onClick={handleActivateAccount}
+                disabled={isUpdating}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg py-3 px-6 font-semibold hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {isUpdating ? 'Activating...' : 'Activate My Account'}
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  navigate('/login');
+                }}
+                className="w-full mt-3 text-gray-600 hover:text-gray-800 text-sm font-medium"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

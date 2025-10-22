@@ -1,14 +1,14 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Calendar, Truck, Package, Eye, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, ArrowRight, MapPin, Building, RefreshCw } from 'lucide-react';
+import { Search, Filter, Calendar, Truck, Package, Eye, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, ArrowRight, MapPin, Building, RefreshCw, Droplet } from 'lucide-react';
 import Header from '../Header';
-import { deliveryAPI, hospitalRequestAPI } from '../../utils/api';
+import { fetchWithAuth } from '../../utils/api';
+import Pagination from '../Pagination';
 
 // Delivery status constants
 const DELIVERY_STATUS = {
   PENDING: 'PENDING',
-  PROCESSING: 'PROCESSING',
   IN_TRANSIT: 'IN TRANSIT',
   COMPLETE: 'COMPLETE'
 };
@@ -21,59 +21,78 @@ export default function DeliveryStatus() {
   const [dateFilter, setDateFilter] = useState('All');
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deliveryToComplete, setDeliveryToComplete] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchDeliveries = async () => {
       setIsLoading(true);
       try {
         const hospitalId = localStorage.getItem('userId');
+        console.log('Fetching deliveries for hospital:', hospitalId);
+        
         if (hospitalId) {
-          // 1. Fetch all hospital requests for the current hospital
-          const hospitalRequests = await hospitalRequestAPI.getHospitalRequests(hospitalId);
-          console.log('Hospital Requests:', hospitalRequests);
-          
-          // 2. Extract request IDs
-          const requestIds = hospitalRequests.map(req => req.id);
-          console.log('Request IDs:', requestIds);
+          // Fetch all deliveries and filter for this hospital
+          const response = await fetchWithAuth('/deliveries');
 
-          if (requestIds.length > 0) {
-            // 3. Fetch deliveries for each request ID and combine results
-            const deliveryPromises = requestIds.map(id => 
-              deliveryAPI.getDeliveriesByRequestId(id)
-                .then(response => {
-                  // Handle both array and single object responses
-                  if (Array.isArray(response)) {
-                    return response;
-                  } else if (response) {
-                    return [response];
-                  }
-                  return [];
-                })
-                .catch(error => {
-                  console.error(`Error fetching deliveries for request ${id}:`, error);
-                  return [];
-                })
-            );
+          console.log('Response status:', response.status);
+          console.log('Response ok:', response.ok);
+
+          if (response.ok) {
+            const allDeliveries = await response.json();
+            console.log('All deliveries data:', allDeliveries);
             
-            const deliveriesResults = await Promise.all(deliveryPromises);
-            // Flatten the array of arrays into a single array of deliveries
-            const allDeliveries = deliveriesResults.flat();
-            console.log('All Deliveries:', allDeliveries);
+            // For now, we'll show all deliveries since we don't have proper hospital linking yet
+            // In a real system, this would filter by hospital ID or hospital requests
+            const deliveriesArray = Array.isArray(allDeliveries) ? allDeliveries : [];
             
-            setDeliveries(allDeliveries);
-            setFilteredDeliveries(allDeliveries);
+            // Transform the data to match the expected format
+            const transformedDeliveries = deliveriesArray.map(delivery => ({
+              id: delivery.id || delivery._id,
+              requestId: delivery.requestId || delivery.request_id,
+              hospitalName: delivery.hospitalName || delivery.hospital_name,
+              bloodBankName: delivery.bloodBankName || delivery.blood_bank_name,
+              bloodBankAddress: delivery.bloodBankAddress || delivery.blood_bank_address,
+              bloodBankPhone: delivery.bloodBankPhone || delivery.blood_bank_phone,
+              bloodBankEmail: delivery.bloodBankEmail || delivery.blood_bank_email,
+              contactInfo: delivery.contactInfo || delivery.contact_info || delivery.bloodBankPhone || delivery.blood_bank_phone,
+              itemsSummary: delivery.itemsSummary || delivery.items_summary,
+              bloodItems: delivery.bloodItems || delivery.blood_items || [],
+              status: delivery.status || 'PENDING',
+              scheduledDate: delivery.scheduledDate || delivery.scheduled_date || new Date().toISOString(),
+              estimatedTime: delivery.estimatedTime || delivery.estimated_time || 'TBD',
+              priority: delivery.priority || 'Normal',
+              driverName: delivery.driverName || delivery.driver_name,
+              driverContact: delivery.driverContact || delivery.driver_contact,
+              vehicleId: delivery.vehicleId || delivery.vehicle_id,
+              deliveredDate: delivery.deliveredDate || delivery.delivered_date,
+              deliveredTime: delivery.deliveredTime || delivery.delivered_time,
+              notes: delivery.notes || '',
+              trackingHistory: delivery.trackingHistory || delivery.tracking_history || []
+            }));
+            
+            console.log('Transformed deliveries:', transformedDeliveries);
+            setDeliveries(transformedDeliveries);
+            setFilteredDeliveries(transformedDeliveries);
           } else {
+            console.error('Failed to fetch deliveries. Status:', response.status);
+            const errorText = await response.text();
+            console.error('Error response:', errorText);
             setDeliveries([]);
             setFilteredDeliveries([]);
           }
         } else {
+          console.error('No hospital ID found');
           setDeliveries([]);
           setFilteredDeliveries([]);
         }
       } catch (error) {
         console.error('Failed to fetch deliveries:', error);
-        // Optionally set an error state to display to the user
+        setDeliveries([]);
+        setFilteredDeliveries([]);
       } finally {
         setIsLoading(false);
       }
@@ -88,10 +107,10 @@ export default function DeliveryStatus() {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(delivery =>
-        delivery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        delivery.requestId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        delivery.bloodBankName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        delivery.items.toLowerCase().includes(searchTerm.toLowerCase())
+        (delivery.id && delivery.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (delivery.requestId && delivery.requestId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (delivery.bloodBankName && delivery.bloodBankName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (delivery.itemsSummary && delivery.itemsSummary.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -120,14 +139,24 @@ export default function DeliveryStatus() {
     }
 
     setFilteredDeliveries(filtered);
+    // Reset to first page when filters change
+    setCurrentPage(1);
   }, [deliveries, searchTerm, statusFilter, dateFilter]);
+
+  // Pagination logic
+  const totalItems = filteredDeliveries.length;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDeliveries = filteredDeliveries.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case DELIVERY_STATUS.PENDING:
         return <Clock className="w-4 h-4 text-yellow-500" />;
-      case DELIVERY_STATUS.PROCESSING:
-        return <RefreshCw className="w-4 h-4 text-blue-500" />;
       case DELIVERY_STATUS.IN_TRANSIT:
         return <Truck className="w-4 h-4 text-indigo-500" />;
       case DELIVERY_STATUS.COMPLETE:
@@ -141,8 +170,6 @@ export default function DeliveryStatus() {
     switch (status) {
       case DELIVERY_STATUS.PENDING:
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case DELIVERY_STATUS.PROCESSING:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
       case DELIVERY_STATUS.IN_TRANSIT:
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case DELIVERY_STATUS.COMPLETE:
@@ -169,12 +196,10 @@ export default function DeliveryStatus() {
     switch (status) {
       case DELIVERY_STATUS.PENDING:
         return 0;
-      case DELIVERY_STATUS.PROCESSING:
-        return 1;
       case DELIVERY_STATUS.IN_TRANSIT:
-        return 2;
+        return 1;
       case DELIVERY_STATUS.COMPLETE:
-        return 3;
+        return 2;
       default:
         return 0;
     }
@@ -188,6 +213,62 @@ export default function DeliveryStatus() {
   const handleCloseModal = () => {
     setShowDetailsModal(false);
     setSelectedDelivery(null);
+  };
+
+  const handleMarkAsComplete = (delivery) => {
+    setDeliveryToComplete(delivery);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!deliveryToComplete) return;
+
+    try {
+      // Call the API to update the delivery status
+      const response = await fetchWithAuth(`/deliveries/${deliveryToComplete.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          status: DELIVERY_STATUS.COMPLETE
+        }),
+      });
+
+      if (response.ok) {
+        // Update the local state
+        const updatedDeliveries = deliveries.map(d =>
+          d.id === deliveryToComplete.id 
+            ? { 
+                ...d, 
+                status: DELIVERY_STATUS.COMPLETE,
+                deliveredDate: new Date().toISOString(),
+                deliveredTime: new Date().toLocaleTimeString()
+              } 
+            : d
+        );
+        setDeliveries(updatedDeliveries);
+        
+        // Show success message (you can add a toast notification here)
+        console.log('Delivery marked as complete successfully');
+        
+        // Close the confirmation modal
+        setShowConfirmModal(false);
+        setDeliveryToComplete(null);
+      } else {
+        throw new Error('Failed to update delivery status');
+      }
+    } catch (error) {
+      console.error('Error marking delivery as complete:', error);
+      // You can add error handling/notification here
+      setShowConfirmModal(false);
+      setDeliveryToComplete(null);
+    }
+  };
+
+  const handleCancelComplete = () => {
+    setShowConfirmModal(false);
+    setDeliveryToComplete(null);
   };
 
   if (isLoading) {
@@ -240,7 +321,6 @@ export default function DeliveryStatus() {
                 >
                   <option value="All">All Status</option>
                   <option value={DELIVERY_STATUS.PENDING}>Pending</option>
-                  <option value={DELIVERY_STATUS.PROCESSING}>Processing</option>
                   <option value={DELIVERY_STATUS.IN_TRANSIT}>In Transit</option>
                   <option value={DELIVERY_STATUS.COMPLETE}>Complete</option>
                 </select>
@@ -260,7 +340,7 @@ export default function DeliveryStatus() {
           </div>
 
           {/* Status Summary Cards */}
-          <div className="grid grid-cols-4 gap-2 mb-3">
+          <div className="grid grid-cols-3 gap-4 mb-3">
             {Object.values(DELIVERY_STATUS).map((status) => {
               const count = deliveries.filter(del => del.status === status).length;
               return (
@@ -325,21 +405,45 @@ export default function DeliveryStatus() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-red-50">
-                    {filteredDeliveries.map((delivery, index) => (
+                    {paginatedDeliveries.map((delivery, index) => (
                       <tr key={delivery.id} className={`hover:bg-red-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-red-25'}`}>
                         <td className="px-3 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
                           {delivery.id}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800 cursor-pointer font-semibold">
-                          {delivery.requestId}
+                          {delivery.requestId || 'N/A'}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-gray-900">{delivery.bloodBankName}</div>
-                          <div className="text-xs text-gray-500">{delivery.contactInfo}</div>
+                          <div className="text-sm font-semibold text-gray-900">{delivery.bloodBankName || 'N/A'}</div>
+                          <div className="text-xs text-gray-500">
+                            {delivery.bloodBankAddress || delivery.contactInfo || 'Contact information not available'}
+                          </div>
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 max-w-xs truncate font-medium" title={delivery.itemsSummary}>
-                            {delivery.bloodItems.reduce((total, item) => total + item.units, 0)} units
+                          <div className="flex flex-wrap gap-1">
+                            {delivery.bloodItems && delivery.bloodItems.length > 0 ? (
+                              delivery.bloodItems.map((item, index) => (
+                                <span 
+                                  key={index} 
+                                  className="inline-flex items-center px-2 py-1 bg-red-50 text-red-800 rounded-lg text-xs font-medium border border-red-200"
+                                >
+                                  <Droplet className="w-3 h-3 mr-1 text-red-600" />
+                                  {item.bloodType} ({item.units} units)
+                                </span>
+                              ))
+                            ) : delivery.itemsSummary ? (
+                              delivery.itemsSummary.split(', ').map((item, index) => (
+                                <span 
+                                  key={index} 
+                                  className="inline-flex items-center px-2 py-1 bg-red-50 text-red-800 rounded-lg text-xs font-medium border border-red-200"
+                                >
+                                  <Droplet className="w-3 h-3 mr-1 text-red-600" />
+                                  {item}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-500 text-sm">No items specified</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
@@ -358,19 +462,41 @@ export default function DeliveryStatus() {
                           )}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleViewDetails(delivery)}
-                            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-3 py-1 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Track
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleViewDetails(delivery)}
+                              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-3 py-1 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg text-xs"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Track
+                            </button>
+                            {delivery.status === DELIVERY_STATUS.IN_TRANSIT && (
+                              <button
+                                onClick={() => handleMarkAsComplete(delivery)}
+                                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-3 py-1 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg text-xs"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Complete
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Pagination */}
+            {totalItems > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                className="mt-4"
+              />
             )}
           </div>
         </div>
@@ -484,19 +610,25 @@ export default function DeliveryStatus() {
                 {/* Blood Items */}
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">Blood Items</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {selectedDelivery.bloodItems.map((item, index) => (
-                      <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <Package className="w-4 h-4 text-red-600 mr-2" />
-                            <span className="font-medium text-red-800">{item.bloodType}</span>
+                  {selectedDelivery.bloodItems && selectedDelivery.bloodItems.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {selectedDelivery.bloodItems.map((item, index) => (
+                        <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Package className="w-4 h-4 text-red-600 mr-2" />
+                              <span className="font-medium text-red-800">{item.bloodType}</span>
+                            </div>
+                            <span className="text-sm text-red-600">{item.units} units</span>
                           </div>
-                          <span className="text-sm text-red-600">{item.units} units</span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                      <p className="text-gray-600">{selectedDelivery.itemsSummary || 'No items specified'}</p>
+                    </div>
+                  )}
                   
                   {selectedDelivery.pendingItems && selectedDelivery.pendingItems.length > 0 && (
                     <div className="mt-4">
@@ -550,25 +682,31 @@ export default function DeliveryStatus() {
                 {/* Tracking History */}
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">Tracking History</h4>
-                  <div className="space-y-3">
-                    {selectedDelivery.trackingHistory.map((event, index) => (
-                      <div key={index} className="flex items-start space-x-3 pb-3 border-b border-gray-200 last:border-b-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${getStatusColor(event.status)}`}>
-                          {getStatusIcon(event.status)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-gray-900">{event.status}</p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(event.timestamp).toLocaleString()}
-                            </p>
+                  {selectedDelivery.trackingHistory && selectedDelivery.trackingHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedDelivery.trackingHistory.map((event, index) => (
+                        <div key={index} className="flex items-start space-x-3 pb-3 border-b border-gray-200 last:border-b-0">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${getStatusColor(event.status)}`}>
+                            {getStatusIcon(event.status)}
                           </div>
-                          <p className="text-sm text-gray-600">{event.location}</p>
-                          <p className="text-sm text-gray-500">{event.note}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-gray-900">{event.status}</p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(event.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                            <p className="text-sm text-gray-600">{event.location}</p>
+                            <p className="text-sm text-gray-500">{event.note}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                      <p className="text-gray-600">No tracking history available</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Notes */}
@@ -586,6 +724,102 @@ export default function DeliveryStatus() {
                   className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-bold transition-all duration-300 shadow-md hover:shadow-lg"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Completing Delivery */}
+      {showConfirmModal && deliveryToComplete && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="relative mx-auto p-0 border w-11/12 max-w-md shadow-2xl rounded-2xl bg-white overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white flex items-center">
+                  <CheckCircle className="w-6 h-6 mr-2" />
+                  Confirm Delivery
+                </h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* Confirmation Message */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-gray-900 font-medium mb-2">
+                    Are you sure you have received this delivery?
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    By confirming, you acknowledge that all items have been received and inspected.
+                  </p>
+                </div>
+
+                {/* Delivery Information */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Delivery Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Delivery ID:</span> {deliveryToComplete.id}</p>
+                    <p><span className="font-medium">Request ID:</span> {deliveryToComplete.requestId || 'N/A'}</p>
+                    <p><span className="font-medium">Blood Bank:</span> {deliveryToComplete.bloodBankName}</p>
+                    <p><span className="font-medium">Scheduled Date:</span> {new Date(deliveryToComplete.scheduledDate).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                {/* Blood Items Summary */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3 text-sm">Items to Confirm:</h4>
+                  {deliveryToComplete.bloodItems && deliveryToComplete.bloodItems.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {deliveryToComplete.bloodItems.map((item, index) => (
+                        <div 
+                          key={index} 
+                          className="bg-white border-2 border-red-300 rounded-xl p-4 shadow-md hover:shadow-lg transition-all hover:border-red-400"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="bg-gradient-to-br from-red-500 to-red-600 p-2.5 rounded-lg mr-3 shadow-sm">
+                                <Droplet className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <p className="text-xl font-bold text-red-600">{item.bloodType}</p>
+                                <p className="text-xs text-gray-600 font-medium">Blood Type</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-red-600">{item.units}</p>
+                              <p className="text-xs text-gray-600 font-medium">units</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : deliveryToComplete.itemsSummary ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-600">{deliveryToComplete.itemsSummary}</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">No items specified</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={handleCancelComplete}
+                  className="flex-1 px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-bold transition-all duration-300 shadow-md hover:shadow-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmComplete}
+                  className="flex-1 px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-lg font-bold transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center"
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Confirm Delivery
                 </button>
               </div>
             </div>

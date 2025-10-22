@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -91,7 +91,16 @@ export default function Schedule() {
   const location = useLocation()
   const navigate = useNavigate()
   const { selectedHospital } = location.state || {}
-  const [date, setDate] = useState(new Date())
+  
+  // Get tomorrow's date for minimum booking date
+  const getTomorrowDate = () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(0, 0, 0, 0)
+    return tomorrow
+  }
+  
+  const [date, setDate] = useState(getTomorrowDate())
   const [selectedTime, setSelectedTime] = useState("")
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -109,36 +118,88 @@ export default function Schedule() {
     }
   }, [selectedHospital, navigate])
 
-  // Generate time slots with availability status
-  const generateTimeSlots = () => {
+  // Generate time slots with availability status - recalculates when date changes
+  const availableTimeSlots = useMemo(() => {
     if (!selectedHospital?.hours) return []
 
-    const [start, end] = selectedHospital.hours.split(" - ")
-    const startTime = new Date(`2000/01/01 ${start}`)
-    const endTime = new Date(`2000/01/01 ${end}`)
+    try {
+      // Extract time portion from hours string (e.g., "Mon-Fri 10:00 - 20:00" -> "10:00 - 20:00")
+      const timeRegex = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/
+      const timeMatch = selectedHospital.hours.match(timeRegex)
+      
+      if (!timeMatch) {
+        console.error('Could not parse time from hours:', selectedHospital.hours)
+        // Fallback: Generate default time slots for common business hours
+        console.log('Using fallback time slots')
+        return [
+          { time: "9:00 AM", availability: "available" },
+          { time: "10:00 AM", availability: "available" },
+          { time: "11:00 AM", availability: "limited" },
+          { time: "1:00 PM", availability: "available" },
+          { time: "2:00 PM", availability: "available" },
+          { time: "3:00 PM", availability: "limited" },
+          { time: "4:00 PM", availability: "available" },
+          { time: "5:00 PM", availability: "available" }
+        ]
+      }
 
-    const slots = []
-    const currentTime = startTime
+      const [, startTimeStr, endTimeStr] = timeMatch
+      
+      // Create date objects for time calculation
+      const startTime = new Date(`2000/01/01 ${startTimeStr}`)
+      const endTime = new Date(`2000/01/01 ${endTimeStr}`)
 
-    while (currentTime < endTime) {
-      // Randomly assign availability status for demo
-      const availability = Math.random() > 0.3 ? "available" : "limited"
+      // Check if dates are valid
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        console.error('Invalid time format:', startTimeStr, endTimeStr)
+        // Use fallback time slots
+        return [
+          { time: "9:00 AM", availability: "available" },
+          { time: "10:00 AM", availability: "available" },
+          { time: "11:00 AM", availability: "limited" },
+          { time: "1:00 PM", availability: "available" },
+          { time: "2:00 PM", availability: "available" },
+          { time: "3:00 PM", availability: "limited" },
+          { time: "4:00 PM", availability: "available" },
+          { time: "5:00 PM", availability: "available" }
+        ]
+      }
 
-      slots.push({
-        time: currentTime.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "numeric",
-          hour12: true,
-        }),
-        availability,
-      })
-      currentTime.setHours(currentTime.getHours() + 2)
+      // Handle case where end time might be "24:00"
+      if (endTimeStr === "24:00") {
+        endTime.setHours(23, 59, 59, 999) // Set to end of day
+      }
+
+      const slots = []
+      const currentTime = new Date(startTime)
+
+      // Generate time slots with 1-hour intervals
+      let slotCount = 0
+      while (currentTime < endTime && slotCount < 8) {
+        // Randomly assign availability status for demo
+        const availability = Math.random() > 0.3 ? "available" : "limited"
+
+        slots.push({
+          time: currentTime.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          }),
+          availability,
+        })
+        slotCount++
+        
+        // Move to next hour
+        currentTime.setHours(currentTime.getHours() + 1)
+      }
+
+      console.log('Generated time slots:', slots) // Debug log
+      return slots
+    } catch (error) {
+      console.error('Error generating time slots:', error)
+      return []
     }
-
-    return slots
-  }
-
-  const availableTimeSlots = generateTimeSlots()
+  }, [selectedHospital?.hours, date])
 
   const handleConfirm = () => {
     if (selectedTime) {
@@ -249,7 +310,7 @@ export default function Schedule() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-gray-600">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-red-400" />
-                    <span className="text-xs sm:text-sm">{selectedHospital.location}</span>
+                    <span className="text-xs sm:text-sm">{selectedHospital.address || selectedHospital.location}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-red-400" />
@@ -286,7 +347,7 @@ export default function Schedule() {
                   <DatePicker
                     selected={date}
                     onChange={(date) => setDate(date)}
-                    minDate={new Date()}
+                    minDate={getTomorrowDate()}
                     inline
                     calendarClassName="!font-sans"
                   />
@@ -305,53 +366,70 @@ export default function Schedule() {
                 <h2>Select Time</h2>
               </motion.div>
               <div className="bg-red-50/50 rounded-xl sm:rounded-2xl p-3 sm:p-6 shadow-inner">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                  <AnimatePresence>
-                    {availableTimeSlots.map((slot) => (
-                      <motion.label
-                        key={slot.time}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`
-                          relative flex items-center justify-center p-3 sm:p-4 
-                          rounded-lg sm:rounded-xl cursor-pointer
-                          transition-all duration-300 
-                          ${
-                            selectedTime === slot.time
-                              ? "bg-gradient-to-r from-red-500 to-red-400 text-white shadow-lg scale-[1.02]"
-                              : "bg-white text-gray-700 hover:bg-red-50 hover:shadow"
-                          }
-                          ${slot.availability === "limited" ? "opacity-75" : ""}
-                        `}
-                      >
-                        <input
-                          type="radio"
-                          name="timeSlot"
-                          value={slot.time}
-                          checked={selectedTime === slot.time}
-                          onChange={(e) => setSelectedTime(e.target.value)}
-                          className="hidden"
-                        />
-                        <div className="flex items-center gap-2">
-                          {selectedTime === slot.time ? (
-                            <Check className="w-4 h-4" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-red-400" />
-                          )}
-                          <span className="text-sm sm:text-base font-medium">{slot.time}</span>
-                          {slot.availability === "limited" && (
-                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                              Limited
-                            </span>
-                          )}
-                        </div>
-                      </motion.label>
-                    ))}
-                  </AnimatePresence>
-                </div>
+                {availableTimeSlots.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                    <AnimatePresence>
+                      {availableTimeSlots.map((slot) => (
+                        <motion.label
+                          key={slot.time}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`
+                            relative flex items-center justify-center p-3 sm:p-4 
+                            rounded-lg sm:rounded-xl cursor-pointer
+                            transition-all duration-300 
+                            ${
+                              selectedTime === slot.time
+                                ? "bg-gradient-to-r from-red-500 to-red-400 text-white shadow-lg scale-[1.02]"
+                                : "bg-white text-gray-700 hover:bg-red-50 hover:shadow"
+                            }
+                            ${slot.availability === "limited" ? "opacity-75" : ""}
+                          `}
+                        >
+                          <input
+                            type="radio"
+                            name="timeSlot"
+                            value={slot.time}
+                            checked={selectedTime === slot.time}
+                            onChange={(e) => setSelectedTime(e.target.value)}
+                            className="hidden"
+                          />
+                          <div className="flex items-center gap-2">
+                            {selectedTime === slot.time ? (
+                              <Check className="w-4 h-4" />
+                            ) : (
+                              <Clock className="w-4 h-4 text-red-400" />
+                            )}
+                            <span className="text-sm sm:text-base font-medium">{slot.time}</span>
+                            {slot.availability === "limited" && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                                Limited
+                              </span>
+                            )}
+                          </div>
+                        </motion.label>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-8"
+                  >
+                    <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-2">No time slots available</p>
+                    <p className="text-sm text-gray-400">
+                      Please contact the blood center directly or try a different date
+                    </p>
+                    <div className="mt-4 text-xs text-gray-400">
+                      Operating Hours: {selectedHospital?.hours}
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </div>
           </div>
@@ -449,7 +527,7 @@ export default function Schedule() {
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                       <MapPin className="w-4 sm:w-5 h-4 sm:h-5 text-red-500" />
-                      <span className="text-xs sm:text-sm text-gray-600">{selectedHospital.location}</span>
+                      <span className="text-xs sm:text-sm text-gray-600">{selectedHospital.address || selectedHospital.location}</span>
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                       <CalendarIcon className="w-4 sm:w-5 h-4 sm:h-5 text-red-500" />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Calendar, Clock, MapPin, AlertCircle, CheckCircle, X, ChevronRight, User, Phone, Heart, Mail } from 'lucide-react'
+import { Calendar, Clock, MapPin, AlertCircle, CheckCircle, X, ChevronRight, User, Phone, Heart, Mail, ChevronLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fetchWithAuth } from '../../utils/api'
 
@@ -11,6 +11,8 @@ const ListOfAppointments = () => {
   const [successMessage, setSuccessMessage] = useState('')
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const appointmentsPerPage = 5
 
   useEffect(() => {
     const load = async () => {
@@ -23,13 +25,26 @@ const ListOfAppointments = () => {
             const body = await res.json()
             // Expecting a wrapper with data, but gracefully handle raw arrays
             const list = Array.isArray(body) ? body : (body?.data ?? [])
+            console.log('📅 Appointments received:', list)
+            if (list.length > 0) {
+              console.log('📋 First appointment structure:', list[0])
+              console.log('📅 Date fields available:', {
+                appointmentDate: list[0].appointmentDate,
+                visitationDate: list[0].visitationDate,
+                dateToday: list[0].dateToday,
+                date: list[0].date,
+                createdAt: list[0].createdAt
+              })
+            }
             setAppointments(Array.isArray(list) ? list : [])
           } else {
             // Fallback to localStorage
             const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
+            console.log('📂 Using localStorage appointments:', stored)
             setAppointments(stored)
           }
         } catch (e) {
+          console.error('❌ Error fetching appointments:', e)
           // Fallback to localStorage on error
           const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
           setAppointments(stored)
@@ -60,13 +75,44 @@ const ListOfAppointments = () => {
   }
 
   const formatDate = (dateString) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    if (!dateString) return 'Date not available'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return 'Invalid date'
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } catch (err) {
+      return 'Invalid date'
+    }
+  }
+
+  const formatDateShort = (dateString) => {
+    if (!dateString) return 'No date'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return 'No date'
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    } catch (err) {
+      return 'No date'
+    }
+  }
+
+  // Get the best available date from appointment object
+  const getAppointmentDate = (appointment) => {
+    // Try multiple date sources in order of preference
+    return appointment.appointmentDate || 
+           appointment.visitationDate || 
+           appointment.dateToday || 
+           appointment.date ||
+           appointment.createdAt
   }
 
   const formatTime = (timeString) => {
@@ -119,9 +165,9 @@ const ListOfAppointments = () => {
               <X className="w-6 h-6" />
             </button>
             <h2 className="text-2xl font-bold">Appointment Details</h2>
-            {appointment.appointmentDate && (
+            {getAppointmentDate(appointment) && (
               <p className="text-white/80 mt-1">
-                Scheduled on {formatDate(appointment.appointmentDate)}
+                Scheduled on {formatDate(getAppointmentDate(appointment))}
               </p>
             )}
           </div>
@@ -138,14 +184,14 @@ const ListOfAppointments = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Appointment Info */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-800 text-lg border-b pb-2">Appointment Details</h3>
                 <div className="flex items-center gap-2 text-gray-800">
                   <Calendar className="w-5 h-5 text-red-600" />
                   <div>
-                    <p className="font-medium">{formatDate(appointment.appointmentDate)}</p>
+                    <p className="font-medium">{formatDate(getAppointmentDate(appointment))}</p>
                     <p className="text-sm text-gray-500">{formatTime(appointment.appointmentTime)}</p>
                   </div>
                 </div>
@@ -162,59 +208,50 @@ const ListOfAppointments = () => {
                     {appointment.status || 'Scheduled'}
                   </span>
                 </div>
-                {appointment.donorType && (
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <User className="w-5 h-5 text-red-600" />
-                    <div>
-                      <p className="font-medium">Donor Type</p>
-                      <p className="text-sm text-gray-500">{appointment.donorType}</p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Personal Information */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-800 text-lg border-b pb-2">Personal Information</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-start">
                     <span className="text-gray-600">Full Name:</span>
                     <span className="font-medium text-right">
                       {appointment.firstName} {appointment.middleInitial && `${appointment.middleInitial}. `}{appointment.surname}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-start">
                     <span className="text-gray-600">Blood Type:</span>
                     <span className="font-medium text-red-600">{appointment.bloodType}</span>
                   </div>
                   {appointment.age && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="text-gray-600">Age:</span>
-                      <span className="font-medium">{appointment.age} years old</span>
+                      <span className="font-medium text-right">{appointment.age} years old</span>
                     </div>
                   )}
                   {appointment.birthday && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="text-gray-600">Birthday:</span>
-                      <span className="font-medium">{formatDate(appointment.birthday)}</span>
+                      <span className="font-medium text-right">{formatDate(appointment.birthday)}</span>
                     </div>
                   )}
                   {appointment.sex && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="text-gray-600">Sex:</span>
-                      <span className="font-medium">{appointment.sex}</span>
+                      <span className="font-medium text-right">{appointment.sex}</span>
                     </div>
                   )}
                   {appointment.civilStatus && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="text-gray-600">Civil Status:</span>
-                      <span className="font-medium">{appointment.civilStatus}</span>
+                      <span className="font-medium text-right">{appointment.civilStatus}</span>
                     </div>
                   )}
                   {appointment.occupation && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="text-gray-600">Occupation:</span>
-                      <span className="font-medium">{appointment.occupation}</span>
+                      <span className="font-medium text-right">{appointment.occupation}</span>
                     </div>
                   )}
                 </div>
@@ -225,50 +262,35 @@ const ListOfAppointments = () => {
                 <h3 className="font-semibold text-gray-800 text-lg border-b pb-2">Contact Information</h3>
                 <div className="space-y-3">
                   {appointment.phoneNumber && (
-                    <div className="flex items-start gap-2">
-                      <Phone className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">Mobile Phone</p>
-                        <p className="text-sm text-gray-600">{appointment.phoneNumber}</p>
-                      </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Mobile Phone:</span>
+                      <span className="font-medium text-right">{appointment.phoneNumber}</span>
                     </div>
                   )}
                   {appointment.officePhone && appointment.officePhone !== 'N/A' && (
-                    <div className="flex items-start gap-2">
-                      <Phone className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">Office Phone</p>
-                        <p className="text-sm text-gray-600">{appointment.officePhone}</p>
-                      </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Office Phone:</span>
+                      <span className="font-medium text-right">{appointment.officePhone}</span>
                     </div>
                   )}
                   {/* Email Display - Check if homeAddress contains email */}
                   {appointment.homeAddress && appointment.homeAddress.includes('@') && appointment.homeAddress.includes('.') && (
-                    <div className="flex items-start gap-2">
-                      <Mail className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">Email</p>
-                        <p className="text-sm text-gray-600">{appointment.homeAddress}</p>
-                      </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-medium text-right">{appointment.homeAddress}</span>
                     </div>
                   )}
                   {/* Address Display - Only show if homeAddress doesn't look like email */}
                   {appointment.homeAddress && !(appointment.homeAddress.includes('@') && appointment.homeAddress.includes('.')) && (
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">Address</p>
-                        <p className="text-sm text-gray-600">{appointment.homeAddress}</p>
-                      </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Address:</span>
+                      <span className="font-medium text-right">{appointment.homeAddress}</span>
                     </div>
                   )}
                   {appointment.patientName && appointment.patientName !== appointment.firstName + ' ' + appointment.surname && (
-                    <div className="flex items-start gap-2">
-                      <User className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">Patient Name</p>
-                        <p className="text-sm text-gray-600">{appointment.patientName}</p>
-                      </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Patient Name:</span>
+                      <span className="font-medium text-right">{appointment.patientName}</span>
                     </div>
                   )}
                 </div>
@@ -329,29 +351,32 @@ const ListOfAppointments = () => {
               <p className="text-gray-500 mt-2">Your blood donation appointments will appear here.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {appointments.map((appointment) => (
+            <>
+              <div className="space-y-4">
+                {appointments
+                  .slice((currentPage - 1) * appointmentsPerPage, currentPage * appointmentsPerPage)
+                  .map((appointment) => (
                 <div
                   key={appointment.id || appointment.appointmentId || appointment._id || `${appointment.appointmentDate}-${appointment.bloodBankId}`}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
                 >
                   <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-2 text-gray-800">
-                        <Calendar className="w-5 h-5 text-red-600" />
+                        <Calendar className="w-5 h-5 text-red-600 flex-shrink-0" />
                         <span className="font-medium">
-                          {formatDate(appointment.appointmentDate)}
+                          {formatDateShort(getAppointmentDate(appointment))}
                         </span>
                       </div>
                       {appointment.appointmentTime && (
                         <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="w-5 h-5" />
+                          <Clock className="w-5 h-5 flex-shrink-0" />
                           <span>{formatTime(appointment.appointmentTime)}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="w-5 h-5" />
-                        <span>{appointment.donationCenter}</span>
+                        <MapPin className="w-5 h-5 flex-shrink-0" />
+                        <span className="line-clamp-1">{appointment.donationCenter}</span>
                       </div>
                     </div>
 
@@ -369,8 +394,65 @@ const ListOfAppointments = () => {
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="mt-6 flex items-center justify-between border-t pt-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {Math.min((currentPage - 1) * appointmentsPerPage + 1, appointments.length)} to{' '}
+                    {Math.min(currentPage * appointmentsPerPage, appointments.length)} of {appointments.length} appointments
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`flex items-center gap-1 px-3 py-2 rounded-lg border transition-colors ${
+                        currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {Array.from(
+                        { length: Math.ceil(appointments.length / appointmentsPerPage) },
+                        (_, i) => i + 1
+                      ).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-2 rounded-lg border transition-colors ${
+                            currentPage === page
+                              ? 'bg-red-600 text-white border-red-600'
+                              : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) =>
+                          Math.min(prev + 1, Math.ceil(appointments.length / appointmentsPerPage))
+                        )
+                      }
+                      disabled={currentPage === Math.ceil(appointments.length / appointmentsPerPage)}
+                      className={`flex items-center gap-1 px-3 py-2 rounded-lg border transition-colors ${
+                        currentPage === Math.ceil(appointments.length / appointmentsPerPage)
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                      }`}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+            </>
           )}
         </div>
       </div>

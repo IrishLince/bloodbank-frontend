@@ -121,7 +121,6 @@ export default function UpdateDelivery({ delivery, onClose, onUpdate }) {
                   <option value="Pending">Pending</option>
                   <option value="Scheduled">Scheduled</option>
                   <option value="In Transit">In Transit</option>
-                  <option value="Complete">Complete</option>
                 </select>
               </div>
               

@@ -58,11 +58,10 @@ const AppointmentDetails = () => {
         // Additional Information
         occupation: data.occupation || data.formData?.occupation || "",
         patientName: data.patientName || data.formData?.patientName || "",
-        donorType: data.donorType || data.formData?.donorType || "",
 
         // Appointment Details
-        donationCenter: data.donationCenter || data.appointmentDetails?.donationCenter || data.selectedHospital?.name || "",
-        bloodBankId: data.bloodBankId || data.selectedHospital?.id || "",
+        donationCenter: data.donationCenter || data.appointmentDetails?.donationCenter || data.selectedHospital?.name || data.selectedHospital?.bloodBankName || "",
+        bloodBankId: data.bloodBankId || data.selectedHospital?.id || data.selectedHospital?.bloodBankId || "",
         appointmentDate: data.appointmentDate || data.appointmentDetails?.appointmentDate || "",
         appointmentTime: data.appointmentTime || data.appointmentDetails?.timeSlot || "",
         notes: data.notes || data.appointmentDetails?.notes || "",
@@ -132,8 +131,18 @@ const AppointmentDetails = () => {
 
   const handleConfirmAppointment = async () => {
     try {
-      // Build backend payload
-      const userId = localStorage.getItem('userId') || ""
+      // Get user ID from localStorage (consistent with existing app auth system)
+      let userId = localStorage.getItem('userId') || ""
+      
+      // Fallback: try to get from userData object if userId is not available
+      if (!userId) {
+        try {
+          const userData = JSON.parse(localStorage.getItem('userData') || '{}')
+          userId = userData.id || ""
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
 
       const toISODateTime = (dateStr, timeStr) => {
         try {
@@ -154,9 +163,17 @@ const AppointmentDetails = () => {
 
       const appointmentISO = toISODateTime(appointmentData?.appointmentDate, appointmentData?.appointmentTime)
 
+      // Debug logging to verify IDs
+      console.log('🩸 Appointment Debug Info:', {
+        userId: userId,
+        appointmentData_bloodBankId: appointmentData?.bloodBankId,
+        selectedHospital_id: appointmentData?.selectedHospital?.id,
+        donationCenter: appointmentData?.donationCenter
+      });
+
       const backendPayload = {
         // Core backend fields
-        donorId: "", // optional/not yet used
+        donorId: userId, // Use the current user's ID as donor_id
         bloodBankId: appointmentData?.bloodBankId ? String(appointmentData.bloodBankId) : "",
         appointmentDate: appointmentISO,
         status: "Scheduled",
@@ -179,7 +196,6 @@ const AppointmentDetails = () => {
         officePhone: appointmentData?.officePhone || "",
         occupation: appointmentData?.occupation || "",
         patientName: appointmentData?.patientName || "",
-        donorType: appointmentData?.donorType || "",
         donationCenter: appointmentData?.donationCenter || "",
         appointmentTime: appointmentData?.appointmentTime || "",
         medicalHistory: appointmentData?.medicalHistory || {},
@@ -418,17 +434,13 @@ const AppointmentDetails = () => {
               Donation Information
             </h2>
             <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Donor Type:</span>
-                <span className="font-medium">{appointmentData.donorType}</span>
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-gray-600 whitespace-nowrap">Patient Name:</span>
+                <span className="font-medium text-right">{appointmentData.patientName}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Patient Name:</span>
-                <span className="font-medium">{appointmentData.patientName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Application Date:</span>
-                <span className="font-medium">{formatDate(appointmentData.dateToday)}</span>
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-gray-600 whitespace-nowrap">Application Date:</span>
+                <span className="font-medium text-right">{formatDate(appointmentData.dateToday)}</span>
               </div>
             </div>
           </div>

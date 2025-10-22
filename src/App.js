@@ -22,6 +22,7 @@ import RewardsSystem from './components/Donor/RewardsSystem';
 import BloodRequestForm from './components/Hospital/BloodRequestForm'
 import SuccessfulRequest from './components/Hospital/SuccessfulRequest';
 import HospitalProfile from './components/Hospital/Profile';
+import HospitalRewards from './components/Hospital/HospitalRewards';
 
 import { Layout } from './components/Layout';
 import DonorProfile from './components/Donor/Profile';
@@ -29,6 +30,7 @@ import FAQs from './components/FAQS'
 import DonationHistory from './components/Donor/DonationHistory'; 
 import ListOfAppointments from './components/Donor/ListOfAppointments'
 import DonorSettings from './components/Donor/Settings'
+import ArchivedAccountGuard from './components/Donor/ArchivedAccountGuard';
 
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -42,6 +44,21 @@ import Inventory from './components/RedsourceAdmin/Inventory';
 import AdminDonationList from './components/RedsourceAdmin/AdminDonationList';
 import RequestStatus from './components/Hospital/RequestStatus';
 import DeliveryStatus from './components/Hospital/DeliveryStatus';
+import BloodBankRewards from './components/BloodBank/BloodBankRewards';
+import AllInventories from './components/Admin/AllInventories';
+
+// Admin components
+import AdminDashboard from './components/Admin/AdminDashboard';
+import RegisterHospital from './components/Admin/RegisterHospital';
+import RegisterBloodBank from './components/Admin/RegisterBloodBank';
+import HospitalsList from './components/Admin/HospitalsList';
+import BloodBanksList from './components/Admin/BloodBanksList';
+import Logging from './components/Admin/Logging';
+import AllRequests from './components/Admin/AllRequests';
+import AllDeliveries from './components/Admin/AllDeliveries';
+import AllDonations from './components/Admin/AllDonations';
+import AllRewardRedemptions from './components/Admin/AllRewardRedemptions';
+import ManageRewards from './components/Admin/ManageRewards';
 
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -76,7 +93,23 @@ const TitleUpdater = () => {
       '/hospital': 'RedSource - Hospital Dashboard',
       '/requests': 'RedSource - Blood Requests',
       '/request-status': 'RedSource - Request Status',
-      '/delivery-status': 'RedSource - Delivery Status'
+      '/delivery-status': 'RedSource - Delivery Status',
+      '/hospital-rewards': 'RedSource - Hospital Rewards',
+      '/bloodbank/rewards': 'RedSource - Blood Bank Rewards',
+      
+      // Admin routes
+      '/admin/dashboard': 'RedSource - Admin Dashboard',
+      '/admin/register-hospital': 'RedSource - Register Hospital',
+      '/admin/register-bloodbank': 'RedSource - Register Blood Bank',
+      '/admin/hospitals': 'RedSource - Hospitals List',
+      '/admin/bloodbanks': 'RedSource - Blood Banks List',
+      '/admin/logging': 'RedSource - System Logging',
+      '/admin/logging/requests': 'RedSource - All Requests',
+      '/admin/logging/deliveries': 'RedSource - All Deliveries',
+      '/admin/logging/donations': 'RedSource - All Donations',
+      '/admin/logging/redemptions': 'RedSource - All Reward Redemptions',
+      '/admin/rewards': 'RedSource - Manage Rewards',
+      '/admin/inventories': 'RedSource - All Inventories'
     };
 
     document.title = pathToTitleMap[location.pathname] || 'RedSource';
@@ -160,7 +193,15 @@ function App() {
             {/* Default route based on login status */}
             <Route
               path="/"
-              element={isLoggedIn ? <SuccessfulLogin /> : <Navigate to="/homepage" />}
+              element={isLoggedIn ? (
+                userRole?.toLowerCase().includes('donor') ? (
+                  <ArchivedAccountGuard><SuccessfulLogin /></ArchivedAccountGuard>
+                ) : (
+                  <SuccessfulLogin />
+                )
+              ) : (
+                <Navigate to="/homepage" />
+              )}
             />
 
             <Route path="/homepage" element={<Home />} />
@@ -195,9 +236,11 @@ function App() {
     <Route
       path="/donation-center"
       element={
-        <ProtectedEligibilityRoute stepRequired={-1}>
-          <DonationCenter />
-        </ProtectedEligibilityRoute>
+        <ArchivedAccountGuard>
+          <ProtectedEligibilityRoute stepRequired={-1}>
+            <DonationCenter />
+          </ProtectedEligibilityRoute>
+        </ArchivedAccountGuard>
       }
     />
 
@@ -205,9 +248,11 @@ function App() {
     <Route
       path="/schedule"
       element={
-        <ProtectedEligibilityRoute stepRequired={0}>
-          <Schedule />
-        </ProtectedEligibilityRoute>
+        <ArchivedAccountGuard>
+          <ProtectedEligibilityRoute stepRequired={0}>
+            <Schedule />
+          </ProtectedEligibilityRoute>
+        </ArchivedAccountGuard>
       }
     />
 
@@ -215,9 +260,11 @@ function App() {
     <Route
       path="/eligibility"
       element={
-        <ProtectedEligibilityRoute stepRequired={1}>
-          <EligibilityCheck />
-        </ProtectedEligibilityRoute>
+        <ArchivedAccountGuard>
+          <ProtectedEligibilityRoute stepRequired={1}>
+            <EligibilityCheck />
+          </ProtectedEligibilityRoute>
+        </ArchivedAccountGuard>
       }
     />
 
@@ -225,9 +272,11 @@ function App() {
     <Route
       path="/eligibility-step2"
       element={
-        <ProtectedEligibilityRoute stepRequired={2}>
-          <EligibilityCheck2 setEligibilityStep={setEligibilityStep} />
-        </ProtectedEligibilityRoute>
+        <ArchivedAccountGuard>
+          <ProtectedEligibilityRoute stepRequired={2}>
+            <EligibilityCheck2 setEligibilityStep={setEligibilityStep} />
+          </ProtectedEligibilityRoute>
+        </ArchivedAccountGuard>
       }
     />
 
@@ -235,18 +284,20 @@ function App() {
     <Route
       path="/eligibility-step3"
       element={
-        <ProtectedEligibilityRoute stepRequired={3}>
-          <EligibilityCheck3 setEligibilityStep={setEligibilityStep} />
-        </ProtectedEligibilityRoute>
+        <ArchivedAccountGuard>
+          <ProtectedEligibilityRoute stepRequired={3}>
+            <EligibilityCheck3 setEligibilityStep={setEligibilityStep} />
+          </ProtectedEligibilityRoute>
+        </ArchivedAccountGuard>
       }
     />
-                    <Route path="/confirm-appointment" element={<ConfirmAppointment />} />
-                    <Route path="/appointment-details" element={<AppointmentDetails />} />
-                    <Route path="/donation-history" element={<DonationHistory />} />
-                    <Route path="/list-of-appointments" element={<ListOfAppointments />} />
-                    <Route path="/rewards" element={<RewardsSystem />} />
-                    <Route path="/profile-page" element={<DonorProfile />} />
-                    <Route path="/settings" element={<DonorSettings />} />
+                    <Route path="/confirm-appointment" element={<ArchivedAccountGuard><ConfirmAppointment /></ArchivedAccountGuard>} />
+                    <Route path="/appointment-details" element={<ArchivedAccountGuard><AppointmentDetails /></ArchivedAccountGuard>} />
+                    <Route path="/donation-history" element={<ArchivedAccountGuard><DonationHistory /></ArchivedAccountGuard>} />
+                    <Route path="/list-of-appointments" element={<ArchivedAccountGuard><ListOfAppointments /></ArchivedAccountGuard>} />
+                    <Route path="/rewards" element={<ArchivedAccountGuard><RewardsSystem /></ArchivedAccountGuard>} />
+                    <Route path="/profile-page" element={<ArchivedAccountGuard><DonorProfile /></ArchivedAccountGuard>} />
+                    <Route path="/settings" element={<ArchivedAccountGuard><DonorSettings /></ArchivedAccountGuard>} />
                   </>
                 )}
 
@@ -259,6 +310,7 @@ function App() {
                     <Route path="/profile-page" element={<HospitalProfile />} />
                     <Route path="/request-status" element={<RequestStatus />} />
                     <Route path="/delivery-status" element={<DeliveryStatus />} />
+                    <Route path="/hospital-rewards" element={<HospitalRewards />} />
                   </>
                 )}
 
@@ -272,6 +324,25 @@ function App() {
                     <Route path="/profile-page" element={<AdminProfile />} />
                     <Route path="/inventory" element={<Inventory />} />
                     <Route path="/list-of-donation" element={<AdminDonationList />} />
+                    <Route path="/bloodbank/rewards" element={<BloodBankRewards />} />
+                  </>
+                )}
+
+                {/* Admin-specific routes */}
+                {(userRole === 'ADMIN' || userRole === 'ROLE_ADMIN') && (
+                  <>
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    <Route path="/admin/register-hospital" element={<RegisterHospital />} />
+                    <Route path="/admin/register-bloodbank" element={<RegisterBloodBank />} />
+                    <Route path="/admin/hospitals" element={<HospitalsList />} />
+                    <Route path="/admin/bloodbanks" element={<BloodBanksList />} />
+                    <Route path="/admin/logging" element={<Logging />} />
+                    <Route path="/admin/logging/requests" element={<AllRequests />} />
+                    <Route path="/admin/logging/deliveries" element={<AllDeliveries />} />
+                    <Route path="/admin/logging/donations" element={<AllDonations />} />
+                    <Route path="/admin/logging/redemptions" element={<AllRewardRedemptions />} />
+                    <Route path="/admin/rewards" element={<ManageRewards />} />
+                    <Route path="/admin/inventories" element={<AllInventories />} />
                   </>
                 )}
               </>

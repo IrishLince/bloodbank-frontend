@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { Menu, X, UserCircle2, Settings, LogOut, User, Mail, Home, Calendar, Info, List, Star, FileText, Package, Building2 } from "lucide-react"
+import { Menu, X, UserCircle2, Settings, LogOut, User, Mail, Home, Calendar, Info, List, Star, FileText, Package, Building2, ClipboardList } from "lucide-react"
 import { motion, AnimatePresence } from 'framer-motion'
 import logo from "../assets/Logo.png"
 import RefreshLink from "./RefreshLink"
@@ -538,6 +538,7 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
           { to: "/hospital", label: "Hospital", icon: <Building2 className="w-5 h-5" /> },
           { to: "/list-of-donation", label: "List of Donation", icon: <List className="w-5 h-5" /> },
           { to: "/inventory", label: "Inventory", icon: <Package className="w-5 h-5" /> },
+          { to: "/bloodbank/rewards", label: "Rewards", icon: <Star className="w-5 h-5" /> },
           { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
         ]
       }
@@ -549,6 +550,18 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
           { to: "/hospital", label: "Requests", icon: <FileText className="w-5 h-5" /> },
           { to: "/request-status", label: "Request Status", icon: <List className="w-5 h-5" /> },
           { to: "/delivery-status", label: "Delivery Status", icon: <Package className="w-5 h-5" /> },
+          { to: "/hospital-rewards", label: "Rewards", icon: <Star className="w-5 h-5" /> },
+          { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
+        ]
+      }
+    
+    case 'ADMIN':
+      return {
+        links: [
+          ...baseLinks,
+          { to: "/admin/dashboard", label: "Dashboard", icon: <Home className="w-5 h-5" /> },
+          { to: "/admin/logging", label: "Logging", icon: <ClipboardList className="w-5 h-5" /> },
+          { to: "/admin/rewards", label: "Manage Rewards", icon: <Star className="w-5 h-5" /> },
           { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
         ]
       }

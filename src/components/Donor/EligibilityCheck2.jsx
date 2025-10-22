@@ -28,8 +28,16 @@ const EligibilityCheck2 = () => {
   const [showReviewModal, setShowReviewModal] = useState(false)
   const printRef = useRef(null)
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDateDDMMYYYY = (date) => {
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+  }
+
   const validateField = (name, value) => {
-    const error = ""
+    let error = ""
 
     if (!value && name !== "lastDonationDate" && name !== "lastDonationPlace" && name !== "donationType") {
       return "This field is required"
@@ -39,12 +47,27 @@ const EligibilityCheck2 = () => {
       return "Please provide your last donation date"
     }
 
-    if (name === "lastDonationPlace" && answers.q1 === "Yes" && !value) {
-      return "Please provide your last donation place"
+    // Validate 3-month waiting period for last donation date
+    if (name === "lastDonationDate" && answers.q1 === "Yes" && value) {
+      const lastDonationDate = new Date(value)
+      const today = new Date()
+      
+      // Calculate the difference in months
+      const monthsDiff = (today.getFullYear() - lastDonationDate.getFullYear()) * 12 + 
+                         (today.getMonth() - lastDonationDate.getMonth())
+      const daysDiff = today.getDate() - lastDonationDate.getDate()
+      
+      // If less than 3 full months have passed
+      if (monthsDiff < 3 || (monthsDiff === 3 && daysDiff < 0)) {
+        const nextEligibleDate = new Date(lastDonationDate)
+        nextEligibleDate.setMonth(nextEligibleDate.getMonth() + 3)
+        
+        return `You must wait at least 3 months between donations. Next eligible date: ${formatDateDDMMYYYY(nextEligibleDate)}`
+      }
     }
 
-    if (name === "donationType" && answers.q1 === "Yes" && !value) {
-      return "Please select your donor type"
+    if (name === "lastDonationPlace" && answers.q1 === "Yes" && !value) {
+      return "Please provide your last donation place"
     }
 
     return error
@@ -65,6 +88,25 @@ const EligibilityCheck2 = () => {
     // Check eligibility
     let isEligible = true
     const newReasons = []
+
+    // Check if last donation was within 3 months
+    if (updatedAnswers.q1 === "Yes" && updatedAnswers.lastDonationDate) {
+      const lastDonationDate = new Date(updatedAnswers.lastDonationDate)
+      const today = new Date()
+      
+      // Calculate the difference in months
+      const monthsDiff = (today.getFullYear() - lastDonationDate.getFullYear()) * 12 + 
+                         (today.getMonth() - lastDonationDate.getMonth())
+      const daysDiff = today.getDate() - lastDonationDate.getDate()
+      
+      // If less than 3 full months have passed
+      if (monthsDiff < 3 || (monthsDiff === 3 && daysDiff < 0)) {
+        isEligible = false
+        const nextEligibleDate = new Date(lastDonationDate)
+        nextEligibleDate.setMonth(nextEligibleDate.getMonth() + 3)
+        newReasons.push(`You must wait at least 3 months between donations. You will be eligible again on ${formatDateDDMMYYYY(nextEligibleDate)}`)
+      }
+    }
 
     if (updatedAnswers.q2 === "Yes") {
       isEligible = false
@@ -160,10 +202,6 @@ const EligibilityCheck2 = () => {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Last Donation Place:</span>
                   <span className="font-medium">{answers.lastDonationPlace || "Not provided"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Donor Type:</span>
-                  <span className="font-medium">{answers.donationType || "Not specified"}</span>
                 </div>
               </>
             )}
@@ -322,39 +360,6 @@ const EligibilityCheck2 = () => {
                   </p>
                 )}
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Donor Type</label>
-              <div className="flex gap-4">
-                {["First-time Donor", "Repeat Donor"].map((type) => (
-                  <label
-                    key={type}
-                    className={`
-                      flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg
-                      transition-all duration-200
-                      ${answers.donationType === type ? "bg-red-50 text-red-600 font-medium" : "hover:bg-gray-100"}
-                    `}
-                  >
-                    <input
-                      type="radio"
-                      name="donationType"
-                      value={type}
-                      checked={answers.donationType === type}
-                      onChange={(e) => handleChange("donationType", e.target.value)}
-                      onBlur={() => handleBlur("donationType")}
-                      className="form-radio text-red-600 focus:ring-red-500"
-                    />
-                    {type}
-                  </label>
-                ))}
-              </div>
-              {errors.donationType && touched.donationType && (
-                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.donationType}
-                </p>
-              )}
             </div>
           </div>
         )}

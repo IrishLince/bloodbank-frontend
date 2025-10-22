@@ -25,7 +25,6 @@ const EligibilityCheck = () => {
     officePhone: "",
     occupation: "",
     patientName: "",
-    donorType: "",
     parentalConsent: "",
     parentName: "",
     parentSignature: "",
@@ -50,7 +49,6 @@ const EligibilityCheck = () => {
       "phoneNumber",
       "occupation",
       "patientName",
-      "donorType",
     ]
 
     if (age === 16 || age === 17) {
@@ -108,6 +106,9 @@ const EligibilityCheck = () => {
           lastName = nameParts.slice(1).join(' ') || '';
         }
         
+        // Construct full name for patientName (auto-fetched)
+        const patientFullName = `${firstName} ${middleInitial ? middleInitial + ' ' : ''}${lastName}`.trim();
+        
         // Calculate age from dateOfBirth if available
         let calculatedAge = '';
         const birthDateField = userData.dateOfBirth || userData.birthDate; // Try both field names
@@ -135,7 +136,8 @@ const EligibilityCheck = () => {
           age: calculatedAge,
           sex: userData.sex || '',
           homeAddress: userData.address || '',
-          phoneNumber: userData.contactInformation ? stripCountryCode(userData.contactInformation) : ''
+          phoneNumber: userData.contactInformation ? stripCountryCode(userData.contactInformation) : '',
+          patientName: patientFullName
         }));
         
         // Form data is now auto-populated from user profile
@@ -205,9 +207,6 @@ const EligibilityCheck = () => {
         break
       case "officePhone":
         if (value && !/^[0-9+\-\s()]*$/.test(value)) fieldError = "Invalid phone number format"
-        break
-      case "donorType":
-        if (!value) fieldError = "Please select a donor type"
         break
       case "parentalConsent":
         const currentAge = Number.parseInt(formData.age)
@@ -304,7 +303,6 @@ const EligibilityCheck = () => {
         // Additional Information
         occupation: formData.occupation,
         patientName: formData.patientName,
-        donorType: formData.donorType,
 
         // Parental consent (if applicable)
         parentalConsent: formData.parentalConsent,
@@ -312,7 +310,9 @@ const EligibilityCheck = () => {
         parentSignature: formData.parentSignature,
 
         // Appointment Details
-        donationCenter: selectedHospital?.name || "",
+        donationCenter: selectedHospital?.name || selectedHospital?.bloodBankName || "",
+        bloodBankId: selectedHospital?.id || "",
+        selectedHospital: selectedHospital, // Pass the full selected hospital/blood bank object
         appointmentDate: appointmentDate,
         appointmentTime: appointmentTime,
       }
@@ -484,11 +484,11 @@ const EligibilityCheck = () => {
                 />
               </div>
               
-              {/* M.I. - Still editable as it's not in profile */}
+              {/* Middle Name - Read-only, auto-filled */}
               <div className="relative">
                 <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
                   <User className="h-4 w-4" />
-                  M.I. <span className="text-red-500">*</span>
+                  Middle Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -732,20 +732,23 @@ const EligibilityCheck = () => {
                   Name of Patient <span className="text-red-500">*</span>
                 </label>
                 <input
+                  type="text"
                   name="patientName"
-                  value={formData.patientName}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  placeholder="Enter patient name"
-                  className={`w-full p-2 border rounded-lg shadow-sm
-                    ${
-                      errors.patientName && touched.patientName
-                        ? "border-red-500 bg-red-50"
-                        : "border-gray-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                    }`}
+                  value={
+                    isLoadingUserData 
+                      ? 'Loading...' 
+                      : formData.patientName 
+                        ? formData.patientName 
+                        : 'No name in profile'
+                  }
+                  readOnly
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  placeholder="Patient name from profile"
                 />
-                {errors.patientName && touched.patientName && (
-                  <p className="mt-1 text-xs text-red-500">{errors.patientName}</p>
+                {!isLoadingUserData && !formData.patientName && (
+                  <p className="mt-1 text-xs text-orange-600">
+                    Please update your name in your profile settings
+                  </p>
                 )}
               </div>
             </div>
@@ -858,32 +861,6 @@ const EligibilityCheck = () => {
               </div>
             </div>
           )}
-
-          {/* Donor Type */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Heart className="h-5 w-5 text-red-600" />
-              IV. Type of Donor <span className="text-red-500">*</span>
-            </h2>
-
-            <div className="flex flex-wrap gap-6">
-              {["Volunteer", "Replacement", "Pre-deposit"].map((type) => (
-                <label key={type} className="relative flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="radio"
-                    name="donorType"
-                    value={type}
-                    checked={formData.donorType === type}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className="form-radio h-5 w-5 text-red-600 border-gray-300 focus:ring-red-500"
-                  />
-                  <span className="text-gray-700 group-hover:text-red-600 transition-colors">{type}</span>
-                </label>
-              ))}
-            </div>
-            {errors.donorType && touched.donorType && <p className="mt-2 text-xs text-red-500">{errors.donorType}</p>}
-          </div>
 
           {/* Submit Button */}
           <div className="pt-6 flex justify-end">

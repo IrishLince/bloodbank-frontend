@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Gift, Award, Clock, ChevronRight, Check, AlertCircle, X, Download, TrendingUp, Star, Medal, Trophy, Heart, Stethoscope, Activity, Zap } from "lucide-react"
-import { FiX, FiCornerUpRight, FiGift, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward } from "react-icons/fi"
+import { useState, useEffect } from "react"
+import { Gift, Award, Clock, ChevronRight, Check, AlertCircle, X, Download, TrendingUp, Star, Medal, Trophy, Heart, Stethoscope, Activity, Zap, Building2 } from "lucide-react"
+import { FiX, FiCornerUpRight, FiGift, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward, FiCheck } from "react-icons/fi"
 import { toast } from "react-toastify"
+import { fetchWithAuth } from "../../utils/api"
 
 const RewardsSystem = () => {
   const [activeTab, setActiveTab] = useState("available")
@@ -16,60 +17,199 @@ const RewardsSystem = () => {
   const [showBloodBagRequestsTab, setShowBloodBagRequestsTab] = useState(false)
   const [showAchievementModal, setShowAchievementModal] = useState(false)
   const [newAchievement, setNewAchievement] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [visibleVoucherCodes, setVisibleVoucherCodes] = useState({})
 
-  // Donor information
-  const donorName = "Irish Lince"
-  const donorId = "D-4578"
-  
-  // Mock data - in a real app, this would come from an API
-  const userPoints = 350
-  const totalDonations = 12 // This would come from donation history API
-  const pointsHistory = [
-    { id: 1, event: "Blood Donation", points: 100, date: "Apr 15, 2024" },
-    { id: 2, event: "Blood Donation", points: 100, date: "Feb 20, 2024" },
-    { id: 3, event: "Referral Bonus", points: 50, date: "Feb 10, 2024" },
-    { id: 4, event: "Blood Donation", points: 100, date: "Dec 05, 2023" },
-    { id: 5, event: "Gold Donor Milestone Bonus", points: 500, date: "Nov 20, 2023" },
-    { id: 6, event: "Silver Donor Milestone Bonus", points: 200, date: "Aug 15, 2023" },
-    { id: 7, event: "Bronze Donor Milestone Bonus", points: 100, date: "May 10, 2023" },
-  ]
+  // Real data from backend
+  const [donorName, setDonorName] = useState("")
+  const [donorId, setDonorId] = useState("")
+  const [userPoints, setUserPoints] = useState(0)
+  const [totalDonations, setTotalDonations] = useState(0)
+  const [donorTier, setDonorTier] = useState("NEW")
+  const [pointsHistory, setPointsHistory] = useState([])
+  const [redeemedRewards, setRedeemedRewards] = useState([])
+  const [availableRewards, setAvailableRewards] = useState([])
 
-  // Mock blood bag requests data
-  const bloodBagRequests = [
-    { 
-      id: "REQ-001", 
-      status: "Pending", 
-      requestDate: "Apr 18, 2024", 
-      units: 1, 
-      pointsUsed: 100,
-      bloodBank: null,
-      bloodType: "A+"
-    },
-    { 
-      id: "REQ-002", 
-      status: "Accepted", 
-      requestDate: "Apr 10, 2024", 
-      units: 2, 
-      pointsUsed: 200,
-      bloodBank: "City Blood Bank",
-      acceptedDate: "Apr 11, 2024",
-      expiryDate: "Apr 25, 2024",
-      bloodType: "A+"
-    },
-    { 
-      id: "REQ-003", 
-      status: "Complete", 
-      requestDate: "Mar 25, 2024", 
-      units: 1, 
-      pointsUsed: 100,
-      bloodBank: "Regional Medical Center",
-      acceptedDate: "Mar 26, 2024",
-      completedDate: "Mar 30, 2024",
-      bloodType: "O-"
+  // Fetch user data and reward points on component mount
+  useEffect(() => {
+    fetchRewardPointsData()
+  }, [])
+
+  const fetchRewardPointsData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Get user profile with reward points
+      const userResponse = await fetchWithAuth('/auth/me')
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        setDonorName(userData.name || "")
+        setDonorId(userData.id || "")
+        setUserPoints(userData.rewardPoints || 0)
+        setTotalDonations(userData.totalDonations || 0)
+        setDonorTier(userData.donorTier || "NEW")
+      }
+
+      // Fetch available rewards from backend
+      const rewardsResponse = await fetchWithAuth('/rewards/active')
+      if (rewardsResponse.ok) {
+        const rewardsData = await rewardsResponse.json()
+        if (rewardsData.data) {
+          setAvailableRewards(rewardsData.data)
+        }
+      }
+
+      // Get point history
+      const userId = localStorage.getItem('userId')
+      if (userId) {
+        const historyResponse = await fetchWithAuth(`/reward-points/donor/${userId}/history`)
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
+          if (historyData.data) {
+            // Transform backend data to match frontend format
+            const transformedHistory = historyData.data.map(item => ({
+              id: item.id,
+              event: item.description,
+              points: item.points,
+              date: new Date(item.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+            }))
+            setPointsHistory(transformedHistory)
+          }
+        }
+
+        // Get redemption history
+        const redemptionResponse = await fetchWithAuth(`/reward-points/donor/${userId}/redemptions`)
+        if (redemptionResponse.ok) {
+          const redemptionData = await redemptionResponse.json()
+          if (redemptionData.data) {
+            // Separate blood bag vouchers from other redemptions
+            const bloodBagVouchers = []
+            const otherRedemptions = []
+            const seenIds = new Set() // Track IDs to prevent duplicates
+            
+            redemptionData.data.forEach(item => {
+              // Skip duplicates
+              if (seenIds.has(item.id)) {
+                return;
+              }
+              seenIds.add(item.id);
+              
+              // Include cancelled vouchers so donors can see them
+              // Don't skip cancelled vouchers - donors should see their complete history
+              
+              if (item.rewardType === 'BLOOD_BAG_VOUCHER') {
+                // Extract blood type from title (e.g., "Blood Bag Voucher - A+")
+                const bloodType = item.rewardTitle.split(' - ')[1] || 'Unknown'
+                const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null
+                const isExpired = expiryDate && expiryDate < new Date()
+                const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24)) : null
+                const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7 && daysUntilExpiry > 0
+                
+                bloodBagVouchers.push({
+                  id: item.id,
+                  status: isExpired ? 'Expired' : (item.status === 'PENDING' ? 'Pending' : 
+                          item.status === 'PROCESSING' ? 'Accepted' : 
+                          item.status === 'COMPLETED' ? 'Complete' : 
+                          item.status === 'CANCELLED' ? 'Cancelled' : item.status),
+                  requestDate: new Date(item.redeemedDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  units: 1,
+                  pointsUsed: item.pointsCost,
+                  bloodBank: item.status === 'PENDING' ? null : (item.bloodBankInfo ? item.bloodBankInfo.name : 'RedSource Blood Center'),
+                  bloodBankInfo: item.bloodBankInfo || null,
+                  bloodType: bloodType,
+                  voucherCode: item.voucherCode,
+                  acceptedDate: item.deliveredDate ? new Date(item.deliveredDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }) : null,
+                  expiryDate: expiryDate ? expiryDate.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }) : null,
+                  isExpired,
+                  isExpiringSoon,
+                  daysUntilExpiry,
+                  completedDate: item.status === 'COMPLETED' ? new Date(item.updatedAt).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }) : null
+                })
+              } else {
+                // For other redemptions (medical services, etc.)
+                const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null
+                const isExpired = expiryDate && expiryDate < new Date()
+                const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24)) : null
+                const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7 && daysUntilExpiry > 0
+                
+                otherRedemptions.push({
+                  id: item.id,
+                  title: item.rewardTitle,
+                  redeemedDate: new Date(item.redeemedDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  expiryDate: expiryDate ? expiryDate.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }) : null,
+                  isExpired,
+                  isExpiringSoon,
+                  daysUntilExpiry,
+                  status: isExpired ? 'Expired' : (item.status === 'COMPLETED' ? 'Complete' : 
+                          item.status === 'CANCELLED' ? 'Cancelled' : 
+                          item.status === 'PROCESSING' ? 'Processing' : item.status),
+                  tier: item.tier || null, // Use actual tier from backend, not rewardType
+                  voucherCode: item.voucherCode,
+                  rewardType: item.rewardType,
+                  hospitalInfo: item.hospitalInfo || null,
+                  notes: item.notes || null, // Add notes field for cancellation reasons
+                  acceptedDate: item.hospitalInfo?.acceptedDate ? new Date(item.hospitalInfo.acceptedDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }) : null
+                })
+              }
+            })
+            
+            setBloodBagRequests(bloodBagVouchers)
+            setRedeemedRewards(otherRedemptions)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching reward points data:', error)
+      toast.error('Failed to load reward points data')
+    } finally {
+      setIsLoading(false)
     }
-  ]
+  }
+  
+  // Blood bag requests state
+  const [bloodBagRequests, setBloodBagRequests] = useState([])
 
   // Tiered rewards system
+  // Toggle voucher code visibility
+  const toggleVoucherCodeVisibility = (requestId) => {
+    setVisibleVoucherCodes(prev => ({
+      ...prev,
+      [requestId]: !prev[requestId]
+    }))
+  }
+
   const getDonorTier = (donations) => {
     if (donations >= 25) return { tier: 'gold', name: 'Gold Donor', color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' }
     if (donations >= 10) return { tier: 'silver', name: 'Silver Donor', color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' }
@@ -82,133 +222,21 @@ const RewardsSystem = () => {
   const nextMilestone = totalDonations < 5 ? 5 : totalDonations < 10 ? 10 : totalDonations < 25 ? 25 : null
   const progressToNext = nextMilestone ? ((totalDonations % (nextMilestone === 5 ? 5 : nextMilestone === 10 ? 5 : 15)) / (nextMilestone === 5 ? 5 : nextMilestone === 10 ? 5 : 15)) * 100 : 100
 
-  const availableRewards = [
-    {
-      id: 1,
-      title: "Certificate of Appreciation",
-      description: "Official recognition for your first blood donation",
-      pointsCost: 0,
-      image: "certificate",
-      tier: "certified",
-      autoUnlock: true,
-      unlockCondition: "Complete your first donation"
-    },
-    {
-      id: 2,
-      title: "Bronze Donor Badge",
-      description: "Exclusive badge recognizing 5+ donations",
-      pointsCost: 0,
-      image: "bronze-badge",
-      tier: "bronze",
-      autoUnlock: true,
-      unlockCondition: "Complete 5 donations"
-    },
-    {
-      id: 3,
-      title: "Silver Donor Badge",
-      description: "Premium badge for dedicated donors with 10+ donations",
-      pointsCost: 0,
-      image: "silver-badge",
-      tier: "silver",
-      autoUnlock: true,
-      unlockCondition: "Complete 10 donations"
-    },
-    {
-      id: 4,
-      title: "Gold Donor Badge + Special Recognition",
-      description: "Elite status with special recognition and exclusive benefits",
-      pointsCost: 0,
-      image: "gold-badge",
-      tier: "gold",
-      autoUnlock: true,
-      unlockCondition: "Complete 25 donations"
-    },
-    {
-      id: 5,
-      title: "Free Laboratory Tests",
-      description: "Complete blood work and laboratory analysis",
-      pointsCost: 400,
-      image: "laboratory",
-      tier: "bronze",
-      medicalService: true
-    },
-    {
-      id: 6,
-      title: "Free X-Ray Examination",
-      description: "Chest X-ray or other diagnostic imaging",
-      pointsCost: 600,
-      image: "xray",
-      tier: "silver",
-      medicalService: true
-    },
-    {
-      id: 7,
-      title: "Free MRI Scan",
-      description: "Advanced MRI imaging at partner medical centers",
-      pointsCost: 1200,
-      image: "mri",
-      tier: "gold",
-      medicalService: true
-    },
-    {
-      id: 8,
-      title: "Free Health Check-up",
-      description: "Comprehensive health screening at partner clinics",
-      pointsCost: 300,
-      image: "health-checkup",
-    },
-    {
-      id: 9,
-      title: "Gift Card",
-      description: "₱500 gift card for use at partner stores",
-      pointsCost: 500,
-      image: "gift-card",
-    },
-    {
-      id: 10,
-      title: "Priority Booking",
-      description: "Priority scheduling for your next donation",
-      pointsCost: 150,
-      image: "priority",
-    },
-    {
-      id: 11,
-      title: "Blood Bag Voucher",
-      description: "Convert your points to donate a blood bag to hospitals in need",
-      pointsCost: 100,
-      image: "blood-bag",
-    }
-  ]
-
-  const redeemedRewards = [
-    {
-      id: 1,
-      title: "Certificate of Appreciation",
-      redeemedDate: "Jan 15, 2024",
-      status: "Delivered",
-      tier: "certified"
-    },
-    {
-      id: 2,
-      title: "Bronze Donor Badge",
-      redeemedDate: "May 10, 2023",
-      status: "Delivered",
-      tier: "bronze"
-    },
-    {
-      id: 3,
-      title: "Silver Donor Badge",
-      redeemedDate: "Aug 15, 2023",
-      status: "Delivered",
-      tier: "silver"
-    },
-  ]
-
   // Blood type options
   const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
+  // Group rewards by redeemable location
+  const rewardsByLocation = availableRewards.reduce((acc, reward) => {
+    const location = reward.redeemableAt || 'BOTH'
+    if (!acc[location]) {
+      acc[location] = []
+    }
+    acc[location].push(reward)
+    return acc
+  }, {})
+
   const handleRedeemClick = (reward) => {
-    if (reward.title === "Blood Bag Voucher") {
+    if (reward.rewardType === "BLOOD_BAG_VOUCHER") {
       setSelectedReward(reward)
       setShowVoucherModal(true)
     } else {
@@ -217,13 +245,71 @@ const RewardsSystem = () => {
     }
   }
 
-  const handleConfirmRedeem = () => {
-    // In a real app, this would make an API call to redeem the reward
-    setRedeemSuccess(true)
-    setTimeout(() => {
-      setRedeemSuccess(false)
+  const toggleVoucherVisibility = (rewardId) => {
+    setVisibleVoucherCodes(prev => ({
+      ...prev,
+      [rewardId]: !prev[rewardId]
+    }))
+  }
+
+  const handleConfirmRedeem = async () => {
+    try {
+      const userId = localStorage.getItem('userId')
+      if (!userId || !selectedReward) return
+
+      // Use rewardType from backend, fallback to mapping if not present
+      let rewardType = selectedReward.rewardType || "GENERAL"
+      if (!rewardType) {
+        if (selectedReward.medicalService) {
+          rewardType = "MEDICAL_SERVICE"
+        } else if (selectedReward.autoUnlock) {
+          rewardType = "BADGE"
+        } else if (selectedReward.title.includes("Gift Card")) {
+          rewardType = "GIFT_CARD"
+        } else if (selectedReward.title.includes("Priority")) {
+          rewardType = "PRIORITY_BOOKING"
+        }
+      }
+
+      const response = await fetchWithAuth(`/reward-points/donor/${userId}/redeem`, {
+        method: 'POST',
+        body: JSON.stringify({
+          rewardTitle: selectedReward.title,
+          rewardType: rewardType,
+          pointsCost: selectedReward.pointsCost,
+          tier: selectedReward.tier,
+          redeemableAt: selectedReward.redeemableAt
+        })
+      })
+
+      if (response.ok) {
+        const redemptionData = await response.json()
+        const voucherCode = redemptionData.data?.voucherCode
+        
+        // If medical service or gift card, show voucher code
+        if ((selectedReward.medicalService || selectedReward.rewardType === "MEDICAL_SERVICE" || selectedReward.rewardType === "GIFT_CARD") && voucherCode) {
+          setSelectedReward({...selectedReward, voucherCode: voucherCode})
+        }
+        
+        setRedeemSuccess(true)
+        toast.success(`Successfully redeemed ${selectedReward.title}!`)
+        
+        // Refresh data after redemption
+        setTimeout(async () => {
+          await fetchRewardPointsData()
+          setRedeemSuccess(false)
+          setShowRedeemModal(false)
+        }, 2000)
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to redeem reward')
+        setShowRedeemModal(false)
+      }
+    } catch (error) {
+      console.error('Error redeeming reward:', error)
+      toast.error('Failed to redeem reward')
       setShowRedeemModal(false)
-    }, 2000)
+    }
   }
 
   const getRewardIcon = (imageName) => {
@@ -257,8 +343,10 @@ const RewardsSystem = () => {
 
   // Helper functions for tiered system
   const isRewardUnlocked = (reward) => {
+    const tier = reward.tier?.toLowerCase()
+    
     if (reward.autoUnlock) {
-      switch (reward.tier) {
+      switch (tier) {
         case 'certified': return totalDonations >= 1
         case 'bronze': return totalDonations >= 5
         case 'silver': return totalDonations >= 10
@@ -266,8 +354,8 @@ const RewardsSystem = () => {
         default: return true
       }
     }
-    if (reward.tier) {
-      switch (reward.tier) {
+    if (tier) {
+      switch (tier) {
         case 'bronze': return totalDonations >= 5
         case 'silver': return totalDonations >= 10
         case 'gold': return totalDonations >= 25
@@ -279,9 +367,10 @@ const RewardsSystem = () => {
 
   const isRewardAlreadyEarned = (reward) => {
     if (reward.autoUnlock) {
-      return redeemedRewards.some(r => r.id === reward.id)
+      // Auto-unlock badges are automatically earned when unlocked
+      return isRewardUnlocked(reward)
     }
-    return false
+    return redeemedRewards.some(r => r.id === reward.id)
   }
 
   const getTierIcon = (tier) => {
@@ -294,20 +383,83 @@ const RewardsSystem = () => {
     }
   }
 
-  const handleCreateBloodBagRequest = () => {
-    // In a real app, this would make an API call to create a blood bag request
-    toast.success(`Blood bag voucher request created successfully for ${selectedBloodType} blood type. Your request is now pending.`);
-    setShowVoucherModal(false);
-    setShowBloodBagRequestsTab(true);
-    setActiveTab("bloodBagRequests");
+  const getRedeemableAtIcon = (redeemableAt) => {
+    switch (redeemableAt) {
+      case 'HOSPITAL': return <Building2 className="w-4 h-4 text-blue-600" />
+      case 'BLOODBANK': return <Heart className="w-4 h-4 text-red-600" />
+      case 'BOTH': return <Gift className="w-4 h-4 text-purple-600" />
+      default: return <Gift className="w-4 h-4 text-gray-600" />
+    }
+  }
+
+  const getRedeemableAtLabel = (redeemableAt) => {
+    switch (redeemableAt) {
+      case 'HOSPITAL': return 'Hospital Only'
+      case 'BLOODBANK': return 'Blood Bank Only'
+      case 'BOTH': return 'Both Locations'
+      default: return 'Unknown'
+    }
+  }
+
+  const handleCreateBloodBagRequest = async () => {
+    try {
+      const userId = localStorage.getItem('userId')
+      if (!userId) return
+
+      const response = await fetchWithAuth(`/reward-points/donor/${userId}/redeem`, {
+        method: 'POST',
+        body: JSON.stringify({
+          rewardTitle: `Blood Bag Voucher - ${selectedBloodType}`,
+          rewardType: "BLOOD_BAG_VOUCHER",
+          pointsCost: 100,
+          tier: selectedReward?.tier || null,
+          redeemableAt: "BLOODBANK"
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success(`Blood bag voucher created successfully for ${selectedBloodType} blood type!`)
+        
+        // Add the new request to the list
+        const newRequest = {
+          id: result.data.id,
+          status: result.data.status,
+          requestDate: new Date(result.data.redeemedDate).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }),
+          units: selectedVoucherAmount,
+          pointsUsed: 100,
+          bloodBank: null,
+          bloodType: selectedBloodType,
+          voucherCode: result.data.voucherCode
+        }
+        
+        setBloodBagRequests(prev => [newRequest, ...prev])
+        setShowVoucherModal(false)
+        setShowBloodBagRequestsTab(true)
+        setActiveTab("bloodBagRequests")
+        
+        // Refresh data to update points balance
+        await fetchRewardPointsData()
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to create blood bag voucher')
+      }
+    } catch (error) {
+      console.error('Error creating blood bag request:', error)
+      toast.error('Failed to create blood bag voucher')
+    }
   }
 
   const handlePrintVoucher = (request) => {
     // Create the voucher content as a new window
     const voucherWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // Generate a validation code (in a real app, this would be stored in the database)
-    const validationCode = `${request.id}-${Math.floor(100000 + Math.random() * 900000)}`;
+    // Use the voucher code from the database
+    const validationCode = request.voucherCode || `${request.id}-${Math.floor(100000 + Math.random() * 900000)}`;
     
     // Get current date for the voucher issue date
     const issueDate = new Date().toLocaleDateString('en-US', {
@@ -682,15 +834,15 @@ const RewardsSystem = () => {
                 </div>
                 <div class="info-item">
                   <div class="info-label">Location</div>
-                  <div class="info-value">Main Branch</div>
+                  <div class="info-value">${request.bloodBankInfo?.address || 'Main Branch'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Contact</div>
-                  <div class="info-value">(02) 8123-4567</div>
+                  <div class="info-value">${request.bloodBankInfo?.phone || '(02) 8123-4567'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Hours</div>
-                  <div class="info-value">Monday - Saturday, 8:00 AM - 5:00 PM</div>
+                  <div class="info-value">${request.bloodBankInfo?.operatingHours || 'Monday - Saturday, 8:00 AM - 5:00 PM'}</div>
                 </div>
               </div>
             </div>
@@ -840,12 +992,12 @@ const RewardsSystem = () => {
               <div className="flex items-center">
                 <div className={`p-3 rounded-xl mr-4 ${
                   request.status === 'Pending' ? 'bg-yellow-50' : 
-                  request.status === 'Accepted' ? 'bg-blue-50' : 'bg-green-50'
+                  request.status === 'Accepted' ? 'bg-green-50' : 'bg-green-50'
                 }`}>
                   {request.status === 'Pending' ? 
                     <FiClock className={`w-6 h-6 text-yellow-600`} /> : 
                     request.status === 'Accepted' ? 
-                    <FiCheckCircle className={`w-6 h-6 text-blue-600`} /> :
+                    <FiCheckCircle className={`w-6 h-6 text-green-600`} /> :
                     <FiCheckCircle className={`w-6 h-6 text-green-600`} />
                   }
                 </div>
@@ -855,15 +1007,85 @@ const RewardsSystem = () => {
                 </div>
               </div>
               <span className={`px-4 py-2 rounded-lg text-xs font-medium ${
+                request.status === 'Expired' ? 'bg-red-100 text-red-800' :
                 request.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
-                request.status === 'Accepted' ? 'bg-blue-100 text-blue-800' : 
-                'bg-green-100 text-green-800'
+                request.status === 'Accepted' ? 'bg-green-100 text-green-800' : 
+                request.status === 'Complete' || request.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                request.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
               }`}>
                 {request.status}
               </span>
             </div>
             
+            {/* Expiration Warning for Blood Bag Requests */}
+            {request.isExpiringSoon && !request.isExpired && (
+              <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                  <div>
+                    <p className="text-sm font-semibold text-yellow-800">Expiring Soon!</p>
+                    <p className="text-xs text-yellow-700">
+                      This voucher expires in {request.daysUntilExpiry} day{request.daysUntilExpiry !== 1 ? 's' : ''} on {request.expiryDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Expired Notice for Blood Bag Requests */}
+            {request.isExpired && (
+              <div className="mt-3 bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg">
+                <div className="flex items-center">
+                  <X className="w-5 h-5 text-red-600 mr-2" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Expired</p>
+                    <p className="text-xs text-red-700">
+                      This voucher expired on {request.expiryDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="border-t border-gray-100 pt-3 mt-3">
+              {/* Voucher Code Display - Prominent with Show/Hide */}
+              {request.voucherCode && (
+                <div className={`mb-4 p-4 border-2 rounded-lg ${
+                  request.status === 'Cancelled' ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200' :
+                  request.status === 'Complete' || request.status === 'Completed' || request.status === 'Accepted' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' :
+                  'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200'
+                }`}>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Your Voucher Code</p>
+                    {visibleVoucherCodes[request.id] ? (
+                      <p className={`text-2xl font-bold tracking-wider font-mono ${
+                        request.status === 'Cancelled' ? 'text-red-600' :
+                        request.status === 'Complete' || request.status === 'Completed' || request.status === 'Accepted' ? 'text-green-600' :
+                        'text-yellow-600'
+                      }`}>{request.voucherCode}</p>
+                    ) : (
+                      <p className="text-2xl font-bold text-gray-400 tracking-wider font-mono">••••••••••••</p>
+                    )}
+                    <button
+                      onClick={() => toggleVoucherCodeVisibility(request.id)}
+                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline flex items-center justify-center mx-auto"
+                    >
+                      {visibleVoucherCodes[request.id] ? (
+                        <>
+                          <FiX className="mr-1" size={12} /> Hide Code
+                        </>
+                      ) : (
+                        <>
+                          <FiCheck className="mr-1" size={12} /> Show Code
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2">Show this code to the blood bank for redemption</p>
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="text-sm">
                   <span className="text-gray-500">Blood Bag Units:</span>
@@ -878,9 +1100,22 @@ const RewardsSystem = () => {
                   <span className="ml-2 font-medium text-red-600">{request.bloodType}</span>
                 </div>
                 {request.bloodBank && (
-                  <div className="text-sm col-span-1">
+                  <div className="text-sm col-span-2">
                     <span className="text-gray-500">Blood Bank:</span>
                     <span className="ml-2 font-medium">{request.bloodBank}</span>
+                    {request.bloodBankInfo && (
+                      <div className="mt-1 text-xs text-gray-400">
+                        {request.bloodBankInfo.address && (
+                          <div>📍 {request.bloodBankInfo.address}</div>
+                        )}
+                        {request.bloodBankInfo.phone && (
+                          <div>📞 {request.bloodBankInfo.phone}</div>
+                        )}
+                        {request.bloodBankInfo.operatingHours && (
+                          <div>🕒 {request.bloodBankInfo.operatingHours}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 {request.acceptedDate && (
@@ -910,7 +1145,7 @@ const RewardsSystem = () => {
                 {request.status === 'Accepted' && (
                   <button
                     onClick={() => handlePrintVoucher(request)}
-                    className="w-full py-2 bg-blue-600 text-white rounded-md flex items-center justify-center"
+                    className="w-full py-2 bg-blue-600 text-white rounded-md flex items-center justify-center hover:bg-blue-700 transition-colors"
                   >
                     <FiPrinter className="mr-2" /> Print Voucher
                   </button>
@@ -947,6 +1182,18 @@ const RewardsSystem = () => {
       )}
     </div>
   );
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your rewards...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative">
@@ -1017,6 +1264,27 @@ const RewardsSystem = () => {
               </div>
             )}
           </div>
+          
+          {/* Earned Achievement Badges */}
+          {availableRewards.filter(reward => reward.autoUnlock && isRewardAlreadyEarned(reward)).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">Your Achievement Badges:</p>
+              <div className="flex flex-wrap gap-2">
+                {availableRewards.filter(reward => reward.autoUnlock && isRewardAlreadyEarned(reward)).map((reward) => (
+                  <div
+                    key={reward.id}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg"
+                  >
+                    <div className="text-green-600">
+                      {getRewardIcon(reward.image)}
+                    </div>
+                    <span className="text-sm font-medium text-green-800">{reward.title}</span>
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tabs Navigation */}
@@ -1064,162 +1332,118 @@ const RewardsSystem = () => {
         </div>
 
         {activeTab === "available" && (
-          <div className="space-y-6">
-            {/* Auto-unlock Achievements */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FiAward className="text-[#C91C1C]" />
-                Achievement Badges
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {availableRewards.filter(reward => reward.autoUnlock).map((reward) => {
-                  const unlocked = isRewardUnlocked(reward)
-                  const earned = isRewardAlreadyEarned(reward)
-                  return (
-                    <div
-                      key={reward.id}
-                      className={`border-2 rounded-xl p-4 transition-all ${
-                        earned ? 'border-green-200 bg-green-50' :
-                        unlocked ? 'border-blue-200 bg-blue-50' :
-                        'border-gray-200 bg-gray-50 opacity-60'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`p-3 rounded-xl ${
-                          earned ? 'bg-green-100' :
-                          unlocked ? 'bg-blue-100' :
-                          'bg-gray-100'
-                        }`}>
-                          {getRewardIcon(reward.image)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-gray-800">{reward.title}</h4>
-                            {earned && <Check className="w-4 h-4 text-green-600" />}
-                            {unlocked && !earned && <Star className="w-4 h-4 text-blue-600" />}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{reward.description}</p>
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              earned ? 'bg-green-100 text-green-800' :
-                              unlocked ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
-                              {earned ? 'Earned' : unlocked ? 'Available' : reward.unlockCondition}
-                            </span>
-                            {unlocked && !earned && (
-                              <button
-                                onClick={() => handleRedeemClick(reward)}
-                                className="px-3 py-1 bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white rounded-lg text-sm font-medium hover:shadow-md transition-all"
-                              >
-                                Claim
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+          <div className="space-y-8">
+            {/* Rewards grouped by location */}
+            {Object.keys(rewardsByLocation).map((location) => (
+              <div key={location}>
+                {/* Location Header */}
+                <div className={`mb-4 p-4 rounded-xl ${
+                  location === 'HOSPITAL' ? 'bg-blue-50 border-2 border-blue-200' :
+                  location === 'BLOODBANK' ? 'bg-red-50 border-2 border-red-200' :
+                  'bg-purple-50 border-2 border-purple-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      location === 'HOSPITAL' ? 'bg-blue-100' :
+                      location === 'BLOODBANK' ? 'bg-red-100' :
+                      'bg-purple-100'
+                    }`}>
+                      {getRedeemableAtIcon(location)}
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Medical Services */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Stethoscope className="text-[#C91C1C]" />
-                Medical Services
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {availableRewards.filter(reward => reward.medicalService).map((reward) => {
-                  const unlocked = isRewardUnlocked(reward)
-                  return (
-                    <div
-                      key={reward.id}
-                      className={`border border-gray-200 rounded-xl p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition-all ${
-                        !unlocked ? 'opacity-60' : ''
-                      }`}
-                    >
-                      <div className={`p-3 rounded-xl ${
-                        unlocked ? 'bg-red-50' : 'bg-gray-100'
-                      }`}>
-                        {getRewardIcon(reward.image)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-gray-800">{reward.title}</h4>
-                          {reward.tier && (
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              reward.tier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                              reward.tier === 'silver' ? 'bg-gray-100 text-gray-800' :
-                              'bg-orange-100 text-orange-800'
-                            }`}>
-                              {reward.tier.charAt(0).toUpperCase() + reward.tier.slice(1)} Tier
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">{reward.description}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm">
-                            {reward.pointsCost} points
-                          </span>
-                          <button
-                            onClick={() => handleRedeemClick(reward)}
-                            disabled={userPoints < reward.pointsCost || !unlocked}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                              userPoints >= reward.pointsCost && unlocked
-                                ? "bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white hover:shadow-md"
-                                : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                            }`}
-                          >
-                            {!unlocked ? `Requires ${reward.tier} Tier` :
-                             userPoints >= reward.pointsCost ? "Redeem" : "Not Enough Points"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Regular Rewards */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Gift className="text-[#C91C1C]" />
-                General Rewards
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {availableRewards.filter(reward => !reward.autoUnlock && !reward.medicalService).map((reward) => (
-                  <div
-                    key={reward.id}
-                    className="bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition-all"
-                  >
-                    <div className="bg-red-50 p-3 rounded-xl">{getRewardIcon(reward.image)}</div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 text-base">{reward.title}</h4>
-                      <p className="text-sm text-gray-600 mb-3">{reward.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm">
-                          {reward.pointsCost} points
-                        </span>
-                        <button
-                          onClick={() => handleRedeemClick(reward)}
-                          disabled={userPoints < reward.pointsCost}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                            userPoints >= reward.pointsCost
-                              ? "bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white hover:shadow-md"
-                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                          }`}
-                        >
-                          {userPoints >= reward.pointsCost ? "Redeem" : "Not Enough Points"}
-                        </button>
-                      </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {getRedeemableAtLabel(location)}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {rewardsByLocation[location].length} reward{rewardsByLocation[location].length !== 1 ? 's' : ''} available
+                      </p>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Rewards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {rewardsByLocation[location].map((reward) => {
+                    const unlocked = isRewardUnlocked(reward)
+                    const earned = isRewardAlreadyEarned(reward)
+                    const isMedicalService = reward.rewardType === "MEDICAL_SERVICE"
+                    const isBloodBag = reward.rewardType === "BLOOD_BAG_VOUCHER"
+                    const isAutoUnlock = reward.autoUnlock
+                    
+                    return (
+                      <div
+                        key={reward.id}
+                        className={`border-2 rounded-xl p-4 transition-all ${
+                          earned ? 'border-green-200 bg-green-50' :
+                          unlocked && isAutoUnlock ? 'border-blue-200 bg-blue-50' :
+                          unlocked ? 'border-gray-200 bg-white shadow-sm hover:shadow-md' :
+                          'border-gray-200 bg-gray-50 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-3 rounded-xl ${
+                            earned ? 'bg-green-100' :
+                            unlocked && isAutoUnlock ? 'bg-blue-100' :
+                            unlocked ? 'bg-red-50' :
+                            'bg-gray-100'
+                          }`}>
+                            {getRewardIcon(reward.image)}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-gray-800">{reward.title}</h4>
+                              {earned && <Check className="w-4 h-4 text-green-600" />}
+                              {unlocked && !earned && isAutoUnlock && <Star className="w-4 h-4 text-blue-600" />}
+                              {reward.tier && !isAutoUnlock && (
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  reward.tier.toLowerCase() === 'gold' ? 'bg-yellow-100 text-yellow-800' :
+                                  reward.tier.toLowerCase() === 'silver' ? 'bg-gray-100 text-gray-800' :
+                                  reward.tier.toLowerCase() === 'bronze' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {reward.tier.charAt(0).toUpperCase() + reward.tier.slice(1).toLowerCase()} Tier
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{reward.description}</p>
+                            
+                            <div className="flex items-center justify-between">
+                              {isAutoUnlock ? (
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  earned ? 'bg-green-100 text-green-800' :
+                                  unlocked ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {earned ? 'Earned' : unlocked ? 'Unlocked' : reward.unlockCondition}
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm">
+                                    {reward.pointsCost} points
+                                  </span>
+                                  <button
+                                    onClick={() => handleRedeemClick(reward)}
+                                    disabled={userPoints < reward.pointsCost || !unlocked}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                      userPoints >= reward.pointsCost && unlocked
+                                        ? "bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white hover:shadow-md"
+                                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                    }`}
+                                  >
+                                    {!unlocked ? `Requires ${reward.tier?.toLowerCase()} Tier` :
+                                     userPoints >= reward.pointsCost ? "Redeem" : "Not Enough Points"}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         )}
 
@@ -1227,33 +1451,203 @@ const RewardsSystem = () => {
           <div className="space-y-4">
             {redeemedRewards.length > 0 ? (
               redeemedRewards.map((reward) => (
-                <div key={reward.id} className="bg-white border border-gray-200 rounded-xl p-5 flex items-center shadow-sm hover:shadow-md transition-all">
-                  <div className="bg-green-50 p-3 rounded-xl mr-4">
-                    <Check className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-800 text-lg">{reward.title}</h3>
-                      {reward.tier && (
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          reward.tier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                          reward.tier === 'silver' ? 'bg-gray-100 text-gray-800' :
-                          reward.tier === 'bronze' ? 'bg-orange-100 text-orange-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {reward.tier.charAt(0).toUpperCase() + reward.tier.slice(1)} Achievement
-                        </span>
-                      )}
+                <div key={reward.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
+                  {/* Header with title and status */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${
+                        reward.status === 'Cancelled' ? 'bg-red-50' : 'bg-green-50'
+                      }`}>
+                        {reward.status === 'Cancelled' ? (
+                          <FiX className="w-5 h-5 text-red-600" />
+                        ) : (
+                          <Check className="w-5 h-5 text-green-600" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-800 text-lg">{reward.title}</h3>
+                          {reward.tier && reward.tier !== 'gift_card' && (
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              reward.tier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
+                              reward.tier === 'silver' ? 'bg-gray-100 text-gray-800' :
+                              reward.tier === 'bronze' ? 'bg-orange-100 text-orange-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {reward.tier.charAt(0).toUpperCase() + reward.tier.slice(1)} Achievement
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">Redeemed on {reward.redeemedDate}</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600">Redeemed on {reward.redeemedDate}</p>
+                    <span
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                        reward.status === "Expired" ? "bg-red-100 text-red-800" :
+                        reward.status === "Complete" || reward.status === "Completed" ? "bg-green-100 text-green-800" : 
+                        reward.status === "Cancelled" ? "bg-red-100 text-red-800" :
+                        reward.status === "Processing" ? "bg-blue-100 text-blue-800" :
+                        "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {reward.status}
+                    </span>
                   </div>
-                  <span
-                    className={`px-4 py-2 rounded-lg text-xs font-medium ${
-                      reward.status === "Delivered" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {reward.status}
-                  </span>
+                  
+                  {/* Expiration Warning */}
+                  {reward.isExpiringSoon && !reward.isExpired && (
+                    <div className="mb-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg">
+                      <div className="flex items-center">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                        <div>
+                          <p className="text-sm font-semibold text-yellow-800">Expiring Soon!</p>
+                          <p className="text-xs text-yellow-700">
+                            This reward expires in {reward.daysUntilExpiry} day{reward.daysUntilExpiry !== 1 ? 's' : ''} on {reward.expiryDate}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Expired Notice */}
+                  {reward.isExpired && (
+                    <div className="mb-3 bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg">
+                      <div className="flex items-center">
+                        <X className="w-5 h-5 text-red-600 mr-2" />
+                        <div>
+                          <p className="text-sm font-semibold text-red-800">Expired</p>
+                          <p className="text-xs text-red-700">
+                            This reward expired on {reward.expiryDate}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Voucher code section for medical services and gift cards */}
+                  {reward.voucherCode && (reward.rewardType === 'MEDICAL_SERVICE' || reward.rewardType === 'GIFT_CARD') && (
+                    <div className={`mt-3 border-2 rounded-lg p-4 ${
+                      reward.status === 'Cancelled' ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200' :
+                      reward.status === 'Complete' || reward.status === 'Completed' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' :
+                      'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200'
+                    }`}>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-600 mb-2">Your Voucher Code</p>
+                        {visibleVoucherCodes[reward.id] ? (
+                          <p className={`text-2xl font-bold tracking-wider font-mono ${
+                            reward.status === 'Cancelled' ? 'text-red-600' :
+                            reward.status === 'Complete' || reward.status === 'Completed' ? 'text-green-600' :
+                            'text-yellow-600'
+                          }`}>
+                            {reward.voucherCode}
+                          </p>
+                        ) : (
+                          <p className="text-2xl font-bold text-gray-400 tracking-wider">
+                            •••••••••••••••
+                          </p>
+                        )}
+                        <button
+                          onClick={() => toggleVoucherVisibility(reward.id)}
+                          className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline flex items-center justify-center mx-auto"
+                        >
+                          {visibleVoucherCodes[reward.id] ? (
+                            <>
+                              <X className="mr-1 w-3 h-3" /> Hide Code
+                            </>
+                          ) : (
+                            <>
+                              <Check className="mr-1 w-3 h-3" /> Show Code
+                            </>
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {reward.rewardType === 'MEDICAL_SERVICE' 
+                            ? 'Show this code to the hospital for redemption'
+                            : 'Use this code to redeem your reward'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hospital information section for medical services */}
+                  {reward.rewardType === 'MEDICAL_SERVICE' && reward.hospitalInfo && (
+                    <div className={`mt-3 border-2 rounded-lg p-4 ${
+                      reward.status === 'Cancelled' 
+                        ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200' 
+                        : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                    }`}>
+                      <div className="flex items-center mb-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                          reward.status === 'Cancelled' ? 'bg-red-100' : 'bg-green-100'
+                        }`}>
+                          {reward.status === 'Cancelled' ? (
+                            <FiX className="w-4 h-4 text-red-600" />
+                          ) : (
+                            <Building2 className="w-4 h-4 text-green-600" />
+                          )}
+                        </div>
+                        <h4 className={`text-sm font-semibold ${
+                          reward.status === 'Cancelled' ? 'text-red-800' : 'text-green-800'
+                        }`}>
+                          {reward.status === 'Cancelled' ? 'Rejected by Hospital' : 'Accepted by Hospital'}
+                        </h4>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm">
+                          <span className="text-gray-600 font-medium w-20">🏥 Hospital:</span>
+                          <span className="text-gray-900 font-semibold">{reward.hospitalInfo.name}</span>
+                        </div>
+                        
+                        {reward.hospitalInfo.address && (
+                          <div className="flex items-start text-sm">
+                            <span className="text-gray-600 font-medium w-20">📍 Address:</span>
+                            <span className="text-gray-700">{reward.hospitalInfo.address}</span>
+                          </div>
+                        )}
+                        
+                        {reward.hospitalInfo.phone && (
+                          <div className="flex items-center text-sm">
+                            <span className="text-gray-600 font-medium w-20">📞 Phone:</span>
+                            <span className="text-gray-700">{reward.hospitalInfo.phone}</span>
+                          </div>
+                        )}
+                        
+                        {reward.status === 'Cancelled' && reward.notes && (
+                          <div className="flex items-start text-sm">
+                            <span className="text-gray-600 font-medium w-20">❌ Reason:</span>
+                            <span className="text-red-700 font-medium">
+                              {reward.notes.replace(/ \[Hospital ID: [^\]]+\]/g, '')}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {reward.acceptedDate && reward.status !== 'Cancelled' && (
+                          <div className="flex items-center text-sm">
+                            <span className="text-gray-600 font-medium w-20">📅 Accepted:</span>
+                            <span className="text-gray-700 font-medium">{reward.acceptedDate}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pending validation message for medical services without hospital info */}
+                  {reward.rewardType === 'MEDICAL_SERVICE' && !reward.hospitalInfo && reward.status === 'Processing' && (
+                    <div className="mt-3 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                          <Clock className="w-4 h-4 text-yellow-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-yellow-800">Pending Hospital Validation</h4>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            Present your voucher code to a participating hospital for validation.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -1307,8 +1701,8 @@ const RewardsSystem = () => {
                         <tr key={item.id} className="hover:bg-red-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.event}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.date}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium text-right">
-                            +{item.points}
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${item.points >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {item.points >= 0 ? '+' : ''}{item.points}
                           </td>
                         </tr>
                       ))}
@@ -1404,7 +1798,23 @@ const RewardsSystem = () => {
                   </div>
                   <h3 className="text-xl font-bold text-gray-900">Redemption Successful!</h3>
                   <p className="text-gray-600 mt-2">Your reward has been successfully redeemed.</p>
-                  <p className="text-gray-500 text-sm mt-4">You will receive further details via email shortly.</p>
+                  
+                  {/* Show voucher code for medical services */}
+                  {selectedReward?.medicalService && selectedReward?.voucherCode && (
+                    <div className="mt-6 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-2">Your Voucher Code:</p>
+                      <p className="text-2xl font-bold text-[#C91C1C] tracking-wider font-mono">
+                        {selectedReward.voucherCode}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Present this code at any partner hospital to redeem your service
+                      </p>
+                    </div>
+                  )}
+                  
+                  {!selectedReward?.medicalService && (
+                    <p className="text-gray-500 text-sm mt-4">You will receive further details via email shortly.</p>
+                  )}
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Droplet, 
@@ -14,8 +14,11 @@ import {
   Truck,
   Edit
 } from 'lucide-react';
+import { fetchWithAuth } from '../../utils/api';
+import { useNavigate } from 'react-router-dom';
 
 export default function ViewRequests({ hospital, onClose }) {
+  const navigate = useNavigate();
   // State for expanded details
   const [expandedDetails, setExpandedDetails] = useState(null);
   // State for tracking which requests are selected via checkboxes
@@ -44,103 +47,73 @@ export default function ViewRequests({ hospital, onClose }) {
   const [selectedRequestDetails, setSelectedRequestDetails] = useState([]);
   
   // State for tracking updated requests
-  const [requests, setRequests] = useState([
-    {
-      id: "REQ-1001",
-      bloodType: "O+",
-      units: 2,
-      requestedBy: "Dr. Sarah Johnson",
-      contactNumber: "(555) 234-5678",
-      requestDate: "2023-08-15",
-      status: "Pending",
-      notes: "Required for emergency surgery scheduled tomorrow morning."
-    },
-    {
-      id: "REQ-1005",
-      bloodType: "A+",
-      units: 3,
-      requestedBy: "Dr. Thomas Rivera",
-      contactNumber: "(555) 123-4567",
-      requestDate: "2023-08-18",
-      status: "Pending",
-      notes: "Patient undergoing major surgery requires blood transfusion during procedure."
-    },
-    {
-      id: "REQ-1006",
-      bloodType: "B-",
-      units: 1,
-      requestedBy: "Dr. Jessica Patel",
-      contactNumber: "(555) 987-6543",
-      requestDate: "2023-08-19",
-      status: "Pending",
-      notes: "Anemic patient requires transfusion. Urgent but not emergency."
-    },
-    {
-      id: "REQ-1009",
-      bloodType: "O-",
-      units: 4,
-      requestedBy: "Dr. Mark Williams",
-      contactNumber: "(555) 555-5555",
-      requestDate: "2023-08-20",
-      status: "Pending",
-      notes: "Multiple trauma patient in critical condition. High priority."
-    },
-    {
-      id: "REQ-1012",
-      bloodType: "AB+",
-      units: 2,
-      requestedBy: "Dr. Lisa Chen",
-      contactNumber: "(555) 222-3333",
-      requestDate: "2023-08-20",
-      status: "Pending",
-      notes: "Scheduled transfusion for chronic condition patient."
-    },
-    {
-      id: "REQ-1002",
-      bloodType: "A-",
-      units: 3,
-      requestedBy: "Dr. Michael Chen",
-      contactNumber: "(555) 876-5432",
-      requestDate: "2023-08-16",
-      status: "Scheduled",
-      notes: "Needed for scheduled transfusion next week."
-    },
-    {
-      id: "REQ-1003",
-      bloodType: "B+",
-      units: 1,
-      requestedBy: "Dr. Emily Roberts",
-      contactNumber: "(555) 345-6789",
-      requestDate: "2023-08-17",
-      status: "In Transit",
-      notes: "Patient with severe anemia requires immediate transfusion."
-    },
-    {
-      id: "REQ-1004",
-      bloodType: "AB-",
-      units: 2,
-      requestedBy: "Dr. James Wilson",
-      contactNumber: "(555) 777-8888",
-      requestDate: "2023-08-14",
-      status: "Complete",
-      notes: "Successful transfusion completed."
-    }
-  ]);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Get current blood bank ID from localStorage
+  const bloodBankId = localStorage.getItem('userId');
+  
+  // Fetch hospital requests from backend
+  useEffect(() => {
+    const fetchHospitalRequests = async () => {
+      if (!bloodBankId) {
+        setError('Blood bank ID not found');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log(`Fetching requests for blood bank: ${bloodBankId}`);
+        
+        const response = await fetchWithAuth(`/hospital-requests/bloodbank/${bloodBankId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Hospital requests response:', data);
+          
+          const hospitalRequests = data.data || [];
+          
+          // Transform backend data to match component format
+          const transformedRequests = hospitalRequests.map(request => ({
+            id: request.id || request._id,
+            requestId: request.id || request._id,
+            hospitalId: request.hospital_id || request.hospitalId,
+            hospitalName: request.hospital_name || request.hospitalName,
+            hospitalAddress: request.hospital_address || request.hospitalAddress || 'N/A',
+            bloodItems: request.blood_items || request.bloodItems || [],
+            requestedBy: request.hospital_name || request.hospitalName,
+            contactNumber: request.contact_information || request.contactInformation || request.hospital_phone || request.hospitalPhone || 'N/A',
+            requestDate: new Date(request.request_date || request.requestDate).toLocaleDateString(),
+            dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleDateString(),
+            status: request.status || 'PENDING',
+            notes: request.notes || 'No notes provided'
+          }));
+          
+          console.log('Transformed requests:', transformedRequests);
+          setRequests(transformedRequests);
+        } else {
+          const errorData = await response.json();
+          setError(errorData.message || 'Failed to fetch hospital requests');
+        }
+      } catch (err) {
+        console.error('Error fetching hospital requests:', err);
+        setError('Failed to load hospital requests');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHospitalRequests();
+  }, [bloodBankId]);
   
   if (!hospital) return null;
   
-  // Filter requests based on hospital's delivery status
+  // Filter requests to show only those from this specific hospital
   const filteredRequests = requests.filter(request => {
-    if (hospital.deliveryStatus === "Pending") {
-      return request.status === "Pending";
-    } else if (hospital.deliveryStatus === "Scheduled") {
-      return request.status === "Scheduled";
-    } else if (hospital.deliveryStatus === "In Transit") {
-      return request.status === "In Transit";
-    } else if (hospital.deliveryStatus === "Complete") {
-      return request.status === "Complete";
-    }
-    return false;
+    // Match by hospital ID
+    return request.hospitalId === hospital.id;
   });
   
   // Toggle details view
@@ -195,24 +168,10 @@ export default function ViewRequests({ hospital, onClose }) {
     setShowConfirmation(true);
   };
   
-  // Handle schedule delivery confirmation
-  const handleScheduleDelivery = () => {
-    if (!requestToSchedule) return;
-    
-    setRequests(prevRequests => 
-      prevRequests.map(request => 
-        request.id === requestToSchedule.id
-          ? {...request, status: "In Transit"}
-          : request
-      )
-    );
-    
-    setShowConfirmation(false);
-    setRequestToSchedule(null);
-    alert(`Delivery for request ${requestToSchedule.id} has been scheduled`);
+
+  const handleScheduleDelivery = (request) => {
+    navigate('/schedule', { state: { selectedRequest: request, selectedHospital: hospital } });
   };
-  
-  // Get status badge color
   const getStatusBadge = (status) => {
     switch(status.toLowerCase()) {
       case 'scheduled': 
@@ -382,30 +341,36 @@ export default function ViewRequests({ hospital, onClose }) {
           </button>
         </div>
         
-        {/* Hospital Info with Status */}
+        {/* Hospital Info */}
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Hospital Information</p>
-              <h3 className="font-medium text-lg">{hospital.name}</h3>
-              <p className="text-sm text-gray-600 flex items-center mt-1">
-                <Phone className="w-4 h-4 mr-1.5 text-gray-400" /> {hospital.phone}
-              </p>
-            </div>
-            
-            <div className="flex flex-col items-start md:items-end">
-              <p className="text-sm text-gray-500">Status</p>
-              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium inline-flex items-center border ${getStatusBadge(hospital.deliveryStatus)}`}>
-                {getStatusIcon(hospital.deliveryStatus)}
-                {hospital.deliveryStatus}
-              </span>
-            </div>
+          <div>
+            <p className="text-sm text-gray-500">Hospital Information</p>
+            <h3 className="font-medium text-lg">{hospital.name}</h3>
+            <p className="text-sm text-gray-600 flex items-center mt-1">
+              <Phone className="w-4 h-4 mr-1.5 text-gray-400" /> {hospital.phone}
+            </p>
           </div>
         </div>
         
         {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto">
-          {filteredRequests.length > 0 ? (
+          {loading ? (
+            <div className="p-8 text-center text-gray-500">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <Clock className="w-8 h-8 text-gray-400 animate-spin" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">Loading Requests...</h3>
+              <p className="text-sm text-gray-500">Please wait while we fetch the hospital requests.</p>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-500">
+              <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">Error Loading Requests</h3>
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : filteredRequests.length > 0 ? (
             <div className="divide-y divide-gray-200">
               {filteredRequests.map((request, index) => (
                 <div key={index} className="p-6 hover:bg-gray-50 transition-colors">
@@ -422,7 +387,7 @@ export default function ViewRequests({ hospital, onClose }) {
                         
                         <div className="flex items-center mt-2 text-sm text-gray-600">
                           <Calendar className="w-4 h-4 mr-1.5 text-gray-400" />
-                          Requested on {request.requestDate}
+                          Needed by {request.dateNeeded}
                         </div>
                       </div>
                     </div>
@@ -436,6 +401,15 @@ export default function ViewRequests({ hospital, onClose }) {
                         }`}
                       >
                         <FileText className="w-4 h-4 mr-1.5" /> Details
+                      </button>
+                      <button
+                        onClick={() => handleScheduleDelivery(request)}
+                        disabled={request.status !== 'PENDING'}
+                        className={`px-3 py-1.5 text-sm text-white rounded-lg hover:bg-green-700 transition-all flex items-center shadow-sm ${
+                          request.status !== 'PENDING' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600'
+                        }`}
+                      >
+                        <Truck className="w-4 h-4 mr-1.5" /> Schedule
                       </button>
                       
                       
@@ -456,13 +430,15 @@ export default function ViewRequests({ hospital, onClose }) {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 bg-gray-50 p-4 rounded-lg">
                       <div>
                         <p className="text-sm text-gray-500 mb-1">Blood Type & Units</p>
-                        <div className="flex items-center">
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium mr-3 ${getBloodTypeBadge(request.bloodType)}`}>
-                            <Droplet className="mr-1.5 w-4 h-4" />
-                            {request.bloodType}
-                          </span>
-                          <span className="text-lg font-medium">{request.units} unit{request.units > 1 ? 's' : ''}</span>
-                        </div>
+                        {request.bloodItems.map((item, index) => (
+                          <div key={index} className="flex items-center">
+                            <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium mr-3 ${getBloodTypeBadge(item.bloodType)}`}>
+                              <Droplet className="mr-1.5 w-4 h-4" />
+                              {item.bloodType}
+                            </span>
+                            <span className="text-lg font-medium">{item.units} unit{item.units > 1 ? 's' : ''}</span>
+                          </div>
+                        ))}
                       </div>
                       
                       <div>
@@ -475,9 +451,23 @@ export default function ViewRequests({ hospital, onClose }) {
                           <Phone className="w-4 h-4 mr-1.5 text-gray-400" />
                           <span>{request.contactNumber}</span>
                         </div>
+                        {request.hospitalAddress && request.hospitalAddress !== 'N/A' && (
+                          <div className="flex items-center mt-1 text-sm text-gray-600">
+                            <Building className="w-4 h-4 mr-1.5 text-gray-400" />
+                            <span>{request.hospitalAddress}</span>
+                          </div>
+                        )}
                       </div>
                       
                       <div>
+                        <p className="text-sm text-gray-500 mb-1">Date Needed</p>
+                        <div className="flex items-center text-gray-700">
+                          <Calendar className="w-4 h-4 mr-1.5 text-gray-400" />
+                          <span>{request.dateNeeded}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="md:col-span-3">
                         <p className="text-sm text-gray-500 mb-1">Notes</p>
                         <p className="text-sm text-gray-700">{request.notes}</p>
                       </div>
@@ -652,4 +642,4 @@ export default function ViewRequests({ hospital, onClose }) {
       </div>
     </div>
   );
-} 
+}
