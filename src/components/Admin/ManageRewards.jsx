@@ -14,6 +14,7 @@ const ManageRewards = () => {
   const [editingReward, setEditingReward] = useState(null);
   const [filterRedeemable, setFilterRedeemable] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -83,10 +84,19 @@ const ManageRewards = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingReward(null);
+    setIsSubmitting(false); // Reset submission state when closing modal
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
       const url = editingReward ? `/rewards/${editingReward.id}` : '/rewards';
       const method = editingReward ? 'PUT' : 'POST';
@@ -107,6 +117,8 @@ const ManageRewards = () => {
     } catch (error) {
       console.error('Error saving reward:', error);
       toast.error('Failed to save reward');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -591,6 +603,143 @@ const ManageRewards = () => {
                 </motion.div>
               )}
 
+              {/* Both Hospitals and Blood Banks Rewards Table */}
+              {sortedGroups.includes('BOTH') && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden"
+                >
+                  <div className="bg-purple-50 border-b-2 border-purple-200 px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 rounded-lg bg-purple-100">
+                          <Gift className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-gray-900">Both Hospitals & Blood Banks</h2>
+                          <p className="text-sm text-gray-600">
+                            {groupedRewards['BOTH'].length} reward{groupedRewards['BOTH'].length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-fixed">
+                      <thead className="bg-purple-50 border-b border-purple-100">
+                        <tr>
+                          <th className="w-16 px-4 py-4 text-center text-sm font-semibold text-gray-700">Icon</th>
+                          <th className="w-48 px-4 py-4 text-left text-sm font-semibold text-gray-700">Title</th>
+                          <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Description</th>
+                          <th className="w-40 px-4 py-4 text-left text-sm font-semibold text-gray-700">Type</th>
+                          <th className="w-24 px-4 py-4 text-center text-sm font-semibold text-gray-700">Points</th>
+                          <th className="w-32 px-4 py-4 text-center text-sm font-semibold text-gray-700">Tier</th>
+                          <th className="w-32 px-4 py-4 text-center text-sm font-semibold text-gray-700">Auto Unlock</th>
+                          <th className="w-28 px-4 py-4 text-center text-sm font-semibold text-gray-700">Status</th>
+                          <th className="w-32 px-4 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {groupedRewards['BOTH'].map((reward, index) => (
+                          <motion.tr
+                            key={reward.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: index * 0.02 }}
+                            className={`hover:bg-gray-50 transition-colors ${
+                              !reward.isActive ? 'opacity-60' : ''
+                            }`}
+                          >
+                            <td className="px-4 py-4 text-center">
+                              <div className="flex items-center justify-center">
+                                <div className={`p-2 rounded-lg ${
+                                  reward.isActive ? 'bg-purple-100' : 'bg-gray-100'
+                                }`}>
+                                  {getRewardIcon(reward.image)}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="text-sm font-semibold text-gray-900 truncate" title={reward.title}>
+                                {reward.title}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="text-sm text-gray-600 truncate" title={reward.description}>
+                                {reward.description}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                {reward.rewardType}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <div className="text-sm font-bold text-purple-600">{reward.pointsCost}</div>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                reward.tier === 'GOLD' ? 'bg-yellow-100 text-yellow-800' :
+                                reward.tier === 'SILVER' ? 'bg-gray-100 text-gray-800' :
+                                reward.tier === 'BRONZE' ? 'bg-orange-100 text-orange-800' :
+                                reward.tier === 'CERTIFIED' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {reward.tier}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              {reward.autoUnlock ? (
+                                <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                                  Yes
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                                  No
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <button
+                                onClick={() => handleToggleActive(reward.id)}
+                                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                  reward.isActive 
+                                    ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                                title={reward.isActive ? 'Deactivate' : 'Activate'}
+                              >
+                                {reward.isActive ? 'Active' : 'Inactive'}
+                              </button>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <div className="flex items-center justify-center space-x-2">
+                                <button
+                                  onClick={() => handleOpenModal(reward)}
+                                  className="p-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(reward.id)}
+                                  className="p-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              )}
+
               {/* No Results */}
               {filteredRewards.length === 0 && (
                 <motion.div
@@ -805,10 +954,24 @@ const ManageRewards = () => {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                    disabled={isSubmitting}
+                    className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
+                      isSubmitting 
+                        ? 'bg-gray-400 cursor-not-allowed text-white' 
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                    }`}
                   >
-                    <Save className="w-5 h-5" />
-                    <span>{editingReward ? 'Update' : 'Create'} Reward</span>
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Creating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        <span>{editingReward ? 'Update' : 'Create'} Reward</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

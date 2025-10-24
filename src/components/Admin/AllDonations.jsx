@@ -51,7 +51,22 @@ const AllDonations = () => {
       const response = await fetchWithAuth('/appointment');
       if (response.ok) {
         const data = await response.json();
-        setDonations(data.data || data);
+        const donationsData = data.data || data;
+        setDonations(donationsData);
+        
+        // 🚨 DEBUG: Log donation data structure to see available fields
+        if (donationsData.length > 0) {
+          console.log('🔍 DONATION DATA STRUCTURE DEBUG:');
+          console.log('🔍 Sample donation object:', donationsData[0]);
+          console.log('🔍 Available date fields:', {
+            appointmentDate: donationsData[0].appointmentDate,
+            visitationDate: donationsData[0].visitationDate,
+            dateToday: donationsData[0].dateToday,
+            date: donationsData[0].date,
+            createdAt: donationsData[0].createdAt,
+            scheduledDate: donationsData[0].scheduledDate
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching donations:', error);
@@ -148,16 +163,27 @@ const AllDonations = () => {
   const uniqueStatuses = [...new Set(donations.map(donation => donation.status))].filter(Boolean).sort();
 
   const getStatusColor = (status) => {
+    // 🚨 DEBUG: Log the status being processed
+    console.log('🎨 STATUS COLOR DEBUG:', { status, type: typeof status });
+    
     switch (status) {
-      case 'COMPLETED':
+      case 'Complete':
+        console.log('🎨 Returning GREEN for Complete');
         return 'bg-green-100 text-green-800';
-      case 'SCHEDULED':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'CANCELLED':
+      case 'Scheduled':
+        console.log('🎨 Returning BLUE for Scheduled');
+        return 'bg-blue-100 text-blue-800';
+      case 'Missed':
+        console.log('🎨 Returning RED for Missed');
         return 'bg-red-100 text-red-800';
-      case 'PENDING':
+      case 'Cancelled':
+        console.log('🎨 Returning RED for Cancelled');
+        return 'bg-red-100 text-red-800';
+      case 'Pending':
+        console.log('🎨 Returning BLUE for Pending');
         return 'bg-blue-100 text-blue-800';
       default:
+        console.log('🎨 Returning GRAY for default:', status);
         return 'bg-gray-100 text-gray-800';
     }
   };
@@ -168,6 +194,8 @@ const AllDonations = () => {
         return 'Completed';
       case 'SCHEDULED':
         return 'Scheduled';
+      case 'MISSED':
+        return 'Missed';
       case 'CANCELLED':
         return 'Cancelled';
       case 'PENDING':
@@ -512,9 +540,27 @@ const AllDonations = () => {
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-sm text-gray-700">
-                            {donation.appointmentDate 
-                              ? new Date(donation.appointmentDate).toLocaleDateString()
-                              : 'N/A'}
+                            {(() => {
+                              // Try multiple date fields in order of preference
+                              const appointmentDate = donation.appointmentDate || 
+                                                   donation.visitationDate || 
+                                                   donation.dateToday || 
+                                                   donation.date ||
+                                                   donation.createdAt ||
+                                                   donation.scheduledDate;
+                              
+                              if (appointmentDate) {
+                                try {
+                                  const date = new Date(appointmentDate);
+                                  if (!isNaN(date.getTime())) {
+                                    return date.toLocaleDateString();
+                                  }
+                                } catch (error) {
+                                  console.error('Error parsing date:', error);
+                                }
+                              }
+                              return 'N/A';
+                            })()}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-center">

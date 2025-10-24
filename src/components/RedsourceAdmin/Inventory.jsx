@@ -632,8 +632,17 @@ const Inventory = () => {
         alert('Blood unit updated successfully!');
         setShowEditModal(false);
         
+        // Update currentDetailItem if we're viewing it
+        if (currentDetailItem && currentDetailItem.id === formData.id) {
+          setCurrentDetailItem({
+            ...formData,
+            expiry: formData.expiry,
+            collected: formData.collected
+          });
+        }
+        
         // Refresh inventory
-        fetchBloodInventory();
+        await fetchBloodInventory();
       } else {
         const error = await response.json();
         alert('Failed to update blood unit: ' + (error.message || 'Unknown error'));
@@ -1565,10 +1574,7 @@ const Inventory = () => {
                 
                 <div className="mt-8 space-y-4">
                   <button 
-                    onClick={() => {
-                      setCurrentDetailItem(currentDetailItem);
-                      setShowEditModal(true);
-                    }}
+                    onClick={() => openEditModal(currentDetailItem)}
                     className="w-full py-2 bg-blue-600 text-white rounded-md flex items-center justify-center"
                   >
                     <FiEdit className="mr-2" /> Edit Unit Details
@@ -2018,7 +2024,7 @@ const Inventory = () => {
   // State for validation modal
   const [showValidationModal, setShowValidationModal] = useState(false);
   
-  // Handle voucher validation result - Accept voucher to put it in PROCESSING status
+  // Handle voucher validation result - Record voucher as PENDING only (NO inventory deduction)
   const handleVoucherValidation = async (voucherData, selectedStorage) => {
     try {
       // Get blood bank ID
@@ -2047,41 +2053,39 @@ const Inventory = () => {
         return;
       }
       
-      // Accept the voucher to put it in PROCESSING status (so it appears in Blood Bag Requests)
-      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${voucherId}/accept`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          bloodBankId: bloodBankId,
-          storageLocation: storageLocation,
-          storageId: selectedStorage.id // Pass the specific storage ID for inventory deduction
-        })
-      });
-
-      if (response.ok) {
-        // Show success message - voucher is now in PROCESSING status
-        alert(`Voucher validated and accepted successfully! 
-        
+      // Voucher is already in PENDING status (created when donor redeemed it)
+      // Just show success message and save the storage info locally for later use
+      // Store the mapping between voucher ID and storage ID in localStorage for the accept operation
+      const storageMapping = {
+        voucherId: voucherId,
+        storageId: selectedStorage.id,
+        storageLocation: storageLocation,
+        bloodBankId: bloodBankId
+      };
+      
+      // Save to localStorage (will be used when accepting the voucher)
+      const existingMappings = JSON.parse(localStorage.getItem('voucherStorageMappings') || '{}');
+      existingMappings[voucherId] = storageMapping;
+      localStorage.setItem('voucherStorageMappings', JSON.stringify(existingMappings));
+      
+      // Show success message - voucher is already PENDING (inventory NOT deducted yet)
+      alert(`Voucher validated successfully! 
+      
 Voucher Code: ${voucherData.data?.voucher?.voucherCode || 'N/A'}
 Donor: ${voucherData.data?.donorName || 'Unknown'}
 Storage: ${storageLocation} (ID: ${selectedStorage.id || 'N/A'})
 
-The voucher is now in processing status and will appear in Blood Bag Requests.`);
-        
-        // Refresh the Blood Bag Requests to show the newly processed voucher
-        if (fetchBloodBagRequests) {
-          fetchBloodBagRequests();
-        }
-      } else {
-        const error = await response.json();
-        alert('Voucher validated but failed to accept: ' + (error.message || 'Unknown error'));
+The voucher is now in Pending status and will appear in Blood Bag Requests.
+Inventory will be deducted only when you accept the request.`);
+      
+      // Refresh the Blood Bag Requests to show the newly validated voucher
+      if (fetchBloodBagRequests) {
+        fetchBloodBagRequests();
       }
       
     } catch (error) {
       console.error('Error handling voucher validation:', error);
-      alert('Failed to process voucher. Please try again.');
+      alert('Failed to validate voucher. Please try again.');
     }
   };
   
@@ -2125,21 +2129,43 @@ The voucher is now in processing status and will appear in Blood Bag Requests.`)
         return;
       }
       
-      // Fetch vouchers validated by this blood bank (PROCESSING or COMPLETED status)
-      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers?bloodBankId=${bloodBankId}`);
+      // Fetch vouchers in two parts:
+      // 1. All PENDING blood bag vouchers (not yet assigned to any blood bank)
+      // 2. Vouchers validated by this specific blood bank (PROCESSING/COMPLETED)
+      const [pendingResponse, validatedResponse] = await Promise.all([
+        fetchWithAuth(`/reward-points/bloodbank/vouchers?status=PENDING`),
+        fetchWithAuth(`/reward-points/bloodbank/vouchers?bloodBankId=${bloodBankId}`)
+      ]);
       
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Blood bag vouchers response:', result);
-        console.log('First voucher data:', result.data?.[0]);
+      if (pendingResponse.ok || validatedResponse.ok) {
+        let allVouchers = [];
         
-        if (result.data && Array.isArray(result.data)) {
-          // Filter only blood bag vouchers
-          const bloodBagVouchers = result.data.filter(voucher => 
-            voucher.rewardType === 'BLOOD_BAG_VOUCHER'
-          );
-          
-          console.log('Filtered blood bag vouchers:', bloodBagVouchers.length, 'out of', result.data.length);
+        // Add pending vouchers
+        if (pendingResponse.ok) {
+          const pendingResult = await pendingResponse.json();
+          console.log('Pending vouchers response:', pendingResult);
+          if (pendingResult.data && Array.isArray(pendingResult.data)) {
+            allVouchers = allVouchers.concat(
+              pendingResult.data.filter(v => v.rewardType === 'BLOOD_BAG_VOUCHER')
+            );
+          }
+        }
+        
+        // Add validated vouchers
+        if (validatedResponse.ok) {
+          const validatedResult = await validatedResponse.json();
+          console.log('Validated vouchers response:', validatedResult);
+          if (validatedResult.data && Array.isArray(validatedResult.data)) {
+            allVouchers = allVouchers.concat(
+              validatedResult.data.filter(v => v.rewardType === 'BLOOD_BAG_VOUCHER')
+            );
+          }
+        }
+        
+        console.log('Total blood bag vouchers:', allVouchers.length);
+        
+        if (allVouchers.length > 0) {
+          const bloodBagVouchers = allVouchers;
           
           // First, transform vouchers without donor info (fast initial display)
           const initialRequests = bloodBagVouchers.map(voucher => {
@@ -2184,8 +2210,10 @@ The voucher is now in processing status and will appear in Blood Bag Requests.`)
             
             // Map backend status to frontend status
             let displayStatus = voucher.status;
-            if (voucher.status === 'PROCESSING') {
+            if (voucher.status === 'PENDING') {
               displayStatus = 'Pending';
+            } else if (voucher.status === 'PROCESSING') {
+              displayStatus = 'Accepted';
             } else if (voucher.status === 'COMPLETED') {
               displayStatus = 'Complete';
             }
@@ -2244,7 +2272,13 @@ The voucher is now in processing status and will appear in Blood Bag Requests.`)
           });
         }
       } else {
-        console.error('Failed to fetch vouchers:', response.status);
+        console.error('Failed to fetch vouchers');
+        if (!pendingResponse.ok) {
+          console.error('Pending vouchers error:', pendingResponse.status);
+        }
+        if (!validatedResponse.ok) {
+          console.error('Validated vouchers error:', validatedResponse.status);
+        }
       }
     } catch (error) {
       console.error('Error fetching blood bag requests:', error);

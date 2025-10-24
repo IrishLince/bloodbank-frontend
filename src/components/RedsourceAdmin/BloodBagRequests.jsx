@@ -153,6 +153,7 @@ const BloodBagRequests = ({
   const [requestSortConfig, setRequestSortConfig] = useState({ key: 'requestDate', direction: 'desc' });
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [currentRequest, setCurrentRequest] = useState(null);
+  const [acceptingVouchers, setAcceptingVouchers] = useState(new Set());
   
   // Handle sorting for requests
   const requestSort = useCallback((key) => {
@@ -240,14 +241,29 @@ const BloodBagRequests = ({
   
   // Handle accept voucher - this will accept the voucher and deduct units
   const handleAcceptVoucher = useCallback(async (request) => {
+    // Check if already accepting this voucher
+    if (acceptingVouchers.has(request.id)) {
+      console.log('Already accepting this voucher, ignoring duplicate request');
+      return;
+    }
+
     // Debug the request object
     console.log('Attempting to accept voucher:', request);
     console.log('Request status:', request.status);
     console.log('Request backend status:', request.backendStatus);
     
+    // Server-side status check: Only accept if status is PENDING
+    if (request.backendStatus && request.backendStatus !== 'PENDING') {
+      alert(`This voucher has already been ${request.backendStatus.toLowerCase()}. Cannot accept it again.`);
+      return;
+    }
+    
     if (!window.confirm(`Accept this blood bag voucher for ${request.donorName}? This will deduct ${request.units} unit(s) from your inventory.`)) {
       return;
     }
+
+    // Mark as accepting
+    setAcceptingVouchers(prev => new Set(prev).add(request.id));
 
     try {
       // Get blood bank ID
@@ -255,14 +271,18 @@ const BloodBagRequests = ({
       const userData = await userResponse.json();
       const bloodBankId = userData.id;
       
+      // Retrieve storage mapping from localStorage (set during validation)
+      const storageMappings = JSON.parse(localStorage.getItem('voucherStorageMappings') || '{}');
+      const storageMapping = storageMappings[request.id];
+      
       console.log('Sending accept request:', {
         voucherId: request.id,
         bloodBankId: bloodBankId,
-        storageLocation: request.storageLocation || 'Storage A',
+        storageMapping: storageMapping,
         currentStatus: request.backendStatus || request.status
       });
       
-      // Accept the voucher (change from PENDING to PROCESSING) - same as rewards page flow
+      // Accept the voucher (change from PENDING to PROCESSING/ACCEPTED and deduct inventory)
       const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${request.id}/accept`, {
         method: 'POST',
         headers: {
@@ -270,12 +290,18 @@ const BloodBagRequests = ({
         },
         body: JSON.stringify({
           bloodBankId: bloodBankId,
-          storageId: request.storageId // Pass the specific storage ID for inventory deduction
+          storageId: storageMapping?.storageId || request.storageId // Use stored storage ID or fallback
         })
       });
 
       if (response.ok) {
         alert(`Voucher accepted successfully! ${request.units} unit(s) of ${request.bloodType} blood deducted from inventory.`);
+        
+        // Clean up localStorage mapping for this voucher
+        const storageMappings = JSON.parse(localStorage.getItem('voucherStorageMappings') || '{}');
+        delete storageMappings[request.id];
+        localStorage.setItem('voucherStorageMappings', JSON.stringify(storageMappings));
+        
         // Refresh the requests list
         if (refreshRequests) {
           refreshRequests();
@@ -288,8 +314,15 @@ const BloodBagRequests = ({
     } catch (error) {
       console.error('Error accepting voucher:', error);
       alert('Failed to accept voucher. Please try again.');
+    } finally {
+      // Remove from accepting set
+      setAcceptingVouchers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(request.id);
+        return newSet;
+      });
     }
-  }, [refreshRequests]);
+  }, [refreshRequests, acceptingVouchers]);
   
   // Handle mark complete
   const handleMarkComplete = useCallback(async (request) => {
@@ -480,16 +513,22 @@ const BloodBagRequests = ({
                     {request.status === 'Pending' ? (
                       <button 
                         onClick={() => handleAcceptVoucher(request)}
-                        className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        disabled={acceptingVouchers.has(request.id)}
+                        className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                         aria-label={`Accept voucher for ${request.donorName}`}
                       >
                         <FiCheck className="w-4 h-4 mr-1" aria-hidden="true" />
-                        Accept
+                        {acceptingVouchers.has(request.id) ? 'Accepting...' : 'Accept'}
                       </button>
-                    ) : (
-                      <span className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-md">
+                    ) : request.status === 'Accepted' ? (
+                      <span className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-600 text-xs font-semibold rounded-md">
                         <FiCheckCircle className="mr-1" aria-hidden="true" />
-                        Completed
+                        Accepted
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-3 py-1.5 bg-green-100 text-green-600 text-xs font-semibold rounded-md">
+                        <FiCheckCircle className="mr-1" aria-hidden="true" />
+                        Complete
                       </span>
                     )}
                   </td>

@@ -692,40 +692,32 @@ const BloodBankRewards = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowValidationModal(false)}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
-                >
-                  Close
-                </button>
-                {validationResult.isValid && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setVoucherToCancel({
-                          id: validationResult.voucher.id,
-                          voucherCode: validationResult.voucher.voucherCode,
-                          rewardTitle: validationResult.voucher.rewardTitle,
-                          rewardType: validationResult.voucher.rewardType,
-                          donorName: validationResult.donorName
-                        });
-                        setShowValidationModal(false);
-                        setShowCancelModal(true);
-                      }}
-                      className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold"
-                    >
-                      Reject Voucher
-                    </button>
-                    <button
-                      onClick={handleAcceptVoucher}
-                      className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all font-semibold"
-                    >
-                      Accept Voucher
-                    </button>
-                  </>
-                )}
-              </div>
+              {validationResult.isValid && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setVoucherToCancel({
+                        id: validationResult.voucher.id,
+                        voucherCode: validationResult.voucher.voucherCode,
+                        rewardTitle: validationResult.voucher.rewardTitle,
+                        rewardType: validationResult.voucher.rewardType,
+                        donorName: validationResult.donorName
+                      });
+                      setShowValidationModal(false);
+                      setShowCancelModal(true);
+                    }}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold"
+                  >
+                    Reject Voucher
+                  </button>
+                  <button
+                    onClick={handleAcceptVoucher}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all font-semibold"
+                  >
+                    Accept Voucher
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>

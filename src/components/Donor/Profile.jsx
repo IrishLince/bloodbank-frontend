@@ -81,7 +81,11 @@ const ProfileManagement = () => {
     profilePhotoUrl: "",
     accountStatus: "ACTIVE",
     createdAt: null,
-    lastDonationDate: null
+    lastDonationDate: null,
+    // Reward system data
+    rewardPoints: 0,
+    totalDonations: 0,
+    donorTier: "NEW"
   })
   
   // Modal state for profile picture actions
@@ -288,7 +292,11 @@ const ProfileManagement = () => {
           rawBirthDate: data.dateOfBirth, // Keep raw date for calculations
           accountStatus: data.accountStatus || "ACTIVE",
           createdAt: data.createdAt || null,
-          lastDonationDate: data.lastDonationDate || null
+          lastDonationDate: data.lastDonationDate || null,
+          // Reward system data
+          rewardPoints: data.rewardPoints || 0,
+          totalDonations: data.totalDonations || 0,
+          donorTier: data.donorTier || 'NEW'
         };
         
         // Extract name parts including potential middle initial
@@ -429,7 +437,13 @@ const ProfileManagement = () => {
         // Include role to prevent backend validation errors
         role: userData.role || 'DONOR',
         // 🖼️ IMPORTANT: Preserve profile photo URL during profile updates
-        profilePhotoUrl: userData.profilePhotoUrl || null
+        profilePhotoUrl: userData.profilePhotoUrl || null,
+        // 🎁 CRITICAL: Preserve reward system data to prevent reset
+        rewardPoints: userData.rewardPoints || 0,
+        totalDonations: userData.totalDonations || 0,
+        donorTier: userData.donorTier || 'NEW',
+        // 🔐 IMPORTANT: Preserve account status
+        accountStatus: userData.accountStatus || 'ACTIVE'
         // 🔒 IMPORTANT: Password and Email are NOT included here
         // - Password will be preserved by backend
         // - Email is immutable for JWT token security
@@ -463,7 +477,13 @@ const ProfileManagement = () => {
             bloodType: formData.bloodType || userData.bloodType,
             sex: formData.sex || userData.sex,
             // 🖼️ IMPORTANT: Preserve profile photo URL during updates
-            profilePhotoUrl: userData.profilePhotoUrl
+            profilePhotoUrl: userData.profilePhotoUrl,
+            // 🎁 CRITICAL: Preserve reward system data during local state updates
+            rewardPoints: userData.rewardPoints || 0,
+            totalDonations: userData.totalDonations || 0,
+            donorTier: userData.donorTier || 'NEW',
+            // 🔐 IMPORTANT: Preserve account status
+            accountStatus: userData.accountStatus || 'ACTIVE'
           };
           setUserData(updatedUserData);
   
@@ -1270,125 +1290,127 @@ const ProfileManagement = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                      Contact Number
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex flex-wrap items-center gap-2">
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                        Contact Number
+                      </span>
                       {phoneVerificationStep === 'verify' && (
-                        <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full">Verifying</span>
+                        <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full whitespace-nowrap">Verifying</span>
                       )}
                     </label>
                     
                     {phoneVerificationStep === 'edit' ? (
-                      <div className="relative">
-                        <div className="flex">
-                          <div className="bg-gray-50 p-4 rounded-l-xl border-2 border-r-0 border-gray-200 flex items-center shadow-sm">
-                            <img src={flagLogo} alt="Philippines flag" className="w-5 h-4 mr-2" />
-                            <span className="text-gray-800 text-sm font-medium">+63</span>
+                      <div className="relative w-full">
+                        <div className="flex flex-col sm:flex-row w-full">
+                          <div className="bg-gray-50 px-3 py-3 sm:py-4 rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none border-2 sm:border-r-0 border-gray-200 flex items-center justify-start shadow-sm flex-shrink-0">
+                            <img src={flagLogo} alt="Philippines flag" className="w-5 h-4 mr-2 flex-shrink-0" />
+                            <span className="text-gray-800 text-sm font-medium whitespace-nowrap">+63</span>
                           </div>
-                    <input
-                      type="tel"
-                            value={newPhone !== undefined ? newPhone : stripCountryCode(formData.phone || "")}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, ''); // Only allow digits
-                              setNewPhone(value);
-                              setOriginalPhone(stripCountryCode(formData.phone));
-                              
-                              // Clear previous timeout
-                              if (window.profilePhoneValidationTimeout) {
-                                clearTimeout(window.profilePhoneValidationTimeout);
-                              }
-                              
-                              if (value.length === 10) {
-                                if (value !== stripCountryCode(formData.phone)) {
-                                  // Debounce validation by 500ms
-                                  window.profilePhoneValidationTimeout = setTimeout(() => {
-                                    checkPhoneAvailability(value);
-                                  }, 500);
+                          <div className="relative flex-1 w-full">
+                            <input
+                              type="tel"
+                              value={newPhone !== undefined ? newPhone : stripCountryCode(formData.phone || "")}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                                setNewPhone(value);
+                                setOriginalPhone(stripCountryCode(formData.phone));
+                                
+                                // Clear previous timeout
+                                if (window.profilePhoneValidationTimeout) {
+                                  clearTimeout(window.profilePhoneValidationTimeout);
+                                }
+                                
+                                if (value.length === 10) {
+                                  if (value !== stripCountryCode(formData.phone)) {
+                                    // Debounce validation by 500ms
+                                    window.profilePhoneValidationTimeout = setTimeout(() => {
+                                      checkPhoneAvailability(value);
+                                    }, 500);
+                                  } else {
+                                    setPhoneError('');
+                                  }
+                                } else if (value.length > 10) {
+                                  // For invalid formats, show error immediately
+                                  setPhoneError('Phone number must be exactly 10 digits');
                                 } else {
                                   setPhoneError('');
                                 }
-                              } else if (value.length > 10) {
-                                // For invalid formats, show error immediately
-                                setPhoneError('Phone number must be exactly 10 digits');
-                              } else {
-                                setPhoneError('');
-                              }
-                            }}
-                            onBlur={(e) => {
-                              const value = e.target.value.replace(/\D/g, '');
-                              if (value.length === 10 && value !== stripCountryCode(formData.phone)) {
-                                checkPhoneAvailability(value);
-                              }
-                            }}
-                            onInput={(e) => {
-                              // Handle browser autofill
-                              const value = e.target.value.replace(/\D/g, '');
-                              if (value.length === 10 && value !== stripCountryCode(formData.phone)) {
-                                setTimeout(() => checkPhoneAvailability(value), 100);
-                              }
-                            }}
-                            onFocus={() => {
-                              // Initialize newPhone state when user starts editing (only if not already set)
-                              if (newPhone === undefined) {
-                                setNewPhone(stripCountryCode(formData.phone || ''));
-                                setOriginalPhone(stripCountryCode(formData.phone));
-                              }
-                            }}
-                            className={`flex-1 p-4 rounded-r-xl border-2 transition-all duration-300 ${
-                              phoneError 
-                                ? 'border-red-500 bg-red-50 focus:border-red-600' 
-                                : isCheckingPhone
-                                ? 'border-yellow-500 bg-yellow-50 focus:border-yellow-600'
-                                : newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone)
-                                ? 'border-green-500 bg-green-50 focus:border-green-600'
-                                : 'border-gray-200 focus:border-red-500'
-                            } focus:ring-4 ${
-                              phoneError 
-                                ? 'focus:ring-red-100' 
-                                : isCheckingPhone
-                                ? 'focus:ring-yellow-100'
-                                : newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone)
-                                ? 'focus:ring-green-100'
-                                : 'focus:ring-red-500/20'
-                            } focus:outline-none text-sm pr-12 bg-white hover:border-gray-300 shadow-sm`}
-                            placeholder="Phone number (10 digits)"
-                            maxLength={10}
-                    />
-                  </div>
-                        {/* Status indicator */}
-                        {isCheckingPhone && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-500"></div>
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value.replace(/\D/g, '');
+                                if (value.length === 10 && value !== stripCountryCode(formData.phone)) {
+                                  checkPhoneAvailability(value);
+                                }
+                              }}
+                              onInput={(e) => {
+                                // Handle browser autofill
+                                const value = e.target.value.replace(/\D/g, '');
+                                if (value.length === 10 && value !== stripCountryCode(formData.phone)) {
+                                  setTimeout(() => checkPhoneAvailability(value), 100);
+                                }
+                              }}
+                              onFocus={() => {
+                                // Initialize newPhone state when user starts editing (only if not already set)
+                                if (newPhone === undefined) {
+                                  setNewPhone(stripCountryCode(formData.phone || ''));
+                                  setOriginalPhone(stripCountryCode(formData.phone));
+                                }
+                              }}
+                              className={`w-full p-3 sm:p-4 rounded-b-xl sm:rounded-r-xl sm:rounded-bl-none border-2 sm:border-l-2 border-t-0 sm:border-t-2 transition-all duration-300 ${
+                                phoneError 
+                                  ? 'border-red-500 bg-red-50 focus:border-red-600' 
+                                  : isCheckingPhone
+                                  ? 'border-yellow-500 bg-yellow-50 focus:border-yellow-600'
+                                  : newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone)
+                                  ? 'border-green-500 bg-green-50 focus:border-green-600'
+                                  : 'border-gray-200 focus:border-red-500'
+                              } focus:ring-4 ${
+                                phoneError 
+                                  ? 'focus:ring-red-100' 
+                                  : isCheckingPhone
+                                  ? 'focus:ring-yellow-100'
+                                  : newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone)
+                                  ? 'focus:ring-green-100'
+                                  : 'focus:ring-red-500/20'
+                              } focus:outline-none text-sm pr-10 sm:pr-12 bg-white hover:border-gray-300 shadow-sm`}
+                              placeholder="9XX XXX XXXX"
+                              maxLength={10}
+                            />
+                            {/* Status indicator */}
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {isCheckingPhone && (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-500"></div>
+                              )}
+                              {!isCheckingPhone && newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone) && (
+                                <Check size={16} className="text-green-600" />
+                              )}
+                              {!isCheckingPhone && phoneError && (
+                                <X size={16} className="text-red-600" />
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {!isCheckingPhone && newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone) && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Check size={16} className="text-green-600" />
-                          </div>
-                        )}
-                        {!isCheckingPhone && phoneError && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <X size={16} className="text-red-600" />
-                          </div>
-                        )}
+                        </div>
                         
                         {/* Phone validation messages */}
-                        {isCheckingPhone && (
-                          <p className="text-yellow-600 text-xs mt-2 flex items-center bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-100">
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600 mr-2"></div>
-                            <span>Checking phone availability...</span>
-                          </p>
-                        )}
-                        {!isCheckingPhone && newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone) && (
-                          <p className="text-green-600 text-xs mt-2 flex items-center bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
-                            <Check size={12} className="mr-1 flex-shrink-0" /> <span>Phone number is available!</span>
-                          </p>
-                        )}
-                        {phoneError && (
-                          <p className="text-red-500 text-xs mt-2 flex items-center bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
-                            <X size={12} className="mr-1 flex-shrink-0" /> <span>{phoneError}</span>
-                          </p>
-                        )}
+                        <div className="mt-2 space-y-2">
+                          {isCheckingPhone && (
+                            <p className="text-yellow-600 text-xs flex flex-wrap items-center bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-100 gap-2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600 flex-shrink-0"></div>
+                              <span>Checking phone availability...</span>
+                            </p>
+                          )}
+                          {!isCheckingPhone && newPhone && !phoneError && /^\d{10}$/.test(newPhone) && newPhone !== stripCountryCode(formData.phone) && (
+                            <p className="text-green-600 text-xs flex flex-wrap items-center bg-green-50 px-3 py-1.5 rounded-lg border border-green-100 gap-1">
+                              <Check size={12} className="flex-shrink-0" /> <span>Phone number is available!</span>
+                            </p>
+                          )}
+                          {phoneError && (
+                            <p className="text-red-500 text-xs flex flex-wrap items-center bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 gap-1">
+                              <X size={12} className="flex-shrink-0" /> <span>{phoneError}</span>
+                            </p>
+                          )}
+                        </div>
                         
                         {/* Send OTP Button - With verification required */}
                         {newPhone && newPhone !== stripCountryCode(formData.phone) && !phoneError && /^\d{10}$/.test(newPhone) && !isCheckingPhone && (
@@ -1397,19 +1419,19 @@ const ProfileManagement = () => {
                               type="button"
                               onClick={sendPhoneOTP}
                               disabled={isChangingPhone}
-                              className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                               {isChangingPhone ? (
                                 <>
-                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                  <span>Sending Verification Code...</span>
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                                  <span className="truncate">Sending Code...</span>
                                 </>
                               ) : (
                                 <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                   </svg>
-                                  <span>Send Verification Code</span>
+                                  <span className="truncate">Send Verification Code</span>
                                 </>
                               )}
                             </button>
@@ -1419,22 +1441,22 @@ const ProfileManagement = () => {
                     ) : (
                       // OTP Verification Step
                       <div className="space-y-4">
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                          <div className="flex items-center mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-700 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                             </svg>
-                            <p className="text-sm font-medium text-red-800">
-                              <strong>Verification Required:</strong> We've sent a verification code to: +63 {newPhone}
+                            <p className="text-xs sm:text-sm font-medium text-red-800">
+                              <strong>Verification Required:</strong> Code sent to: +63 {newPhone}
                             </p>
                           </div>
-                          <p className="text-xs text-red-600 ml-7">
+                          <p className="text-xs text-red-600 sm:ml-7">
                             Enter the 6-digit code to confirm your new phone number.
                           </p>
                         </div>
 
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1.5 font-medium">Enter Verification Code</label>
+                          <label className="block text-xs sm:text-sm text-gray-600 mb-1.5 font-medium">Enter Verification Code</label>
                           <div className="relative">
                             <input
                               type="text"
@@ -1452,7 +1474,7 @@ const ProfileManagement = () => {
                           </div>
                         </div>
                         
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
                           <button
                             type="button"
                             onClick={() => {
@@ -1460,31 +1482,31 @@ const ProfileManagement = () => {
                               setPhoneOtpSent(false);
                               setPhoneOtp('');
                             }}
-                            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium shadow-sm hover:shadow transition-all text-sm flex items-center justify-center gap-2"
+                            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium shadow-sm hover:shadow transition-all text-xs sm:text-sm flex items-center justify-center gap-2"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
-                            <span>Back to Edit</span>
+                            <span className="truncate">Back to Edit</span>
                           </button>
                           
                           <button
                             type="button"
                             onClick={verifyPhoneOTP}
                             disabled={!phoneOtp || phoneOtp.length !== 6 || isChangingPhone}
-                            className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm hover:shadow transition-all text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             {isChangingPhone ? (
                               <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                <span>Verifying...</span>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                                <span className="truncate">Verifying...</span>
                               </>
                             ) : (
                               <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
                                 </svg>
-                                <span>Verify & Update Phone</span>
+                                <span className="truncate">Verify & Update</span>
                               </>
                             )}
                           </button>

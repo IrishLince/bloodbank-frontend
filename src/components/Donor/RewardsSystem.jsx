@@ -19,6 +19,10 @@ const RewardsSystem = () => {
   const [newAchievement, setNewAchievement] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [visibleVoucherCodes, setVisibleVoucherCodes] = useState({})
+  
+  // Pagination state for Points History
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   // Real data from backend
   const [donorName, setDonorName] = useState("")
@@ -34,6 +38,13 @@ const RewardsSystem = () => {
   useEffect(() => {
     fetchRewardPointsData()
   }, [])
+  
+  // Reset pagination when switching to history tab
+  useEffect(() => {
+    if (activeTab === 'history') {
+      setCurrentPage(1)
+    }
+  }, [activeTab])
 
   const fetchRewardPointsData = async () => {
     try {
@@ -140,6 +151,12 @@ const RewardsSystem = () => {
                   isExpiringSoon,
                   daysUntilExpiry,
                   completedDate: item.status === 'COMPLETED' ? new Date(item.updatedAt).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }) : null,
+                  notes: item.notes || null, // Add notes field for cancellation/rejection reasons
+                  cancelledDate: item.status === 'CANCELLED' ? new Date(item.updatedAt).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'short', 
                     day: 'numeric' 
@@ -1136,7 +1153,80 @@ const RewardsSystem = () => {
                     <span className="ml-2 font-medium">{request.completedDate}</span>
                   </div>
                 )}
+                {request.cancelledDate && request.status === 'Cancelled' && (
+                  <div className="text-sm col-span-2">
+                    <span className="text-gray-500">Cancelled Date:</span>
+                    <span className="ml-2 font-medium">{request.cancelledDate}</span>
+                  </div>
+                )}
               </div>
+              
+              {/* Rejection/Cancellation Reason - Blood Bank Information */}
+              {request.status === 'Cancelled' && request.bloodBankInfo && (
+                <div className="mt-3 border-2 rounded-lg p-4 bg-gradient-to-r from-red-50 to-rose-50 border-red-200">
+                  <div className="flex items-center mb-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-red-100">
+                      <FiX className="w-4 h-4 text-red-600" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-red-800">
+                      Rejected by Blood Bank
+                    </h4>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm">
+                      <span className="text-gray-600 font-medium w-24">🏥 Blood Bank:</span>
+                      <span className="text-gray-900 font-semibold">{request.bloodBankInfo.name || request.bloodBank}</span>
+                    </div>
+                    
+                    {request.bloodBankInfo.address && (
+                      <div className="flex items-start text-sm">
+                        <span className="text-gray-600 font-medium w-24">📍 Address:</span>
+                        <span className="text-gray-700">{request.bloodBankInfo.address}</span>
+                      </div>
+                    )}
+                    
+                    {request.bloodBankInfo.phone && (
+                      <div className="flex items-center text-sm">
+                        <span className="text-gray-600 font-medium w-24">📞 Phone:</span>
+                        <span className="text-gray-700">{request.bloodBankInfo.phone}</span>
+                      </div>
+                    )}
+                    
+                    {request.notes && (
+                      <div className="flex items-start text-sm">
+                        <span className="text-gray-600 font-medium w-24">❌ Reason:</span>
+                        <span className="text-red-700 font-medium">
+                          {request.notes.replace(/ \[Blood Bank ID: [^\]]+\]/g, '')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Rejection Reason Only (if no blood bank info) */}
+              {request.status === 'Cancelled' && !request.bloodBankInfo && request.notes && (
+                <div className="mt-3 border-2 rounded-lg p-4 bg-gradient-to-r from-red-50 to-rose-50 border-red-200">
+                  <div className="flex items-center mb-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-red-100">
+                      <FiX className="w-4 h-4 text-red-600" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-red-800">
+                      Request Cancelled
+                    </h4>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-start text-sm">
+                      <span className="text-gray-600 font-medium w-24">❌ Reason:</span>
+                      <span className="text-red-700 font-medium">
+                        {request.notes.replace(/ \[Blood Bank ID: [^\]]+\]/g, '')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="mt-4">
                 {request.status === 'Pending' && (
@@ -1671,56 +1761,147 @@ const RewardsSystem = () => {
 
         {activeTab === "bloodBagRequests" && renderBloodBagRequests()}
 
-        {activeTab === "history" && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-medium text-gray-700">Your Points Activity</h3>
-              <button className="flex items-center text-[#C91C1C] hover:text-[#A01515] text-sm font-medium">
-                <Download size={14} className="mr-1" />
-                Export
-              </button>
-            </div>
-            
-            <div className="overflow-x-auto -mx-4 px-4">
-              <div className="inline-block min-w-full align-middle">
-                <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Event
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Points
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {pointsHistory.map((item) => (
-                        <tr key={item.id} className="hover:bg-red-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.event}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.date}</td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${item.points >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {item.points >= 0 ? '+' : ''}{item.points}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-gradient-to-r from-[#FFEBEB] to-white">
-                        <td colSpan="2" className="px-6 py-4 text-right text-sm font-medium text-gray-700">
-                          Total Points:
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm font-bold text-red-600">{userPoints}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+        {activeTab === "history" && (() => {
+          // Calculate pagination
+          const indexOfLastItem = currentPage * itemsPerPage
+          const indexOfFirstItem = indexOfLastItem - itemsPerPage
+          const currentItems = pointsHistory.slice(indexOfFirstItem, indexOfLastItem)
+          const totalPages = Math.ceil(pointsHistory.length / itemsPerPage)
+          
+          return (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-medium text-gray-700">Your Points Activity</h3>
+                <button className="flex items-center text-[#C91C1C] hover:text-[#A01515] text-sm font-medium">
+                  <Download size={14} className="mr-1" />
+                  Export
+                </button>
               </div>
+              
+              {pointsHistory.length > 0 ? (
+                <>
+                  <div className="overflow-x-auto -mx-4 px-4">
+                    <div className="inline-block min-w-full align-middle">
+                      <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Event
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Points
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {currentItems.map((item) => (
+                              <tr key={item.id} className="hover:bg-red-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.event}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.date}</td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${item.points >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {item.points >= 0 ? '+' : ''}{item.points}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-gradient-to-r from-[#FFEBEB] to-white">
+                              <td colSpan="2" className="px-6 py-4 text-right text-sm font-medium text-gray-700">
+                                Total Points:
+                              </td>
+                              <td className="px-6 py-4 text-right text-sm font-bold text-red-600">{userPoints}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6 px-4">
+                      <div className="text-sm text-gray-600">
+                        Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, pointsHistory.length)} of {pointsHistory.length} entries
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        {/* Previous Button */}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            currentPage === 1
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          Previous
+                        </button>
+                        
+                        {/* Page Numbers */}
+                        <div className="flex items-center space-x-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                            // Show first page, last page, current page, and pages around current
+                            if (
+                              page === 1 ||
+                              page === totalPages ||
+                              (page >= currentPage - 1 && page <= currentPage + 1)
+                            ) {
+                              return (
+                                <button
+                                  key={page}
+                                  onClick={() => setCurrentPage(page)}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    currentPage === page
+                                      ? 'bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white'
+                                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              )
+                            } else if (
+                              page === currentPage - 2 ||
+                              page === currentPage + 2
+                            ) {
+                              return <span key={page} className="text-gray-400">...</span>
+                            }
+                            return null
+                          })}
+                        </div>
+                        
+                        {/* Next Button */}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            currentPage === totalPages
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-xl">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                    <Clock className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-gray-700 font-medium text-lg">No points history yet</h3>
+                  <p className="text-gray-500 text-sm mt-2 max-w-sm mx-auto">
+                    Start donating blood to earn points and see your activity here!
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* How to Earn Points Section */}
         <div className="mt-8 bg-gradient-to-r from-red-50 to-white rounded-xl p-5 shadow-sm border border-red-100">

@@ -10,12 +10,9 @@ import { hospitalProfileAPI, uploadHospitalProfilePhoto, removeHospitalProfilePh
 
 const ProfileManagement = () => {
   const [view, setView] = useState("profile")
-  const [activeTab, setActiveTab] = useState("details")
   const [showOldPassword, setShowOldPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [confirmText, setConfirmText] = useState("")
-  const [isMobile, setIsMobile] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const navigate = useNavigate()
   const [hospitalData, setHospitalData] = useState({})
@@ -25,11 +22,17 @@ const ProfileManagement = () => {
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: '',
-    otpCode: ''
+    confirmPassword: ''
   })
   const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordValidation, setPasswordValidation] = useState({
+    currentPassword: { isValid: null, message: '' },
+    newPassword: { isValid: null, message: '' },
+    confirmPassword: { isValid: null, message: '' }
+  })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
 
   useEffect(() => {
     const fetchHospitalData = async () => {
@@ -103,8 +106,136 @@ const ProfileManagement = () => {
     }
   };
 
+  // Password validation functions
+  const validateCurrentPassword = (password) => {
+    if (!password) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        currentPassword: { isValid: null, message: '' }
+      }));
+      return;
+    }
+    
+    if (password.length < 8) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        currentPassword: { isValid: false, message: 'Current password is too short' }
+      }));
+      return;
+    }
+    
+    setPasswordValidation(prev => ({
+      ...prev,
+      currentPassword: { isValid: true, message: 'Ready for verification' }
+    }));
+  };
+
+  const validateNewPassword = (password) => {
+    if (!password) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        newPassword: { isValid: null, message: '' }
+      }));
+      return;
+    }
+    
+    if (password.length < 8) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        newPassword: { isValid: false, message: 'Must be at least 8 characters long' }
+      }));
+      return;
+    }
+    
+    if (password === passwordData.currentPassword && passwordData.currentPassword) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        newPassword: { isValid: false, message: 'Must be different from current password' }
+      }));
+      return;
+    }
+    
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[@$!%*?&]/.test(password);
+    
+    const missingRequirements = [];
+    if (!hasUpperCase) missingRequirements.push('uppercase letter');
+    if (!hasLowerCase) missingRequirements.push('lowercase letter');
+    if (!hasNumbers) missingRequirements.push('number');
+    if (!hasSpecialChar) missingRequirements.push('special character (@$!%*?&)');
+    
+    if (missingRequirements.length > 0) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        newPassword: { isValid: false, message: `Missing: ${missingRequirements.join(', ')}` }
+      }));
+      return;
+    }
+    
+    setPasswordValidation(prev => ({
+      ...prev,
+      newPassword: { isValid: true, message: 'Strong password' }
+    }));
+  };
+
+  const validateConfirmPassword = (confirmPassword) => {
+    if (!confirmPassword) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        confirmPassword: { isValid: null, message: '' }
+      }));
+      return;
+    }
+    
+    if (!passwordData.newPassword) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        confirmPassword: { isValid: null, message: 'Enter new password first' }
+      }));
+      return;
+    }
+    
+    if (confirmPassword !== passwordData.newPassword) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        confirmPassword: { isValid: false, message: 'Passwords do not match' }
+      }));
+      return;
+    }
+    
+    if (passwordValidation.newPassword?.isValid === true) {
+      setPasswordValidation(prev => ({
+        ...prev,
+        confirmPassword: { isValid: true, message: 'Passwords match' }
+      }));
+    } else {
+      setPasswordValidation(prev => ({
+        ...prev,
+        confirmPassword: { isValid: null, message: 'Passwords match, but new password needs fixing' }
+      }));
+    }
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields
+    if (!passwordData.currentPassword) {
+      setPasswordError('Current password is required');
+      return;
+    }
+    
+    if (!passwordData.newPassword) {
+      setPasswordError('New password is required');
+      return;
+    }
+    
+    if (!passwordData.confirmPassword) {
+      setPasswordError('Please confirm your new password');
+      return;
+    }
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordError('New passwords do not match');
@@ -116,58 +247,54 @@ const ProfileManagement = () => {
       return;
     }
     
+    // Check password strength
+    const hasUpperCase = /[A-Z]/.test(passwordData.newPassword);
+    const hasLowerCase = /[a-z]/.test(passwordData.newPassword);
+    const hasNumbers = /\d/.test(passwordData.newPassword);
+    const hasSpecialChar = /[@$!%*?&]/.test(passwordData.newPassword);
+    
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+      setPasswordError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)');
+      return;
+    }
+    
     setPasswordLoading(true);
     setPasswordError('');
+    setPasswordSuccess('');
     
     try {
       await hospitalProfileAPI.updatePassword(hospitalData.id, {
-        newPassword: passwordData.newPassword,
-        otpCode: passwordData.otpCode
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
       });
       
       // Reset form
       setPasswordData({
         currentPassword: '',
         newPassword: '',
-        confirmPassword: '',
-        otpCode: ''
+        confirmPassword: ''
       });
       
-      setView('profile');
-      alert('Password updated successfully!');
+      // Reset validation states
+      setPasswordValidation({
+        currentPassword: { isValid: null, message: '' },
+        newPassword: { isValid: null, message: '' },
+        confirmPassword: { isValid: null, message: '' }
+      });
+      
+      setPasswordSuccess('Password updated successfully! Redirecting to profile...');
+      
+      // Redirect after 2 seconds
+      setTimeout(() => {
+        setView('profile');
+        setPasswordSuccess('');
+      }, 2000);
     } catch (error) {
-      setPasswordError(error.message);
+      setPasswordError(error.message || 'Failed to update password');
     } finally {
       setPasswordLoading(false);
     }
   };
-
-  const handleSendPasswordOTP = async () => {
-    try {
-      await hospitalProfileAPI.sendPasswordOTP(hospitalData.id);
-      alert('OTP sent to your registered phone number');
-    } catch (error) {
-      setPasswordError(error.message);
-    }
-  };
-
-  // Check if the screen is mobile size on load and when resized
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    // Initial check
-    checkIfMobile();
-    
-    // Add event listener
-    window.addEventListener('resize', checkIfMobile);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('resize', checkIfMobile);
-    };
-  }, []);
 
   const renderProfile = () => (
     <div className="relative bg-gray-50 min-h-screen w-full max-w-full overflow-hidden">
@@ -204,210 +331,84 @@ const ProfileManagement = () => {
           </div>
         </div>
         
-        {/* Tabs Navigation */}
-        <div className="flex bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
-          <button
-            onClick={() => setActiveTab("details")}
-            className={`flex-1 px-4 py-3 text-sm sm:text-base font-medium flex justify-center items-center gap-2 transition-colors ${
-              activeTab === "details" 
-                ? "bg-red-600 text-white" 
-                : "text-gray-600 hover:bg-red-50 hover:text-red-600"
-            }`}
-          >
-            <User className="w-4 h-4" />
-            Details
-          </button>
-          <button
-            onClick={() => setActiveTab("requests")}
-            className={`flex-1 px-4 py-3 text-sm sm:text-base font-medium flex justify-center items-center gap-2 transition-colors ${
-              activeTab === "requests" 
-                ? "bg-red-600 text-white" 
-                : "text-gray-600 hover:bg-red-50 hover:text-red-600"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Request History
-          </button>
-        </div>
-
         {/* Content Area */}
-        {activeTab === "details" ? (
-          <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center">
-                <User className="w-5 h-5 mr-2 text-red-600" />
-                Hospital Information
-              </h3>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">Email</p>
-                  <div className="flex items-center">
-                    <Mail className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">{hospitalData.email || 'Not provided'}</span>
-                  </div>
-                </div>
-                
-                <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">Phone</p>
-                  <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">{hospitalData.phone || 'Not provided'}</span>
-                  </div>
-                </div>
-                
-                <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">Hospital ID</p>
-                  <span className="font-medium">{hospitalData.hospitalId || 'Not provided'}</span>
-                </div>
-              </div>
-              
-              <div>
-                <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">Address</p>
-                  <div className="flex items-start">
-                    <MapPin className="w-4 h-4 mr-2 text-red-600 mt-0.5 flex-shrink-0" />
-                    <span className="font-medium">{hospitalData.address || 'Not provided'}</span>
-                  </div>
-                </div>
-                
-                <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">License Number</p>
-                  <span className="font-medium">{hospitalData.licenseNumber || 'Not provided'}</span>
-                </div>
-                
-                <div className="mb-5">
-                  <p className="text-sm text-gray-500 uppercase mb-1">Hospital Name</p>
-                  <div className="flex items-center">
-                    <Building className="w-4 h-4 mr-2 text-red-600" />
-                    <span className="font-medium">{hospitalData.hospitalName || 'Not provided'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <h4 className="text-lg font-medium text-gray-800 mb-4">Security Settings</h4>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center">
+              <User className="w-5 h-5 mr-2 text-red-600" />
+              Hospital Information
+            </h3>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <div className="mb-5">
+                <p className="text-sm text-gray-500 uppercase mb-1">Email</p>
                 <div className="flex items-center">
-                  <div className="bg-red-100 p-2 rounded-full mr-3 flex-shrink-0">
-                    <Lock className="h-5 w-5 text-red-600" />
-                  </div>
-                  <div>
-                    <h5 className="font-medium">Password & Authentication</h5>
-                    <p className="text-sm text-gray-500">Update your password and security settings</p>
-                  </div>
+                  <Mail className="w-4 h-4 mr-2 text-red-600" />
+                  <span className="font-medium">{hospitalData.email || 'Not provided'}</span>
                 </div>
-                <button
-                  onClick={() => setView("editDetails")}
-                  className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors px-4 py-2 rounded-lg text-sm font-medium"
-                >
-                  Change Password
-                </button>
               </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-gray-800">Blood Request History</h3>
-              <div className="flex space-x-2">
-                <button className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm">Filter</button>
-                <button className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm">Export</button>
+              
+              <div className="mb-5">
+                <p className="text-sm text-gray-500 uppercase mb-1">Phone</p>
+                <div className="flex items-center">
+                  <Phone className="w-4 h-4 mr-2 text-red-600" />
+                  <span className="font-medium">{hospitalData.phone || 'Not provided'}</span>
+                </div>
+              </div>
+              
+              <div className="mb-5">
+                <p className="text-sm text-gray-500 uppercase mb-1">Hospital ID</p>
+                <span className="font-medium">{hospitalData.hospitalId || 'Not provided'}</span>
               </div>
             </div>
             
-            <div className="space-y-4 sm:space-y-5">
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center mr-3 flex-shrink-0">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Request #12345</h4>
-                      <div className="text-xs text-gray-500 flex items-center">
-                        <Calendar className="w-3 h-3 mr-1" /> 12/05/2023
-                      </div>
-                    </div>
-                  </div>
-                  <span className="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Completed</span>
-                </div>
-                <div className="p-4 bg-gray-50">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Blood Type</div>
-                      <div className="flex items-center">
-                        <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center mr-1.5">
-                          <span className="text-xs font-bold text-white">O+</span>
-                        </div>
-                        <span className="font-medium">O Positive</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Quantity</div>
-                      <div className="font-medium">3 units</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Source</div>
-                      <div className="font-medium">RedSource Central</div>
-                    </div>
-                  </div>
+            <div>
+              <div className="mb-5">
+                <p className="text-sm text-gray-500 uppercase mb-1">Address</p>
+                <div className="flex items-start">
+                  <MapPin className="w-4 h-4 mr-2 text-red-600 mt-0.5 flex-shrink-0" />
+                  <span className="font-medium">{hospitalData.address || 'Not provided'}</span>
                 </div>
               </div>
               
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center mr-3 flex-shrink-0">
-                      <Clock className="h-5 w-5 text-yellow-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Request #12346</h4>
-                      <div className="text-xs text-gray-500 flex items-center">
-                        <Calendar className="w-3 h-3 mr-1" /> 19/05/2023
-                      </div>
-                    </div>
-                  </div>
-                  <span className="bg-yellow-100 text-yellow-700 text-xs font-medium px-2.5 py-1 rounded-full">Processing</span>
-                </div>
-                <div className="p-4 bg-gray-50">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Blood Type</div>
-                      <div className="flex items-center">
-                        <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center mr-1.5">
-                          <span className="text-xs font-bold text-white">AB-</span>
-                        </div>
-                        <span className="font-medium">AB Negative</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Quantity</div>
-                      <div className="font-medium">1 unit</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Source</div>
-                      <div className="font-medium">City Regional</div>
-                    </div>
-                  </div>
-                </div>
+              <div className="mb-5">
+                <p className="text-sm text-gray-500 uppercase mb-1">License Number</p>
+                <span className="font-medium">{hospitalData.licenseNumber || 'Not provided'}</span>
               </div>
               
-              <div className="text-center mt-6">
-                <button className="text-red-600 hover:text-red-800 font-medium flex items-center mx-auto">
-                  View All Request History
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
+              <div className="mb-5">
+                <p className="text-sm text-gray-500 uppercase mb-1">Hospital Name</p>
+                <div className="flex items-center">
+                  <Building className="w-4 h-4 mr-2 text-red-600" />
+                  <span className="font-medium">{hospitalData.hospitalName || 'Not provided'}</span>
+                </div>
               </div>
             </div>
           </div>
-        )}
-        
+          
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h4 className="text-lg font-medium text-gray-800 mb-4">Security Settings</h4>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center">
+                <div className="bg-red-100 p-2 rounded-full mr-3 flex-shrink-0">
+                  <Lock className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h5 className="font-medium">Password & Authentication</h5>
+                  <p className="text-sm text-gray-500">Update your password and security settings</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setView("editDetails")}
+                className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Change Password
+              </button>
+            </div>
+          </div>
+        </div> 
       </div>
     </div>
   )
@@ -510,36 +511,83 @@ const ProfileManagement = () => {
                   Change Password
                 </h2>
 
+                {passwordSuccess && (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                    <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0" />
+                    <p className="text-sm text-green-700">{passwordSuccess}</p>
+                  </div>
+                )}
+
                 <div className="space-y-4">
+                  {/* Current Password Field */}
                   <div className="relative">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">OTP Code</label>
-                    <div className="flex gap-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                    <div className="relative">
                       <input
-                        type="text"
-                        value={passwordData.otpCode}
-                        onChange={(e) => setPasswordData({...passwordData, otpCode: e.target.value})}
-                        className="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-                        placeholder="Enter OTP code"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPasswordData({...passwordData, currentPassword: value});
+                          validateCurrentPassword(value);
+                        }}
+                        className={`w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow ${
+                          passwordValidation.currentPassword.isValid === false 
+                            ? 'border-red-300 bg-red-50' 
+                            : passwordValidation.currentPassword.isValid === true 
+                            ? 'border-green-300 bg-green-50' 
+                            : 'border-gray-300'
+                        }`}
+                        placeholder="Enter your current password"
+                        required
                       />
                       <button
                         type="button"
-                        onClick={handleSendPasswordOTP}
-                        className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                       >
-                        Send OTP
+                        {showCurrentPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">An OTP will be sent to your registered phone number</p>
+                    {passwordValidation.currentPassword.message && (
+                      <div className={`mt-1 text-xs flex items-center gap-1 ${
+                        passwordValidation.currentPassword.isValid === false 
+                          ? 'text-red-600' 
+                          : passwordValidation.currentPassword.isValid === true
+                          ? 'text-green-600'
+                          : 'text-gray-500'
+                      }`}>
+                        {passwordValidation.currentPassword.message}
+                      </div>
+                    )}
                   </div>
 
+                  {/* New Password Field */}
                   <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                     <div className="relative">
                       <input
                         type={showNewPassword ? "text" : "password"}
                         value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPasswordData({...passwordData, newPassword: value});
+                          validateNewPassword(value);
+                          if (passwordData.confirmPassword) {
+                            validateConfirmPassword(passwordData.confirmPassword);
+                          }
+                        }}
+                        className={`w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow ${
+                          passwordValidation.newPassword.isValid === false 
+                            ? 'border-red-300 bg-red-50' 
+                            : passwordValidation.newPassword.isValid === true 
+                            ? 'border-green-300 bg-green-50' 
+                            : 'border-gray-300'
+                        }`}
                         placeholder="Enter new password"
                         required
                       />
@@ -555,17 +603,39 @@ const ProfileManagement = () => {
                         )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Password must be at least 8 characters long and include a number and special character</p>
+                    <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters with uppercase, lowercase, number, and special character (@$!%*?&)</p>
+                    {passwordValidation.newPassword.message && (
+                      <div className={`mt-1 text-xs flex items-center gap-1 ${
+                        passwordValidation.newPassword.isValid === false 
+                          ? 'text-red-600' 
+                          : passwordValidation.newPassword.isValid === true
+                          ? 'text-green-600'
+                          : 'text-gray-500'
+                      }`}>
+                        {passwordValidation.newPassword.message}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Confirm Password Field */}
                   <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
                     <div className="relative">
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPasswordData({...passwordData, confirmPassword: value});
+                          validateConfirmPassword(value);
+                        }}
+                        className={`w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent pr-10 text-sm transition-shadow ${
+                          passwordValidation.confirmPassword.isValid === false 
+                            ? 'border-red-300 bg-red-50' 
+                            : passwordValidation.confirmPassword.isValid === true 
+                            ? 'border-green-300 bg-green-50' 
+                            : 'border-gray-300'
+                        }`}
                         placeholder="Confirm new password"
                         required
                       />
@@ -581,21 +651,26 @@ const ProfileManagement = () => {
                         )}
                       </button>
                     </div>
+                    {passwordValidation.confirmPassword.message && (
+                      <div className={`mt-1 text-xs flex items-center gap-1 ${
+                        passwordValidation.confirmPassword.isValid === false 
+                          ? 'text-red-600' 
+                          : passwordValidation.confirmPassword.isValid === true
+                          ? 'text-green-600'
+                          : passwordValidation.confirmPassword.isValid === null && passwordValidation.confirmPassword.message
+                          ? 'text-amber-600'
+                          : 'text-gray-500'
+                      }`}>
+                        {passwordValidation.confirmPassword.message}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-center border-t border-gray-200 pt-6">
-                <button
-                  type="button"
-                  onClick={() => setView("archiveConfirmation")}
-                  className="mt-3 sm:mt-0 text-red-600 hover:text-red-700 text-sm font-medium flex items-center"
-                >
-                  <AlertTriangle className="w-4 h-4 mr-1" />
-                  Delete Account
-                </button>
-
+                
                 <div className="flex gap-3 w-full sm:w-auto">
                   <button
                     type="button"
@@ -627,57 +702,6 @@ const ProfileManagement = () => {
     </div>
   )
 
-
-  const renderArchiveConfirmation = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-hidden">
-      <div className="bg-white rounded-xl max-w-md w-full p-4 sm:p-6 shadow-xl">
-        <div className="flex flex-col items-center text-center mb-4 sm:mb-6">
-          <div className="bg-red-100 p-2 sm:p-3 rounded-full mb-3 sm:mb-4">
-            <AlertTriangle className="h-6 sm:h-8 w-6 sm:w-8 text-red-600" />
-          </div>
-          <h3 className="text-lg sm:text-xl font-bold text-gray-800">Delete Account</h3>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-            This action cannot be undone. All your data will be permanently deleted.
-          </p>
-        </div>
-        
-        <div className="mb-4 sm:mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-            Type "delete" to confirm
-          </label>
-          <input
-            type="text"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
-            placeholder="Type 'delete' here"
-          />
-        </div>
-        
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-          <button
-            type="button"
-            onClick={() => setView("editDetails")}
-            className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={confirmText !== "delete"}
-            className={`w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 font-medium rounded-lg text-sm transition-colors ${
-              confirmText === "delete" 
-                ? "bg-red-600 hover:bg-red-700 text-white" 
-                : "bg-red-300 cursor-not-allowed text-white"
-            }`}
-          >
-            Delete Account
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -702,7 +726,6 @@ const ProfileManagement = () => {
     <div className="w-full max-w-full overflow-x-hidden">
       {view === "profile" && renderProfile()}
       {view === "editDetails" && renderEditDetails()}
-      {view === "archiveConfirmation" && renderArchiveConfirmation()}
       
       {/* Profile Picture Modal */}
       {showProfileModal && (

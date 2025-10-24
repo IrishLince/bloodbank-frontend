@@ -679,35 +679,7 @@ export default function DeliveryStatus() {
                   </div>
                 )}
 
-                {/* Tracking History */}
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Tracking History</h4>
-                  {selectedDelivery.trackingHistory && selectedDelivery.trackingHistory.length > 0 ? (
-                    <div className="space-y-3">
-                      {selectedDelivery.trackingHistory.map((event, index) => (
-                        <div key={index} className="flex items-start space-x-3 pb-3 border-b border-gray-200 last:border-b-0">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${getStatusColor(event.status)}`}>
-                            {getStatusIcon(event.status)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium text-gray-900">{event.status}</p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(event.timestamp).toLocaleString()}
-                              </p>
-                            </div>
-                            <p className="text-sm text-gray-600">{event.location}</p>
-                            <p className="text-sm text-gray-500">{event.note}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-                      <p className="text-gray-600">No tracking history available</p>
-                    </div>
-                  )}
-                </div>
+
 
                 {/* Notes */}
                 {selectedDelivery.notes && (
