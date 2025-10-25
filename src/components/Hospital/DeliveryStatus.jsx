@@ -8,7 +8,7 @@ import Pagination from '../Pagination';
 
 // Delivery status constants
 const DELIVERY_STATUS = {
-  PENDING: 'PENDING',
+  SCHEDULED: 'SCHEDULED',
   IN_TRANSIT: 'IN TRANSIT',
   COMPLETE: 'COMPLETE'
 };
@@ -61,7 +61,7 @@ export default function DeliveryStatus() {
               contactInfo: delivery.contactInfo || delivery.contact_info || delivery.bloodBankPhone || delivery.blood_bank_phone,
               itemsSummary: delivery.itemsSummary || delivery.items_summary,
               bloodItems: delivery.bloodItems || delivery.blood_items || [],
-              status: delivery.status || 'PENDING',
+              status: delivery.status === 'PENDING' ? 'SCHEDULED' : (delivery.status || 'SCHEDULED'),
               scheduledDate: delivery.scheduledDate || delivery.scheduled_date || new Date().toISOString(),
               estimatedTime: delivery.estimatedTime || delivery.estimated_time || 'TBD',
               priority: delivery.priority || 'Normal',
@@ -155,7 +155,7 @@ export default function DeliveryStatus() {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case DELIVERY_STATUS.PENDING:
+      case DELIVERY_STATUS.SCHEDULED:
         return <Clock className="w-4 h-4 text-yellow-500" />;
       case DELIVERY_STATUS.IN_TRANSIT:
         return <Truck className="w-4 h-4 text-indigo-500" />;
@@ -168,7 +168,7 @@ export default function DeliveryStatus() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case DELIVERY_STATUS.PENDING:
+      case DELIVERY_STATUS.SCHEDULED:
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case DELIVERY_STATUS.IN_TRANSIT:
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
@@ -194,7 +194,7 @@ export default function DeliveryStatus() {
 
   const getStatusStep = (status) => {
     switch (status) {
-      case DELIVERY_STATUS.PENDING:
+      case DELIVERY_STATUS.SCHEDULED:
         return 0;
       case DELIVERY_STATUS.IN_TRANSIT:
         return 1;
@@ -534,34 +534,51 @@ export default function DeliveryStatus() {
                 </div>
 
                 {/* Progress Tracker */}
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h4 className="font-medium text-gray-900 mb-4">Delivery Progress</h4>
-                  <div className="flex items-center justify-between">
+                <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100 shadow-sm">
+                  <h4 className="font-semibold text-gray-900 mb-6 flex items-center">
+                    <Package className="w-5 h-5 mr-2 text-red-600" />
+                    Delivery Progress
+                  </h4>
+                  <div className="flex items-center justify-between px-4">
                     {Object.values(DELIVERY_STATUS).map((status, index) => {
                       const currentStep = getStatusStep(selectedDelivery.status);
                       const isActive = index <= currentStep;
                       const isCurrent = index === currentStep;
                       
                       return (
-                        <div key={status} className="flex flex-col items-center flex-1">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                        <div key={status} className="flex flex-col items-center flex-1 relative">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center border-3 shadow-lg transition-all duration-300 ${
                             isActive 
                               ? isCurrent 
-                                ? 'bg-red-600 border-red-600 text-white' 
-                                : 'bg-green-600 border-green-600 text-white'
-                              : 'bg-gray-200 border-gray-300 text-gray-400'
+                                ? status === 'SCHEDULED' 
+                                  ? 'bg-yellow-500 border-yellow-500 text-white shadow-yellow-200' 
+                                  : status === 'IN TRANSIT'
+                                  ? 'bg-blue-500 border-blue-500 text-white shadow-blue-200'
+                                  : 'bg-green-500 border-green-500 text-white shadow-green-200'
+                                : 'bg-gray-100 border-gray-300 text-gray-500'
+                              : 'bg-gray-100 border-gray-300 text-gray-400'
                           }`}>
-                            {getStatusIcon(status)}
+                            <div className={`${isActive && isCurrent ? 'scale-110' : 'scale-100'} transition-transform duration-300`}>
+                              {status === 'SCHEDULED' ? (
+                                <Clock className="w-5 h-5" />
+                              ) : status === 'IN TRANSIT' ? (
+                                <Truck className="w-5 h-5" />
+                              ) : (
+                                <CheckCircle className="w-5 h-5" />
+                              )}
+                            </div>
                           </div>
-                          <div className={`mt-2 text-xs font-medium ${
+                          <div className={`mt-3 text-xs font-semibold text-center ${
                             isActive ? 'text-gray-900' : 'text-gray-400'
                           }`}>
                             {status}
                           </div>
                           {index < Object.values(DELIVERY_STATUS).length - 1 && (
-                            <div className={`absolute top-5 left-1/2 w-full h-0.5 ${
-                              index < currentStep ? 'bg-green-600' : 'bg-gray-300'
-                            }`} style={{ transform: 'translateX(50%)' }} />
+                            <div className={`absolute top-6 left-1/2 w-full h-1 rounded-full transition-all duration-500 ${
+                              index < currentStep 
+                                ? 'bg-gradient-to-r from-yellow-400 to-green-400' 
+                                : 'bg-gray-200'
+                            }`} style={{ transform: 'translateX(50%)', zIndex: -1 }} />
                           )}
                         </div>
                       );

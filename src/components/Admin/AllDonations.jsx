@@ -171,8 +171,8 @@ const AllDonations = () => {
         console.log('🎨 Returning GREEN for Complete');
         return 'bg-green-100 text-green-800';
       case 'Scheduled':
-        console.log('🎨 Returning BLUE for Scheduled');
-        return 'bg-blue-100 text-blue-800';
+        console.log('🎨 Returning YELLOW for Scheduled');
+        return 'bg-yellow-100 text-yellow-800';
       case 'Missed':
         console.log('🎨 Returning RED for Missed');
         return 'bg-red-100 text-red-800';

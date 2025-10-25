@@ -168,7 +168,7 @@ export default function TrackDelivery({ delivery, onClose, onRefresh }) {
           <div className={`rounded-lg p-4 mb-6 ${
             getStatusStep(delivery.status) === 3 ? 'bg-green-50 border border-green-200' :
             getStatusStep(delivery.status) === 2 ? 'bg-blue-50 border border-blue-200' :
-            getStatusStep(delivery.status) === 1 ? 'bg-purple-50 border border-purple-200' :
+            getStatusStep(delivery.status) === 1 ? 'bg-yellow-50 border border-yellow-200' :
             'bg-yellow-50 border border-yellow-200'
           }`}>
             <h3 className="font-medium text-gray-800 mb-3">Current Status</h3>
@@ -179,7 +179,7 @@ export default function TrackDelivery({ delivery, onClose, onRefresh }) {
               ) : getStatusStep(delivery.status) === 2 ? (
                 <Truck className="h-5 w-5 mr-2 text-blue-500 mt-0.5" />
               ) : getStatusStep(delivery.status) === 1 ? (
-                <CalendarCheck className="h-5 w-5 mr-2 text-purple-500 mt-0.5" />
+                <CalendarCheck className="h-5 w-5 mr-2 text-yellow-500 mt-0.5" />
               ) : (
                 <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500 mt-0.5" />
               )}

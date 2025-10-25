@@ -49,7 +49,7 @@ const AllRequests = () => {
   const getStatusColor = (status) => {
     const colors = {
       'PENDING': 'bg-yellow-100 text-yellow-800',
-      'SCHEDULED': 'bg-purple-100 text-purple-800',
+      'SCHEDULED': 'bg-yellow-100 text-yellow-800',
       'FULFILLED': 'bg-green-100 text-green-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';

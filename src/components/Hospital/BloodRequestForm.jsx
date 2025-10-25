@@ -605,6 +605,11 @@ const BloodRequestForm = () => {
       newErrors.bloodSource = 'Please select a blood center';
     }
 
+    // Validate Additional Notes field - make it required
+    if (!notes || notes.trim() === '') {
+      newErrors.notes = 'Additional notes are required';
+    }
+
     // Validate blood requests - check if we have any valid blood requests
     const validBloodRequests = bloodRequests.filter(request => request.bloodType && request.unitsRequested);
     if (validBloodRequests.length === 0) {
@@ -965,19 +970,33 @@ const BloodRequestForm = () => {
                     <FiInfo className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold">Additional Notes</h2>
-                    <p className="text-red-100 text-xs">Any specific instructions or details</p>
+                    <h2 className="text-lg font-bold">Additional Notes *</h2>
+                    <p className="text-red-100 text-xs">Required: Any specific instructions or details</p>
                   </div>
                 </div>
               </div>
               <div className="p-3">
                 <textarea
-                  className="w-full p-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none"
+                  className={`w-full p-2 border-2 ${errors.notes ? 'border-red-500' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none`}
                   rows="2"
-                  placeholder="Enter any additional notes here..."
+                  placeholder="Enter any additional notes here... (Required)"
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => {
+                    setNotes(e.target.value);
+                    // Clear error when user starts typing
+                    if (errors.notes) {
+                      const newErrors = { ...errors };
+                      delete newErrors.notes;
+                      setErrors(newErrors);
+                    }
+                  }}
                 ></textarea>
+                {errors.notes && (
+                  <p className="text-red-500 text-xs mt-1 flex items-center">
+                    <FiInfo className="w-3 h-3 mr-1" />
+                    {errors.notes}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1304,65 +1323,99 @@ const BloodRequestForm = () => {
 
       {/* Add Blood Type Modal */}
       {showAddBloodModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-2xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-white bg-opacity-20 p-2 rounded-lg">
-                    <FiPlus className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/20" onClick={() => {
+              setShowAddBloodModal(false);
+              setNewBloodType('');
+              setNewUnitsRequested('');
+              const newErrors = { ...errors };
+              delete newErrors.newBloodType;
+              delete newErrors.newUnitsRequested;
+              setErrors(newErrors);
+            }}></div>
+            
+            <div className="relative w-full max-w-md transform rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 transition-all">
+              {/* Modal Header */}
+              <div className="relative overflow-hidden rounded-t-3xl bg-gradient-to-br from-red-500 via-red-600 to-red-700 px-8 py-6">
+                <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10"></div>
+                <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-white/5"></div>
+                <div className="relative flex items-start justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+                      <FiPlus className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Add Blood Type</h3>
+                      <p className="mt-1 text-sm text-red-100/80">Select type and quantity needed</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Add Blood Type</h2>
-                    <p className="text-red-100 text-sm">Select blood type and quantity</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddBloodModal(false);
+                      setNewBloodType('');
+                      setNewUnitsRequested('');
+                      const newErrors = { ...errors };
+                      delete newErrors.newBloodType;
+                      delete newErrors.newUnitsRequested;
+                      setErrors(newErrors);
+                    }}
+                    className="rounded-xl bg-white/10 p-2 text-white backdrop-blur-sm transition-all hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+                  >
+                    <FiPlus className="h-5 w-5 rotate-45" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowAddBloodModal(false);
-                    setNewBloodType('');
-                    setNewUnitsRequested('');
-                    const newErrors = { ...errors };
-                    delete newErrors.newBloodType;
-                    delete newErrors.newUnitsRequested;
-                    setErrors(newErrors);
-                  }}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
-                >
-                  <FiPlus className="w-5 h-5 transform rotate-45" />
-                </button>
               </div>
-            </div>
 
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              {/* ✅ Reminder for specific blood types */}
-              {newBloodType && ["O+", "A+", "B+", "AB+"].includes(newBloodType) && (
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-2 text-sm">
-                  Please note: Maximum allowed units for{" "}
-                  {newBloodType === "O+" && "O+ is 15 units"}
-                  {newBloodType === "A+" && "A+ is 10 units"}
-                  {newBloodType === "B+" && "B+ is 10 units"}
-                  {newBloodType === "AB+" && "AB+ is 7 units"}
-                </div>
-              )}
+              {/* Modal Content */}
+              <div className="px-8 py-8">
+                {/* Warning Alert */}
+                {newBloodType && ["O+", "A+", "B+", "AB+"].includes(newBloodType) && (
+                  <div className="mb-8 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                        <FiInfo className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-amber-900">Usage Limit</h4>
+                        <p className="mt-1 text-sm text-amber-800">
+                          Maximum {newBloodType} units:{" "}
+                          <span className="font-bold">
+                            {newBloodType === "O+" && "15"}
+                            {newBloodType === "A+" && "10"}
+                            {newBloodType === "B+" && "10"}
+                            {newBloodType === "AB+" && "7"}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              {/* Blood Type Selection */}
-              <div className="space-y-3">
-                <label className="block text-sm font-bold text-gray-800">Blood Type</label>
-                <select
-                  value={newBloodType}
-                  onChange={(e) => {
-                    setNewBloodType(e.target.value);
-                    const newErrors = { ...errors };
-                    delete newErrors.newBloodType;
-                    setErrors(newErrors);
-                  }}
-                  className={`w-full p-4 border-2 ${
-                    errors.newBloodType ? 'border-red-500' : 'border-gray-200'
-                  } rounded-lg font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer text-base`}
-                >
+                <div className="space-y-8">
+                  {/* Blood Type Selection */}
+                  <div className="group">
+                    <label htmlFor="blood-type" className="mb-3 flex items-center text-sm font-bold text-slate-700">
+                      <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-xs text-red-600">1</span>
+                      Blood Type <span className="ml-1 text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="blood-type"
+                        value={newBloodType}
+                        onChange={(e) => {
+                          setNewBloodType(e.target.value);
+                          const newErrors = { ...errors };
+                          delete newErrors.newBloodType;
+                          setErrors(newErrors);
+                        }}
+                        className={`block w-full rounded-2xl border-0 py-4 px-5 text-gray-900 shadow-lg ring-1 ring-inset transition-all duration-200 ${
+                          errors.newBloodType 
+                            ? 'ring-red-300 focus:ring-2 focus:ring-red-500' 
+                            : 'ring-gray-200 focus:ring-2 focus:ring-red-500 hover:ring-gray-300'
+                        } bg-white/80 backdrop-blur-sm`}
+                      >
                   <option value="">Select Blood Type</option>
                   {selectedAdmin && selectedAdmin.inventory
                     ? selectedAdmin.inventory
@@ -1388,101 +1441,125 @@ const BloodRequestForm = () => {
                           );
                         })
                     : null}
-                </select>
-                {errors.newBloodType && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <FiInfo className="w-4 h-4 mr-1" />
-                    {errors.newBloodType}
-                  </p>
-                )}
-              </div>
-
-              {/* Units Requested */}
-              <div className="space-y-3">
-                <label className="block text-sm font-bold text-gray-800">Units Requested</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={newUnitsRequested}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '' || (Number(value) >= 1 && Number(value) <= 50)) {
-                        setNewUnitsRequested(value);
-                        const newErrors = { ...errors };
-                        delete newErrors.newUnitsRequested;
-                        setErrors(newErrors);
-                      }
-                    }}
-                    className={`w-full p-4 border-2 ${errors.newUnitsRequested ? 'border-red-500' : 'border-gray-200'} rounded-lg bg-white text-gray-800 font-medium text-base focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all`}
-                    placeholder="Enter Units (1-50)"
-                    min="1"
-                    max="50"
-                  />
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium text-sm">
-                    units
-                  </div>
-                </div>
-                {errors.newUnitsRequested && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <FiInfo className="w-4 h-4 mr-1" />
-                    {errors.newUnitsRequested}
-                  </p>
-                )}
-              </div>
-
-              {/* Availability Info */}
-              {newBloodType && selectedAdmin && (() => {
-                const inventory = selectedAdmin.inventory.find(item => item.type === newBloodType);
-                return (
-                  <div className={`rounded-lg p-4 border ${
-                    inventory && inventory.available > 0 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-red-50 border-red-200'
-                  }`}>
-                    <div className={`flex items-center ${
-                      inventory && inventory.available > 0 
-                        ? 'text-green-700' 
-                        : 'text-red-700'
-                    }`}>
-                      {inventory && inventory.available > 0 ? (
-                        <FiCheckCircle className="w-5 h-5 mr-2" />
-                      ) : (
-                        <FiInfo className="w-5 h-5 mr-2" />
-                      )}
-                      <span className="font-medium">
-                        {inventory 
-                          ? `Available: ${inventory.available} units at ${selectedAdmin.name}`
-                          : 'Not available'
-                        }
-                      </span>
+                      </select>
                     </div>
+                    {errors.newBloodType && (
+                      <div className="mt-3 flex items-center rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <FiInfo className="mr-2 h-4 w-4 text-red-500" />
+                        <span className="font-medium">{errors.newBloodType}</span>
+                      </div>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
 
-            {/* Modal Footer */}
-            <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex space-x-3">
-              <button
-                onClick={() => {
-                  setShowAddBloodModal(false);
-                  setNewBloodType('');
-                  setNewUnitsRequested('');
-                  const newErrors = { ...errors };
-                  delete newErrors.newBloodType;
-                  delete newErrors.newUnitsRequested;
-                  setErrors(newErrors);
-                }}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddBloodType}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-medium hover:from-red-700 hover:to-red-800 transition-all"
-              >
-                Add Blood Type
-              </button>
+                  {/* Units Requested */}
+                  <div className="group">
+                    <label htmlFor="units-requested" className="mb-3 flex items-center text-sm font-bold text-slate-700">
+                      <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-xs text-red-600">2</span>
+                      Units Requested <span className="ml-1 text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        id="units-requested"
+                        value={newUnitsRequested}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (Number(value) >= 1 && Number(value) <= 50)) {
+                            setNewUnitsRequested(value);
+                            const newErrors = { ...errors };
+                            delete newErrors.newUnitsRequested;
+                            setErrors(newErrors);
+                          }
+                        }}
+                        className={`block w-full rounded-2xl border-0 py-4 px-5 pr-20 text-gray-900 shadow-lg ring-1 ring-inset transition-all duration-200 ${
+                          errors.newUnitsRequested 
+                            ? 'ring-red-300 focus:ring-2 focus:ring-red-500' 
+                            : 'ring-gray-200 focus:ring-2 focus:ring-red-500 hover:ring-gray-300'
+                        } bg-white/80 backdrop-blur-sm`}
+                        placeholder="Enter quantity (1-50)"
+                        min="1"
+                        max="50"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-5">
+                        <span className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">units</span>
+                      </div>
+                    </div>
+                    {errors.newUnitsRequested && (
+                      <div className="mt-3 flex items-center rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <FiInfo className="mr-2 h-4 w-4 text-red-500" />
+                        <span className="font-medium">{errors.newUnitsRequested}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Availability Status */}
+                  {newBloodType && selectedAdmin && (() => {
+                    const inventory = selectedAdmin.inventory.find(item => item.type === newBloodType);
+                    return (
+                      <div className={`rounded-2xl border p-6 ${
+                        inventory && inventory.available > 0 
+                          ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50' 
+                          : 'border-red-200 bg-gradient-to-br from-red-50 to-rose-50'
+                      }`}>
+                        <div className="flex items-start space-x-4">
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                            inventory && inventory.available > 0 ? 'bg-emerald-100' : 'bg-red-100'
+                          }`}>
+                            {inventory && inventory.available > 0 ? (
+                              <FiCheckCircle className="h-5 w-5 text-emerald-600" />
+                            ) : (
+                              <FiInfo className="h-5 w-5 text-red-600" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className={`font-bold ${
+                              inventory && inventory.available > 0 ? 'text-emerald-900' : 'text-red-900'
+                            }`}>
+                              {inventory && inventory.available > 0 ? 'Available' : 'Not Available'}
+                            </h4>
+                            <p className={`mt-1 text-sm ${
+                              inventory && inventory.available > 0 ? 'text-emerald-700' : 'text-red-700'
+                            }`}>
+                              {inventory 
+                                ? `${inventory.available} units at ${selectedAdmin.name}`
+                                : 'This blood type is currently unavailable'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="rounded-b-3xl bg-gradient-to-r from-gray-50 to-slate-50 px-8 py-6">
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddBloodModal(false);
+                      setNewBloodType('');
+                      setNewUnitsRequested('');
+                      const newErrors = { ...errors };
+                      delete newErrors.newBloodType;
+                      delete newErrors.newUnitsRequested;
+                      setErrors(newErrors);
+                    }}
+                    className="flex-1 rounded-2xl border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddBloodType}
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:from-red-700 hover:to-red-800 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  >
+                    Add Blood Type
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
