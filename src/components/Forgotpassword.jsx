@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { IoArrowBack } from "react-icons/io5";
+import { Eye, EyeOff } from 'lucide-react';
 import flagLogo from '../assets/Logophonenumber.png';
 import cover from '../assets/cover.png';
 import LogoSignup from '../assets/LogoSignup.png';
@@ -24,6 +25,8 @@ const ForgotPassword = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [userPhoneNumber, setUserPhoneNumber] = useState(''); // Store the phone for display
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const location = useLocation();
 
   // Helper function to strip country code from phone number
@@ -370,16 +373,23 @@ const ForgotPassword = () => {
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => {
                       setNewPassword(e.target.value);
                       setPasswordError('');
                       setError('');
                     }}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     placeholder="Enter password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Password must contain at least 8 characters, one uppercase letter, one number, and one special character.
@@ -391,16 +401,23 @@ const ForgotPassword = () => {
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       setPasswordError('');
                       setError('');
                     }}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     placeholder="Confirm password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </div>
               {passwordError && (

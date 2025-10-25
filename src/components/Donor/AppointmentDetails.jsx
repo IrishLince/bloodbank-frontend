@@ -146,17 +146,57 @@ const AppointmentDetails = () => {
 
       const toISODateTime = (dateStr, timeStr) => {
         try {
-          // Attempt direct parse first
-          let date = new Date(`${dateStr} ${timeStr}`)
-          if (isNaN(date.getTime())) {
-            // Handle formats like "Thursday, August 28, 2025"
-            const cleanedDate = String(dateStr || "")
-              .replace(/^\s*[A-Za-z]+,\s*/,'') // strip weekday and comma
-              .trim()
-            date = new Date(`${cleanedDate} ${timeStr}`)
+          console.log('🕐 APPOINTMENT DATE DEBUG:', {
+            dateStr: dateStr,
+            timeStr: timeStr,
+            type: typeof dateStr
+          })
+          
+          let date
+          
+          // Handle Date object
+          if (dateStr instanceof Date) {
+            // Create a new date with the same date but with time from timeStr
+            const dateOnly = new Date(dateStr.getFullYear(), dateStr.getMonth(), dateStr.getDate())
+            
+            // Parse time string (e.g., "9:00 AM" or "14:30")
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+            if (timeMatch) {
+              let hours = parseInt(timeMatch[1])
+              const minutes = parseInt(timeMatch[2])
+              const ampm = timeMatch[3]
+              
+              // Convert to 24-hour format if AM/PM is specified
+              if (ampm) {
+                if (ampm.toUpperCase() === 'PM' && hours !== 12) {
+                  hours += 12
+                } else if (ampm.toUpperCase() === 'AM' && hours === 12) {
+                  hours = 0
+                }
+              }
+              
+              date = new Date(dateOnly.getFullYear(), dateOnly.getMonth(), dateOnly.getDate(), hours, minutes)
+            } else {
+              // Fallback: use the original date
+              date = dateStr
+            }
+          } else {
+            // Handle string date
+            date = new Date(`${dateStr} ${timeStr}`)
+            if (isNaN(date.getTime())) {
+              // Handle formats like "Thursday, August 28, 2025"
+              const cleanedDate = String(dateStr || "")
+                .replace(/^\s*[A-Za-z]+,\s*/,'') // strip weekday and comma
+                .trim()
+              date = new Date(`${cleanedDate} ${timeStr}`)
+            }
           }
-          return isNaN(date.getTime()) ? null : date.toISOString()
-        } catch {
+          
+          const result = isNaN(date.getTime()) ? null : date.toISOString()
+          console.log('🕐 PARSED RESULT:', result)
+          return result
+        } catch (error) {
+          console.error('🕐 DATE PARSING ERROR:', error)
           return null
         }
       }
@@ -168,17 +208,18 @@ const AppointmentDetails = () => {
         userId: userId,
         appointmentData_bloodBankId: appointmentData?.bloodBankId,
         selectedHospital_id: appointmentData?.selectedHospital?.id,
-        donationCenter: appointmentData?.donationCenter
+        donationCenter: appointmentData?.donationCenter,
+        appointmentISO: appointmentISO
       });
 
       const backendPayload = {
         // Core backend fields
         donorId: userId, // Use the current user's ID as donor_id
         bloodBankId: appointmentData?.bloodBankId ? String(appointmentData.bloodBankId) : "",
-        appointmentDate: appointmentISO,
+        // appointmentDate: appointmentISO, // Temporarily commented out to test
         status: "Scheduled",
         userId: userId || "",
-        visitationDate: null,
+        visitationDate: appointmentISO, // Try using visitationDate instead
         notes: appointmentData?.notes || "",
 
         // Extended summary fields
@@ -186,7 +227,7 @@ const AppointmentDetails = () => {
         firstName: appointmentData?.firstName || "",
         middleInitial: appointmentData?.middleInitial || "",
         bloodType: appointmentData?.bloodType || "",
-        dateToday: appointmentData?.dateToday || "",
+        dateToday: appointmentISO || appointmentData?.dateToday || "",
         birthday: appointmentData?.birthday || "",
         age: appointmentData?.age || "",
         sex: appointmentData?.sex || "",
@@ -200,6 +241,13 @@ const AppointmentDetails = () => {
         appointmentTime: appointmentData?.appointmentTime || "",
         medicalHistory: appointmentData?.medicalHistory || {},
       }
+
+      console.log('📤 BACKEND PAYLOAD:', backendPayload)
+      console.log('📅 APPOINTMENT DATE SAVED:', {
+        appointmentDate: backendPayload.appointmentDate,
+        appointmentTime: backendPayload.appointmentTime,
+        status: backendPayload.status
+      })
 
       // Call backend API to persist in MongoDB
       try {

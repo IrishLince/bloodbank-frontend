@@ -47,9 +47,10 @@ const DonationHistory = () => {
                 date: dateValue,
                 location: appointment.donationCenter || appointment.bloodBankName || 'N/A',
                 status: appointment.status === 'Scheduled' ? 'Pending' : 
-                       appointment.status === 'Complete' || appointment.status === 'Completed' ? 'Completed' : 
-                       appointment.status === 'Missed' ? 'Rejected' :
-                       appointment.status === 'Cancelled' ? 'Rejected' : 'Pending'
+                       appointment.status === 'Complete' || appointment.status === 'Completed' ? 'Complete' : 
+                       appointment.status === 'Missed' ? 'Missed' :
+                       appointment.status === 'Cancelled' ? 'Deferred' :
+                       appointment.status === 'Deferred' ? 'Deferred' : 'Pending'
               };
             });
             
@@ -165,12 +166,14 @@ const DonationHistory = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Completed':
+      case 'Complete':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'Pending':
         return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'Rejected':
+      case 'Missed':
         return <AlertCircle className="w-4 h-4 text-red-600" />;
+      case 'Deferred':
+        return <Clock className="w-4 h-4 text-orange-600" />;
       default:
         return null;
     }
@@ -178,12 +181,14 @@ const DonationHistory = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed':
+      case 'Complete':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'Pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Rejected':
+      case 'Missed':
         return 'bg-red-100 text-red-800 border-red-200';
+      case 'Deferred':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -239,61 +244,51 @@ const DonationHistory = () => {
 
         {/* Filters and Controls */}
         <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             {/* Status Filter */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-                <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-
-              {/* Date Filter */}
-              <div className="relative">
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                >
-                  <option value="all">All Time</option>
-                  <option value="month">This Month</option>
-                  <option value="quarter">Last 3 Months</option>
-                  <option value="year">This Year</option>
-                </select>
-                <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
+            <div className="relative">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              >
+                <option value="all">All Status</option>
+                <option value="Complete">Complete</option>
+                <option value="Pending">Pending</option>
+                <option value="Missed">Missed</option>
+                <option value="Deferred">Deferred</option>
+              </select>
+              <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
 
-            {/* Export Button */}
-            <button
-              onClick={exportToCSV}
-              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+            {/* Date Filter */}
+            <div className="relative">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              >
+                <option value="all">All Time</option>
+                <option value="month">This Month</option>
+                <option value="quarter">Last 3 Months</option>
+                <option value="year">This Year</option>
+              </select>
+              <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6">
             <div className="flex items-center">
               <div className="bg-green-100 p-3 rounded-lg">
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-sm font-medium text-gray-600">Complete</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {allDonations.filter(d => d.status === 'Completed').length}
+                  {allDonations.filter(d => d.status === 'Complete').length}
                 </p>
               </div>
             </div>
@@ -319,9 +314,23 @@ const DonationHistory = () => {
                 <AlertCircle className="w-6 h-6 text-red-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Rejected</p>
+                <p className="text-sm font-medium text-gray-600">Missed</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {allDonations.filter(d => d.status === 'Rejected').length}
+                  {allDonations.filter(d => d.status === 'Missed').length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6">
+            <div className="flex items-center">
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <Clock className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Deferred</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {allDonations.filter(d => d.status === 'Deferred').length}
                 </p>
               </div>
             </div>
@@ -330,11 +339,18 @@ const DonationHistory = () => {
 
         {/* Donations Table */}
         <div className="bg-white rounded-xl shadow-lg border border-red-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5">
+          <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center justify-between">
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Donation Records ({filteredDonations.length})
             </h3>
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30 hover:scale-105"
+            >
+              <Download className="w-4 h-4" />
+              <span className="font-medium">Export CSV</span>
+            </button>
           </div>
 
           {loading ? (

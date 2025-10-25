@@ -19,6 +19,7 @@ import {
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import Header from "../Header"
+import { fetchWithAuth } from "../../utils/api"
 
 // Enhanced date picker styles with animations
 const customDatePickerStyles = `
@@ -84,6 +85,12 @@ const customDatePickerStyles = `
   .react-datepicker__day--disabled {
     color: #D1D5DB;
     text-decoration: line-through;
+    background-color: #F9FAFB;
+    cursor: not-allowed;
+  }
+  .react-datepicker__day--disabled:hover {
+    background-color: #F9FAFB !important;
+    transform: none !important;
   }
 `
 
@@ -91,6 +98,72 @@ export default function Schedule() {
   const location = useLocation()
   const navigate = useNavigate()
   const { selectedHospital } = location.state || {}
+  
+  // Function to check if a date should be enabled based on blood bank operating days
+  const isDateEnabled = (date) => {
+    if (!selectedHospital?.hours) {
+      return true // Enable all dates if no hours specified
+    }
+    
+    // Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dayOfWeek = date.getDay()
+    
+    // Parse operating days from hours string (format: "Mon-Fri 09:00 - 17:00" or "Mon,Wed,Fri 08:00 - 18:00")
+    const hours = selectedHospital.hours
+    
+    // Extract the days part (before the time)
+    const daysString = hours.split(' ')[0] // Gets "Mon-Fri" or "Mon,Wed,Fri"
+    
+    // Convert day names to numbers
+    const dayMap = {
+      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    }
+    
+    // Check if it's a range format (e.g., "Mon-Fri")
+    if (daysString.includes('-')) {
+      const [startDay, endDay] = daysString.split('-')
+      const startDayNum = dayMap[startDay]
+      const endDayNum = dayMap[endDay]
+      
+      // Check if current day is within the range
+      return dayOfWeek >= startDayNum && dayOfWeek <= endDayNum
+    } else {
+      // Check if it's a list format (e.g., "Mon,Wed,Fri")
+      const days = daysString.split(',').map(day => dayMap[day.trim()])
+      return days.includes(dayOfWeek)
+    }
+  }
+  
+  // Get the next available date for booking (considering blood bank operating days)
+  const getNextAvailableDate = () => {
+    // If no hospital selected yet, just return tomorrow
+    if (!selectedHospital?.hours) {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
+      return tomorrow
+    }
+    
+    let date = new Date()
+    date.setDate(date.getDate() + 1) // Start with tomorrow
+    date.setHours(0, 0, 0, 0)
+    
+    // Keep checking days until we find one that's enabled
+    let attempts = 0
+    while (attempts < 7) { // Prevent infinite loop
+      if (isDateEnabled(date)) {
+        return date
+      }
+      date.setDate(date.getDate() + 1)
+      attempts++
+    }
+    
+    // Fallback to tomorrow if we can't find a valid date
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(0, 0, 0, 0)
+    return tomorrow
+  }
   
   // Get tomorrow's date for minimum booking date
   const getTomorrowDate = () => {
@@ -100,16 +173,98 @@ export default function Schedule() {
     return tomorrow
   }
   
-  const [date, setDate] = useState(getTomorrowDate())
+  const [date, setDate] = useState(() => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(0, 0, 0, 0)
+    return tomorrow
+  })
   const [selectedTime, setSelectedTime] = useState("")
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [lastAppointment, setLastAppointment] = useState(null)
+  const [nextEligibleDate, setNextEligibleDate] = useState(null)
+  const [showRestrictionModal, setShowRestrictionModal] = useState(false)
 
-  // Loading simulation
+  // Helper function to check if 3 months have passed since last appointment
+  const hasThreeMonthsPassed = (lastAppointmentDate) => {
+    if (!lastAppointmentDate) return true
+    
+    const lastDate = new Date(lastAppointmentDate)
+    const threeMonthsLater = new Date(lastDate)
+    threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3)
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    return today >= threeMonthsLater
+  }
+
+  // Get the next eligible donation date (3 months from last appointment)
+  const getNextEligibleDate = (lastAppointmentDate) => {
+    if (!lastAppointmentDate) return null
+    
+    const lastDate = new Date(lastAppointmentDate)
+    const eligibleDate = new Date(lastDate)
+    eligibleDate.setMonth(eligibleDate.getMonth() + 3)
+    
+    return eligibleDate
+  }
+
+  // Check for recent appointments on component mount
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800)
-    return () => clearTimeout(timer)
+    const checkRecentAppointments = async () => {
+      const userId = localStorage.getItem('userId')
+      if (!userId) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const res = await fetchWithAuth(`/appointment/user/${userId}`)
+        if (res.ok) {
+          const body = await res.json()
+          const appointments = Array.isArray(body) ? body : (body?.data ?? [])
+          
+          // Filter for scheduled or completed appointments
+          const relevantAppointments = appointments.filter(apt => 
+            apt.status === 'Scheduled' || apt.status === 'Completed'
+          )
+
+          if (relevantAppointments.length > 0) {
+            // Sort by appointment date (most recent first)
+            const sortedAppointments = relevantAppointments.sort((a, b) => {
+              const dateA = new Date(a.appointmentDate || a.dateToday || a.createdAt)
+              const dateB = new Date(b.appointmentDate || b.dateToday || b.createdAt)
+              return dateB - dateA
+            })
+
+            const mostRecentAppointment = sortedAppointments[0]
+            const appointmentDate = mostRecentAppointment.appointmentDate || 
+                                   mostRecentAppointment.dateToday || 
+                                   mostRecentAppointment.createdAt
+
+            setLastAppointment(mostRecentAppointment)
+            
+            // Check if 3 months have passed
+            if (!hasThreeMonthsPassed(appointmentDate)) {
+              const eligibleDate = getNextEligibleDate(appointmentDate)
+              setNextEligibleDate(eligibleDate)
+              setShowRestrictionModal(true)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking recent appointments:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    checkRecentAppointments()
   }, [])
+
+  // Loading simulation removed - now using actual data loading
 
   // Redirect if no hospital selected
   useEffect(() => {
@@ -134,10 +289,10 @@ export default function Schedule() {
         return [
           { time: "9:00 AM", availability: "available" },
           { time: "10:00 AM", availability: "available" },
-          { time: "11:00 AM", availability: "limited" },
+          { time: "11:00 AM", availability: "available" },
           { time: "1:00 PM", availability: "available" },
           { time: "2:00 PM", availability: "available" },
-          { time: "3:00 PM", availability: "limited" },
+          { time: "3:00 PM", availability: "available" },
           { time: "4:00 PM", availability: "available" },
           { time: "5:00 PM", availability: "available" }
         ]
@@ -156,10 +311,10 @@ export default function Schedule() {
         return [
           { time: "9:00 AM", availability: "available" },
           { time: "10:00 AM", availability: "available" },
-          { time: "11:00 AM", availability: "limited" },
+          { time: "11:00 AM", availability: "available" },
           { time: "1:00 PM", availability: "available" },
           { time: "2:00 PM", availability: "available" },
-          { time: "3:00 PM", availability: "limited" },
+          { time: "3:00 PM", availability: "available" },
           { time: "4:00 PM", availability: "available" },
           { time: "5:00 PM", availability: "available" }
         ]
@@ -176,8 +331,8 @@ export default function Schedule() {
       // Generate time slots with 1-hour intervals
       let slotCount = 0
       while (currentTime < endTime && slotCount < 8) {
-        // Randomly assign availability status for demo
-        const availability = Math.random() > 0.3 ? "available" : "limited"
+        // All time slots are available
+        const availability = "available"
 
         slots.push({
           time: currentTime.toLocaleTimeString("en-US", {
@@ -348,6 +503,7 @@ export default function Schedule() {
                     selected={date}
                     onChange={(date) => setDate(date)}
                     minDate={getTomorrowDate()}
+                    filterDate={isDateEnabled}
                     inline
                     calendarClassName="!font-sans"
                   />
@@ -386,7 +542,6 @@ export default function Schedule() {
                                 ? "bg-gradient-to-r from-red-500 to-red-400 text-white shadow-lg scale-[1.02]"
                                 : "bg-white text-gray-700 hover:bg-red-50 hover:shadow"
                             }
-                            ${slot.availability === "limited" ? "opacity-75" : ""}
                           `}
                         >
                           <input
@@ -404,11 +559,6 @@ export default function Schedule() {
                               <Clock className="w-4 h-4 text-red-400" />
                             )}
                             <span className="text-sm sm:text-base font-medium">{slot.time}</span>
-                            {slot.availability === "limited" && (
-                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                                Limited
-                              </span>
-                            )}
                           </div>
                         </motion.label>
                       ))}
@@ -578,6 +728,98 @@ export default function Schedule() {
                       Change Schedule
                     </motion.button>
                   </motion.div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Restriction Modal - 3 Month Waiting Period */}
+        <AnimatePresence>
+          {showRestrictionModal && nextEligibleDate && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full relative"
+              >
+                <div className="text-center">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    className="w-14 sm:w-16 h-14 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                  >
+                    <AlertCircle className="w-7 sm:w-8 h-7 sm:h-8 text-yellow-600" />
+                  </motion.div>
+
+                  <motion.h2
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="text-xl sm:text-2xl font-bold text-gray-800 mb-4"
+                  >
+                    Too Soon to Donate
+                  </motion.h2>
+
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="space-y-4 mb-6"
+                  >
+                    <p className="text-gray-600">
+                      For your health and safety, blood donations must be spaced at least <strong>3 months apart</strong>.
+                    </p>
+
+                    {lastAppointment && (
+                      <div className="bg-yellow-50 rounded-lg p-4 text-left">
+                        <p className="text-sm text-gray-600 mb-2">
+                          <strong>Last Appointment:</strong>
+                        </p>
+                        <p className="text-sm text-gray-800">
+                          {new Date(lastAppointment.appointmentDate || lastAppointment.dateToday || lastAppointment.createdAt).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="bg-green-50 rounded-lg p-4 text-left border-2 border-green-200">
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Next Eligible Donation Date:</strong>
+                      </p>
+                      <p className="text-lg font-semibold text-green-700">
+                        {nextEligibleDate.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+
+                    <p className="text-sm text-gray-500">
+                      Thank you for your continued dedication to saving lives through blood donation!
+                    </p>
+                  </motion.div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate("/donation-center")}
+                    className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-3 rounded-full hover:shadow-lg transition-all duration-300 font-medium"
+                  >
+                    Return to Donation Centers
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>

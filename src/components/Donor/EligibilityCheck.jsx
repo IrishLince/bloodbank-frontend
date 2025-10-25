@@ -10,9 +10,16 @@ const EligibilityCheck = () => {
   const location = useLocation()
   const { selectedHospital, appointmentDate, appointmentTime } = location.state || {}
 
+  // Helper function to format date for form (YYYY-MM-DD)
+  const formatDateForForm = (date) => {
+    if (!date) return new Date().toISOString().split("T")[0]
+    const dateObj = date instanceof Date ? date : new Date(date)
+    return dateObj.toISOString().split("T")[0]
+  }
+
   const initialFormData = {
     bloodType: "",
-    date: new Date().toISOString().split("T")[0],
+    date: formatDateForForm(appointmentDate), // Use the selected appointment date, not today's date
     surname: "",
     firstName: "",
     middleInitial: "",
@@ -289,7 +296,7 @@ const EligibilityCheck = () => {
         firstName: formData.firstName,
         middleInitial: formData.middleInitial || "",
         bloodType: formData.bloodType,
-        dateToday: formData.date,
+        dateToday: formData.date, // This should now be the appointment date, not today's date
         birthday: formData.birthday,
         age: formData.age,
         sex: formData.sex,
@@ -313,7 +320,7 @@ const EligibilityCheck = () => {
         donationCenter: selectedHospital?.name || selectedHospital?.bloodBankName || "",
         bloodBankId: selectedHospital?.id || "",
         selectedHospital: selectedHospital, // Pass the full selected hospital/blood bank object
-        appointmentDate: appointmentDate,
+        appointmentDate: appointmentDate || formData.date, // Ensure appointmentDate is set correctly
         appointmentTime: appointmentTime,
       }
 

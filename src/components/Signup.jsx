@@ -28,7 +28,7 @@ export default function Signup() {
     password: '',
     confirmPassword: '',
     contactInformation: '',
-    bloodType: 'A+',
+    bloodType: '',
     role: 'DONOR',
     profilePicture: 'profile.png',
     address: '',
@@ -147,7 +147,8 @@ export default function Signup() {
 
   // Check phone number availability
   const checkPhoneAvailability = async (phone) => {
-    if (!phone || !/^\d{10}$/.test(phone)) {
+    // Must be exactly 10 digits AND start with 9
+    if (!phone || !/^9\d{9}$/.test(phone)) {
       return;
     }
     
@@ -255,11 +256,17 @@ export default function Signup() {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    // Phone number validation
+    // Phone number validation - STRICT 10 digits starting with 9
     if (!formData.contactInformation?.trim()) {
       newErrors.contactInformation = "Contact number is required";
-    } else if (!/^\d{10}$/.test(formData.contactInformation)) {
-      newErrors.contactInformation = "Invalid phone number format (10 digits required)";
+    } else if (!/^9\d{9}$/.test(formData.contactInformation)) {
+      if (!/^\d{10}$/.test(formData.contactInformation)) {
+        newErrors.contactInformation = "Contact number must be exactly 10 digits";
+      } else if (!formData.contactInformation.startsWith('9')) {
+        newErrors.contactInformation = "Contact number must start with 9 (e.g., 9394123330)";
+      } else {
+        newErrors.contactInformation = "Invalid contact number format";
+      }
     }
 
     // Address validation
@@ -274,8 +281,8 @@ export default function Signup() {
       newErrors.age = "Age is required";
     } else {
       const age = parseInt(formData.age);
-      if (isNaN(age) || age < 18 || age > 65) {
-      newErrors.age = "Age must be between 18 and 65";
+      if (isNaN(age) || age < 16 || age > 65) {
+        newErrors.age = "Age must be between 16 and 65";
       }
     }
 
@@ -286,10 +293,10 @@ export default function Signup() {
       const birthDate = new Date(formData.birthDate);
       const today = new Date();
       const minDate = new Date(today.getFullYear() - 65, today.getMonth(), today.getDate());
-      const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+      const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
       
       if (birthDate > maxDate) {
-        newErrors.birthDate = "You must be at least 18 years old";
+        newErrors.birthDate = "You must be at least 16 years old";
       } else if (birthDate < minDate) {
         newErrors.birthDate = "Age cannot exceed 65 years";
       }
@@ -800,7 +807,7 @@ export default function Signup() {
               </div>
               <div>
                 <label htmlFor="middleInitial" className="block text-gray-700 text-sm font-semibold mb-2">
-                  Middle Initial
+                  Middle Name
                 </label>
                 <input
                   type="text"
@@ -820,7 +827,7 @@ export default function Signup() {
                     handleChange(customEvent);
                   }}
                   className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${errors.middleInitial ? 'border-red-500 bg-red-50 focus:border-red-600' : 'border-gray-300 focus:border-red-500'} focus:ring-4 focus:ring-red-100 focus:outline-none text-sm`}
-                  placeholder="Enter your middle initial"
+                  placeholder="Enter your middle name"
                 />
                 {errors.middleInitial && (
                   <p className="text-red-500 text-xs mt-2 flex items-center">
@@ -1185,6 +1192,7 @@ export default function Signup() {
                     : 'border-gray-300 focus:border-red-500'
                 } focus:ring-4 focus:ring-red-100 focus:outline-none text-sm`}
               >
+                <option value="">Select blood type</option>
                 <option value="Unknown">Unknown</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
@@ -1246,19 +1254,29 @@ export default function Signup() {
                       }
                       
                       // Debounce validation by 500ms
-                      if (cleanValue && /^\d{10}$/.test(cleanValue)) {
+                      if (cleanValue && /^9\d{9}$/.test(cleanValue)) {
+                        // Valid: 10 digits starting with 9
                         window.phoneValidationTimeout = setTimeout(() => {
                           checkPhoneAvailability(cleanValue);
                         }, 500);
-                      } else if (cleanValue && cleanValue.length >= 10) {
-                        // For invalid formats, show error immediately
-                        setErrors(prev => ({ ...prev, contactInformation: 'Invalid phone number format (10 digits required)' }));
+                      } else if (cleanValue && cleanValue.length === 10) {
+                        // 10 digits but doesn't start with 9
+                        if (!cleanValue.startsWith('9')) {
+                          setErrors(prev => ({ ...prev, contactInformation: 'Contact number must start with 9 (e.g., 9394123330)' }));
+                        }
+                      } else if (cleanValue && cleanValue.length > 10) {
+                        // More than 10 digits
+                        setErrors(prev => ({ ...prev, contactInformation: 'Contact number must be exactly 10 digits' }));
                       }
                     }}
                     onBlur={(e) => {
                       const value = e.target.value.trim();
-                      if (value && /^\d{10}$/.test(value)) {
+                      if (value && /^9\d{9}$/.test(value)) {
+                        // Valid: 10 digits starting with 9
                         checkPhoneAvailability(value);
+                      } else if (value && value.length === 10 && !value.startsWith('9')) {
+                        // 10 digits but doesn't start with 9
+                        setErrors(prev => ({ ...prev, contactInformation: 'Contact number must start with 9 (e.g., 9394123330)' }));
                       }
                     }}
                     onInput={(e) => {
@@ -1274,10 +1292,14 @@ export default function Signup() {
                           normalizedPhone = value.substring(3); // Remove +63
                         }
                         
-                        if (normalizedPhone && /^\d{10}$/.test(normalizedPhone)) {
-                          // Update the form data to show the correct format
+                        if (normalizedPhone && /^9\d{9}$/.test(normalizedPhone)) {
+                          // Valid: 10 digits starting with 9
                           setFormData(prev => ({ ...prev, contactInformation: normalizedPhone }));
                           checkPhoneAvailability(normalizedPhone);
+                        } else if (normalizedPhone && normalizedPhone.length === 10 && !normalizedPhone.startsWith('9')) {
+                          // 10 digits but doesn't start with 9
+                          setFormData(prev => ({ ...prev, contactInformation: normalizedPhone }));
+                          setErrors(prev => ({ ...prev, contactInformation: 'Contact number must start with 9 (e.g., 9394123330)' }));
                         }
                       }, 300); // Longer delay for autofill
                     }}
@@ -1286,7 +1308,7 @@ export default function Signup() {
                         ? 'border-red-500 bg-red-50 focus:border-red-600' 
                         : isCheckingPhone
                         ? 'border-yellow-500 bg-yellow-50 focus:border-yellow-600'
-                        : formData.contactInformation && !errors.contactInformation && /^\d{10}$/.test(formData.contactInformation)
+                        : formData.contactInformation && !errors.contactInformation && /^9\d{9}$/.test(formData.contactInformation)
                         ? 'border-green-500 bg-green-50 focus:border-green-600'
                         : 'border-gray-300 focus:border-red-500'
                     } focus:ring-4 ${
@@ -1294,11 +1316,11 @@ export default function Signup() {
                         ? 'focus:ring-red-100' 
                         : isCheckingPhone
                         ? 'focus:ring-yellow-100'
-                        : formData.contactInformation && !errors.contactInformation && /^\d{10}$/.test(formData.contactInformation)
+                        : formData.contactInformation && !errors.contactInformation && /^9\d{9}$/.test(formData.contactInformation)
                         ? 'focus:ring-green-100'
                         : 'focus:ring-red-100'
                     } focus:outline-none text-sm pr-12`}
-                    placeholder="Phone number (10 digits)"
+                    placeholder="Must start with 9 (e.g., 9394123330)"
                     maxLength={10}
                   />
                 </div>
@@ -1308,7 +1330,7 @@ export default function Signup() {
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-500"></div>
                   </div>
                 )}
-                {!isCheckingPhone && formData.contactInformation && !errors.contactInformation && /^\d{10}$/.test(formData.contactInformation) && (
+                {!isCheckingPhone && formData.contactInformation && !errors.contactInformation && /^9\d{9}$/.test(formData.contactInformation) && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <Check size={16} className="text-green-600" />
                   </div>
@@ -1326,7 +1348,7 @@ export default function Signup() {
                   Checking phone availability...
                 </p>
               )}
-              {!isCheckingPhone && formData.contactInformation && !errors.contactInformation && /^\d{10}$/.test(formData.contactInformation) && (
+              {!isCheckingPhone && formData.contactInformation && !errors.contactInformation && /^9\d{9}$/.test(formData.contactInformation) && (
                 <p className="text-green-600 text-xs mt-2 flex items-center">
                   <Check size={12} className="mr-1" /> Phone number is available!
                 </p>
@@ -1400,7 +1422,7 @@ export default function Signup() {
                 name="birthDate"
                 value={formData.birthDate}
                   onChange={handleChange}
-                max={new Date(new Date().getFullYear() - 18, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
+                max={new Date(new Date().getFullYear() - 16, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
                 min={new Date(new Date().getFullYear() - 65, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
                 className={`w-full p-4 rounded-xl border-2 transition-all duration-300 ${
                   errors.birthDate 

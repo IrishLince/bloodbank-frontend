@@ -342,7 +342,7 @@ const EligibilityCheck3 = () => {
       firstName: previousFormData.firstName || "",
       middleInitial: previousFormData.middleInitial || "",
       bloodType: previousFormData.bloodType || "",
-      dateToday: previousFormData.dateToday || "",
+      dateToday: previousFormData.dateToday || previousFormData.appointmentDate || "", // Fallback to appointmentDate if dateToday is missing
       birthday: previousFormData.birthday || "",
       age: previousFormData.age || "",
       sex: previousFormData.sex || "",
@@ -366,7 +366,7 @@ const EligibilityCheck3 = () => {
       donationCenter: previousFormData.donationCenter || "",
       bloodBankId: previousFormData.bloodBankId || "",
       selectedHospital: previousFormData.selectedHospital || null, // Preserve the selected hospital/blood bank object
-      appointmentDate: previousFormData.appointmentDate || "",
+      appointmentDate: previousFormData.appointmentDate || previousFormData.dateToday || "", // Use appointmentDate first, fallback to dateToday
       appointmentTime: previousFormData.appointmentTime || "",
 
       // Medical History
