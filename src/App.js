@@ -44,7 +44,7 @@ import Inventory from './components/RedsourceAdmin/Inventory';
 import AdminDonationList from './components/RedsourceAdmin/AdminDonationList';
 import RequestStatus from './components/Hospital/RequestStatus';
 import DeliveryStatus from './components/Hospital/DeliveryStatus';
-import BloodBankRewards from './components/BloodBank/BloodBankRewards';
+import BloodBankRewards from './components/RedsourceAdmin/BloodBankRewards';
 import AllInventories from './components/Admin/AllInventories';
 
 // Admin components
