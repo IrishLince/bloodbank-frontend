@@ -35,16 +35,16 @@ import ArchivedAccountGuard from './components/Donor/ArchivedAccountGuard';
 import 'react-datepicker/dist/react-datepicker.css';
 
 
-import HospitalList from './components/RedsourceAdmin/HospitalList';
-import RequestList from './components/RedsourceAdmin/RequestList';
-import ScheduleBloodbank from './components/RedsourceAdmin/Schedule';
-import RequestSheet from './components/RedsourceAdmin/RequestSheet';
-import AdminProfile from './components/RedsourceAdmin/Profile';
-import Inventory from './components/RedsourceAdmin/Inventory';
-import AdminDonationList from './components/RedsourceAdmin/AdminDonationList';
+import HospitalList from './components/Bloodbank/HospitalList';
+import RequestList from './components/Bloodbank/RequestList';
+import ScheduleBloodbank from './components/Bloodbank/Schedule';
+import RequestSheet from './components/Bloodbank/RequestSheet';
+import AdminProfile from './components/Bloodbank/Profile';
+import Inventory from './components/Bloodbank/Inventory';
+import AdminDonationList from './components/Bloodbank/AdminDonationList';
 import RequestStatus from './components/Hospital/RequestStatus';
 import DeliveryStatus from './components/Hospital/DeliveryStatus';
-import BloodBankRewards from './components/RedsourceAdmin/BloodBankRewards';
+import BloodBankRewards from './components/Bloodbank/BloodBankRewards';
 import AllInventories from './components/Admin/AllInventories';
 
 // Admin components
