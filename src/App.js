@@ -8,7 +8,7 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import ForgotPassword from './components/Forgotpassword';
-import AboutUs from './components/abousus';
+import AboutUs from './components/aboutus';
 import SuccessfulLogin from './components/SuccesfulLogin';
 import DonationCenter from './components/Donor/DonationCenter';
 import Schedule from './components/Donor/Schedule';
