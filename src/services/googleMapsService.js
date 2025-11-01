@@ -3,6 +3,7 @@ class GoogleMapsService {
   constructor() {
     this.apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
     this.isLoaded = false;
+    this.geocoder = null;
   }
 
   // Load Google Maps JavaScript API
@@ -73,6 +74,10 @@ class GoogleMapsService {
             window.google.maps.Marker &&
             window.google.maps.SymbolPath &&
             window.google.maps.ControlPosition) {
+          // Initialize geocoder when Google Maps is ready
+          if (!this.geocoder) {
+            this.geocoder = new window.google.maps.Geocoder();
+          }
           resolve();
           return;
         }
@@ -87,6 +92,83 @@ class GoogleMapsService {
       
       checkGoogleMaps();
     });
+  }
+
+  // Geocode address to get accurate coordinates
+  async geocodeAddress(address) {
+    if (!this.geocoder) {
+      await this.loadGoogleMapsAPI();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.geocoder.geocode({ address: address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location;
+          resolve({
+            lat: location.lat(),
+            lng: location.lng(),
+            formatted_address: results[0].formatted_address,
+            place_id: results[0].place_id
+          });
+        } else {
+          reject(new Error(`Geocoding failed: ${status}`));
+        }
+      });
+    });
+  }
+
+  // Batch geocode multiple addresses for accurate pin placement
+  async batchGeocodeAddresses(bloodBanks) {
+    const geocodedBanks = [];
+    
+    for (const bank of bloodBanks) {
+      try {
+        // Skip if coordinates already exist and seem valid
+        if (bank.latitude && bank.longitude && 
+            !isNaN(parseFloat(bank.latitude)) && !isNaN(parseFloat(bank.longitude))) {
+          const lat = parseFloat(bank.latitude);
+          const lng = parseFloat(bank.longitude);
+          
+          // Check if coordinates are reasonable (not 0,0 or obviously wrong)
+          if (lat !== 0 && lng !== 0 && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+            geocodedBanks.push({
+              ...bank,
+              lat: lat,
+              lng: lng,
+              geocoded: false
+            });
+            continue;
+          }
+        }
+
+        // Try to geocode using address for accurate pin placement
+        if (bank.address) {
+          console.log(`Geocoding address for ${bank.name}: ${bank.address}`);
+          const geocoded = await this.geocodeAddress(bank.address);
+          geocodedBanks.push({
+            ...bank,
+            lat: geocoded.lat,
+            lng: geocoded.lng,
+            latitude: geocoded.lat,
+            longitude: geocoded.lng,
+            formatted_address: geocoded.formatted_address,
+            geocoded: true
+          });
+          
+          // Add small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } else {
+          console.warn(`No address found for blood bank: ${bank.name}`);
+          geocodedBanks.push(bank);
+        }
+      } catch (error) {
+        console.error(`Failed to geocode ${bank.name}:`, error);
+        // Keep original coordinates if geocoding fails
+        geocodedBanks.push(bank);
+      }
+    }
+    
+    return geocodedBanks;
   }
 
   // Get user's current location using browser geolocation
@@ -133,31 +215,6 @@ class GoogleMapsService {
     });
   }
 
-  // Geocode address to get coordinates
-  async geocodeAddress(address) {
-    try {
-      await this.loadGoogleMapsAPI();
-      
-      return new Promise((resolve, reject) => {
-        const geocoder = new window.google.maps.Geocoder();
-        
-        geocoder.geocode({ address }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            const location = results[0].geometry.location;
-            resolve({
-              lat: location.lat(),
-              lng: location.lng(),
-              formatted_address: results[0].formatted_address
-            });
-          } else {
-            reject(new Error(`Geocoding failed: ${status}`));
-          }
-        });
-      });
-    } catch (error) {
-      throw new Error(`Geocoding error: ${error.message}`);
-    }
-  }
 
   // Calculate distance between two points using Google Maps Distance Matrix API
   async calculateDistance(origin, destination) {

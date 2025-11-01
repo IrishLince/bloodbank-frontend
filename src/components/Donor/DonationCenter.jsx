@@ -50,6 +50,7 @@ export default function DonationCenter() {
   const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedBloodBank, setSelectedBloodBank] = useState(null)
+  const [focusingBloodBank, setFocusingBloodBank] = useState(null) // Track which blood bank is being focused
   const [activeTab, setActiveTab] = useState("nearby") // "nearby" or "all"
   const [allBloodBanks, setAllBloodBanks] = useState([])
   const [autoRefresh, setAutoRefresh] = useState(false)
@@ -60,11 +61,13 @@ export default function DonationCenter() {
   const [mapCenter, setMapCenter] = useState(null)
   const [mapZoom, setMapZoom] = useState(13)
   const [selectedMarker, setSelectedMarker] = useState(null)
-  const [showBottomSheet, setShowBottomSheet] = useState(true)
-  const [bottomSheetHeight, setBottomSheetHeight] = useState(300)
   const mapRef = useRef(null)
   const googleMapRef = useRef(null)
   const markersRef = useRef([])
+  const activeMarkerRef = useRef(null) // Track currently highlighted marker
+  const isHighlightingRef = useRef(false) // Prevent recursion in marker highlighting
+  const isFocusingRef = useRef(false) // Prevent marker updates during focus operations
+  const markerRefreshIntervalRef = useRef(null) // Auto-refresh interval
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapError, setMapError] = useState(null)
 
@@ -205,13 +208,21 @@ export default function DonationCenter() {
       // Fetch ALL blood banks with distance calculation (we'll filter on frontend for accuracy)
       const allData = await hospitalService.getHospitalsForLocation(userLocation, 999) // 999km limit = gets ALL blood banks
       
+      // Use geocoding for accurate pin placement based on addresses
+      console.log("🎯 Starting geocoding for accurate pin placement...");
+      const geocodedData = await googleMapsService.batchGeocodeAddresses(allData);
+      console.log("✅ Geocoded blood banks for accurate pins:", geocodedData);
+      
       // Calculate distances for all blood banks if user location is available AND permission is granted
-      if (userLocation && permissionStatus === 'granted' && allData.length > 0) {
-        console.log('🔍 LOCATION PERMISSION GRANTED - Calculating distances for', allData.length, 'blood banks');
-        allData.forEach(bloodBank => {
-          if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+      if (userLocation && permissionStatus === 'granted' && geocodedData.length > 0) {
+        console.log('🔍 LOCATION PERMISSION GRANTED - Calculating distances for', geocodedData.length, 'blood banks');
+        geocodedData.forEach(bloodBank => {
+          // Use geocoded coordinates (lat/lng) or fallback to coordinates object
+          const bankLat = bloodBank.lat || (bloodBank.coordinates && bloodBank.coordinates.lat);
+          const bankLng = bloodBank.lng || (bloodBank.coordinates && bloodBank.coordinates.lng);
+          
+          if (bankLat && bankLng) {
             const { lat: userLat, lng: userLng, latitude: userLatitude, longitude: userLongitude } = userLocation;
-            const { lat: bankLat, lng: bankLng } = bloodBank.coordinates;
             
             const finalUserLat = userLat || userLatitude;
             const finalUserLng = userLng || userLongitude;
@@ -229,20 +240,20 @@ export default function DonationCenter() {
         });
         
         // Sort by distance for better performance (999km in meters for fallback)
-        allData.sort((a, b) => (a.calculatedDistance || 999000) - (b.calculatedDistance || 999000));
+        geocodedData.sort((a, b) => (a.calculatedDistance || 999000) - (b.calculatedDistance || 999000));
       } else if (!userLocation || permissionStatus !== 'granted') {
         console.log('❌ LOCATION NOT AVAILABLE - Permission:', permissionStatus, '| Location:', !!userLocation);
         // Clear any existing distance data when location is not available
-        allData.forEach(bloodBank => {
+        geocodedData.forEach(bloodBank => {
           bloodBank.calculatedDistance = null;
           bloodBank.distanceText = null;
         });
       }
       
-      setAllBloodBanks(allData)
+      setAllBloodBanks(geocodedData)
       
       // Set current display data
-      setBloodBanks(allData)
+      setBloodBanks(geocodedData)
       
       // Update last refresh time
       setLastRefreshTime(new Date())
@@ -359,19 +370,52 @@ export default function DonationCenter() {
         center: mapCenter,
         zoom: mapZoom,
         styles: [
+          // Hide unnecessary POIs and labels for cleaner look
           {
-            featureType: "poi",
-            elementType: "labels",
+            featureType: "poi.business",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.park",
+            elementType: "labels.text",
             stylers: [{ visibility: "off" }]
           },
           {
             featureType: "transit",
-            elementType: "labels",
             stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "road.arterial",
+            elementType: "labels",
+            stylers: [{ visibility: "simplified" }]
+          },
+          // Enhance water and landscape colors
+          {
+            featureType: "water",
+            stylers: [{ color: "#a2daf2" }]
+          },
+          {
+            featureType: "landscape.natural",
+            stylers: [{ color: "#f5f5f2" }]
+          },
+          // Improve road visibility
+          {
+            featureType: "road.highway",
+            elementType: "geometry",
+            stylers: [{ color: "#f8f8f8" }]
           }
         ],
-        mapTypeControl: false,
-        streetViewControl: false,
+        // Optimized controls for better UX
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+          style: window.google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+          position: window.google.maps.ControlPosition.TOP_LEFT,
+          mapTypeIds: ['roadmap', 'satellite']
+        },
+        streetViewControl: true,
+        streetViewControlOptions: {
+          position: window.google.maps.ControlPosition.RIGHT_TOP
+        },
         fullscreenControl: true,
         fullscreenControlOptions: {
           position: window.google.maps.ControlPosition.TOP_RIGHT
@@ -382,13 +426,28 @@ export default function DonationCenter() {
             ? window.google.maps.ControlPosition.RIGHT_BOTTOM 
             : window.google.maps.ControlPosition.RIGHT_CENTER
         },
-        mapTypeControlOptions: {
+        // Enhanced interaction settings
+        gestureHandling: 'greedy',
+        clickableIcons: false,
+        disableDefaultUI: false,
+        keyboardShortcuts: true,
+        scrollwheel: true,
+        // Better mobile experience
+        draggable: true,
+        scaleControl: true,
+        rotateControl: false,
+        // Styling
+        backgroundColor: '#f5f5f5',
+        // Performance optimizations
+        tilt: 0,
+        heading: 0,
+        // Smooth animation settings for better focus transitions
+        panControl: false,
+        panControlOptions: {
           position: window.google.maps.ControlPosition.TOP_LEFT
         },
-        gestureHandling: 'greedy', // Better mobile interaction
-        clickableIcons: false, // Prevent interference with blood bank markers
-        disableDefaultUI: false,
-        keyboardShortcuts: false
+        // Enable smooth animations
+        animation: window.google.maps.Animation.DROP
       });
 
       googleMapRef.current = map;
@@ -401,19 +460,46 @@ export default function DonationCenter() {
         const userLng = userLocation.lng || userLocation.longitude;
         
         // Create custom user location marker
-        new window.google.maps.Marker({
+        const userMarker = new window.google.maps.Marker({
           position: { lat: parseFloat(userLat), lng: parseFloat(userLng) },
           map: map,
           title: "Your Current Location",
           icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 12,
-            fillColor: "#3B82F6",
-            fillOpacity: 1,
-            strokeColor: "#FFFFFF",
-            strokeWeight: 3
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                <g filter="url(#shadow)">
+                  <circle cx="14" cy="14" r="12" fill="#3B82F6" stroke="#ffffff" stroke-width="3"/>
+                  <circle cx="14" cy="14" r="5" fill="#ffffff"/>
+                  <circle cx="14" cy="14" r="2" fill="#3B82F6"/>
+                </g>
+                <defs>
+                  <filter id="shadow" x="-2" y="-2" width="32" height="32">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
+                  </filter>
+                </defs>
+              </svg>
+            `),
+            scaledSize: new window.google.maps.Size(28, 28),
+            anchor: new window.google.maps.Point(14, 14)
           },
-          zIndex: 1000 // Ensure user marker appears above other markers
+          zIndex: 10000,
+          optimized: false
+        });
+
+        // Add info window for user location
+        const userInfoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div class="p-3 min-w-[200px]">
+              <h3 class="font-semibold text-blue-600 mb-1">📍 Your Location</h3>
+              <p class="text-sm text-gray-600">Tap to center map here</p>
+            </div>
+          `
+        });
+
+        userMarker.addListener("click", () => {
+          userInfoWindow.open(map, userMarker);
+          map.setCenter(userMarker.getPosition());
+          map.setZoom(15);
         });
 
         // Add accuracy circle if available
@@ -857,36 +943,95 @@ export default function DonationCenter() {
     return filteredData
   }, [bloodBanks, searchTerm, filters, sortConfig, userLocation, sortHospitalsByDistance, activeTab, permissionStatus, isOpenNow])
 
-  // Update map markers
+  // Enhanced marker management with persistence
   const updateMapMarkers = useCallback(() => {
+    console.log('🗺️🗺️🗺️ UPDATE MAP MARKERS FUNCTION CALLED 🗺️🗺️🗺️');
+    
     if (!googleMapRef.current || 
         !window.google || 
         !window.google.maps ||
         !window.google.maps.Marker ||
         !window.google.maps.SymbolPath) {
-      console.log("Marker update skipped - Google Maps not ready");
+      console.log("❌ Marker update skipped - Google Maps not ready");
+      console.log('🔍 Google Maps readiness check:', {
+        googleMapRef: !!googleMapRef.current,
+        windowGoogle: !!window.google,
+        googleMaps: !!window.google?.maps,
+        Marker: !!window.google?.maps?.Marker,
+        SymbolPath: !!window.google?.maps?.SymbolPath
+      });
       return;
     }
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => {
+    console.log('✅ Google Maps is ready - proceeding with marker update');
+
+    // Get current marker IDs and new blood bank IDs
+    const currentMarkerIds = new Set(markersRef.current.map(m => m.bloodBankId).filter(Boolean));
+    const newBloodBankIds = new Set(filteredAndSortedBloodBanks.map(b => b.id));
+    
+    console.log('📊 Marker comparison analysis:', {
+      currentMarkers: markersRef.current.length,
+      currentMarkerIds: Array.from(currentMarkerIds),
+      newBloodBanks: filteredAndSortedBloodBanks.length,
+      newBloodBankIds: Array.from(newBloodBankIds)
+    });
+    
+    // Check if we need any updates at all
+    const markersToAdd = filteredAndSortedBloodBanks.filter(b => !currentMarkerIds.has(b.id));
+    const markersToRemove = markersRef.current.filter(m => m.bloodBankId && !newBloodBankIds.has(m.bloodBankId));
+    
+    console.log('🔄 Marker update plan:', {
+      markersToAdd: markersToAdd.length,
+      markersToRemove: markersToRemove.length,
+      addList: markersToAdd.map(b => ({ id: b.id, name: b.name || b.bloodBankName })),
+      removeList: markersToRemove.map(m => ({ id: m.bloodBankId, name: m.bloodBankData?.name }))
+    });
+    
+    // If no changes needed, preserve existing markers
+    if (markersToAdd.length === 0 && markersToRemove.length === 0) {
+      console.log("🎯 No marker changes needed - preserving existing markers");
+      console.log('✅ All markers are up to date');
+      return;
+    }
+
+    console.log(`🔄 Executing marker updates: +${markersToAdd.length} new, -${markersToRemove.length} removed`);
+
+    // Remove only markers that are no longer needed
+    markersToRemove.forEach(marker => {
       if (marker && marker.setMap) {
         try {
           marker.setMap(null);
+          console.log(`🗑️ Removed marker for: ${marker.bloodBankData?.name || 'Unknown'}`);
         } catch (error) {
           console.warn("Error removing marker:", error);
         }
       }
     });
-    markersRef.current = [];
+    
+    // Update markers array to remove deleted markers
+    markersRef.current = markersRef.current.filter(m => !markersToRemove.includes(m));
 
-    // Add markers for filtered blood banks
-    filteredAndSortedBloodBanks.forEach((bloodBank) => {
-      if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
-        try {
-          // Ensure precise coordinate parsing
-          const lat = parseFloat(bloodBank.coordinates.lat);
-          const lng = parseFloat(bloodBank.coordinates.lng);
+    // Add only new markers (ones that don't already exist)
+    markersToAdd.forEach((bloodBank) => {
+      // Use geocoded coordinates first (more accurate), then fallback to coordinates object
+      let lat = bloodBank.lat;
+      let lng = bloodBank.lng;
+      
+      if (!lat || !lng) {
+        if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+          lat = parseFloat(bloodBank.coordinates.lat);
+          lng = parseFloat(bloodBank.coordinates.lng);
+        } else {
+          console.warn(`No coordinates found for ${bloodBank.name}`);
+          return;
+        }
+      } else {
+        // Ensure geocoded coordinates are numbers
+        lat = parseFloat(lat);
+        lng = parseFloat(lng);
+      }
+      
+      try {
           
           // Validate coordinates
           if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -899,44 +1044,561 @@ export default function DonationCenter() {
             map: googleMapRef.current,
             title: `${bloodBank.name || bloodBank.bloodBankName}${bloodBank.isOpenToday ? ' (Open)' : ' (Closed)'}`,
             icon: {
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: bloodBank.isOpenToday ? 12 : 10,
-              fillColor: bloodBank.isOpenToday ? "#EF4444" : "#9CA3AF",
-              fillOpacity: bloodBank.isOpenToday ? 1 : 0.7,
-              strokeColor: "#FFFFFF",
-              strokeWeight: 3,
-              anchor: new window.google.maps.Point(0, 0) // Center the marker properly
+              url: bloodBank.isOpenToday 
+                ? 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                      <g filter="url(#shadow)">
+                        <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.059 27.941 0 18 0z" fill="#DC2626"/>
+                        <circle cx="18" cy="18" r="11" fill="#ffffff"/>
+                        <path d="M18 10v16M10 18h16" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
+                      </g>
+                      <defs>
+                        <filter id="shadow" x="-2" y="-2" width="40" height="48">
+                          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+                        </filter>
+                      </defs>
+                    </svg>
+                  `)
+                : 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                      <g filter="url(#shadow)">
+                        <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.059 27.941 0 18 0z" fill="#6B7280"/>
+                        <circle cx="18" cy="18" r="11" fill="#ffffff"/>
+                        <path d="M18 10v16M10 18h16" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round"/>
+                      </g>
+                      <defs>
+                        <filter id="shadow" x="-2" y="-2" width="40" height="48">
+                          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+                        </filter>
+                      </defs>
+                    </svg>
+                  `),
+              scaledSize: new window.google.maps.Size(36, 44),
+              anchor: new window.google.maps.Point(18, 44)
             },
-            zIndex: bloodBank.isOpenToday ? 100 : 50, // Open banks appear above closed ones
-            optimized: false // Better rendering for custom icons
+            zIndex: bloodBank.isOpenToday ? 1000 : 500,
+            optimized: false,
+            animation: window.google.maps.Animation.DROP
           });
+
+        // Create info window for blood bank
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div class="p-4 min-w-[280px] max-w-[320px]">
+              <h3 class="font-semibold text-gray-900 mb-2">${bloodBank.name || bloodBank.bloodBankName}</h3>
+              <div class="space-y-2">
+                <p class="text-sm text-gray-600">📍 ${bloodBank.address || 'Address not available'}</p>
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    bloodBank.isOpenToday 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }">
+                    ${bloodBank.isOpenToday ? '🟢 Open' : '🔴 Closed'}
+                  </span>
+                  ${bloodBank.distance ? `<span class="text-xs text-gray-500">${bloodBank.distance}</span>` : ''}
+                </div>
+                <div class="flex gap-2 mt-3">
+                  <button 
+                    onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}', '_blank')"
+                    class="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    🧭 Directions
+                  </button>
+                  <button 
+                    onclick="document.dispatchEvent(new CustomEvent('selectBloodBank', { detail: ${JSON.stringify(bloodBank)} }))"
+                    class="flex-1 bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors"
+                  >
+                    📋 Select
+                  </button>
+                </div>
+              </div>
+            </div>
+          `
+        });
 
         // Add click listener to marker
         marker.addListener("click", () => {
-          setSelectedMarker(bloodBank);
-          setSelectedBloodBank(bloodBank);
-          // Center map on selected marker
-          googleMapRef.current.setCenter(marker.getPosition());
-          // Show bottom sheet on mobile
-          if (isMobile) {
-            setShowBottomSheet(true);
+          try {
+            // Close any open info windows
+            if (window.currentInfoWindow) {
+              window.currentInfoWindow.close();
+            }
+            
+            console.log('🎯 Marker clicked - selecting:', bloodBank.name || bloodBank.bloodBankName);
+            
+            setSelectedMarker(bloodBank);
+            setSelectedBloodBank(bloodBank);
+            
+            // Center map on selected marker with smooth animation
+            if (googleMapRef.current && marker.getPosition()) {
+              googleMapRef.current.panTo(marker.getPosition());
+              googleMapRef.current.setZoom(17);
+            }
+            
+            // Highlight this marker (only if not already highlighting to prevent recursion)
+            if (!isHighlightingRef.current) {
+              highlightMarker(bloodBank, true);
+            }
+          } catch (error) {
+            console.error('🚫 Error in marker click handler:', error);
           }
         });
 
-          markersRef.current.push(marker);
+        // Listen for custom select event
+        document.addEventListener('selectBloodBank', (event) => {
+          if (event.detail.id === bloodBank.id) {
+            setSelectedBloodBank(bloodBank);
+          }
+        });
+
+        // Add bloodBankId to marker for easy identification
+        marker.bloodBankId = bloodBank.id;
+        marker.bloodBankData = bloodBank;
+        
+        markersRef.current.push(marker);
+        console.log(`✅ Added new marker for: ${bloodBank.name || bloodBank.bloodBankName}`);
+      } catch (error) {
+        console.error("Error creating marker for blood bank:", bloodBank.name, error);
+      }
+    });
+  }, [filteredAndSortedBloodBanks]);
+
+  // Enhanced marker highlighting with recursion prevention
+  const highlightMarker = useCallback((targetBloodBank, shouldBounce = true) => {
+    try {
+      // Prevent recursion
+      if (isHighlightingRef.current) {
+        console.log('🔄 Highlighting already in progress, skipping to prevent recursion');
+        return null;
+      }
+      
+      // Safety check for Google Maps API
+      if (!window.google || !window.google.maps || !googleMapRef.current) {
+        console.warn('🚫 Google Maps not ready for marker highlighting');
+        return null;
+      }
+      
+      // Set highlighting flag
+      isHighlightingRef.current = true;
+
+      // Reset previous active marker
+      if (activeMarkerRef.current && activeMarkerRef.current.setAnimation && activeMarkerRef.current.getMap()) {
+        try {
+          activeMarkerRef.current.setAnimation(null);
+          // Reset to normal icon
+          const wasOpen = activeMarkerRef.current.bloodBankData?.isOpenToday;
+          activeMarkerRef.current.setIcon({
+            url: wasOpen 
+              ? 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                    <g filter="url(#shadow)">
+                      <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.059 27.941 0 18 0z" fill="#DC2626"/>
+                      <circle cx="18" cy="18" r="11" fill="#ffffff"/>
+                      <path d="M18 10v16M10 18h16" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
+                    </g>
+                    <defs>
+                      <filter id="shadow" x="-2" y="-2" width="40" height="48">
+                        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+                      </filter>
+                    </defs>
+                  </svg>
+                `)
+              : 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                    <g filter="url(#shadow)">
+                      <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.059 27.941 0 18 0z" fill="#6B7280"/>
+                      <circle cx="18" cy="18" r="11" fill="#ffffff"/>
+                      <path d="M18 10v16M10 18h16" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round"/>
+                    </g>
+                    <defs>
+                      <filter id="shadow" x="-2" y="-2" width="40" height="48">
+                        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+                      </filter>
+                    </defs>
+                  </svg>
+                `),
+            scaledSize: new window.google.maps.Size(36, 44),
+            anchor: new window.google.maps.Point(18, 44)
+          });
+        } catch (resetError) {
+          console.warn('🚫 Error resetting previous marker:', resetError);
+        }
+      }
+
+      // Find and highlight the new marker with enhanced debugging
+      console.log('🔍 Looking for marker with ID:', targetBloodBank.id);
+      console.log('🗺️ Available markers:', markersRef.current.map(m => ({
+        id: m?.bloodBankId,
+        hasMap: !!m?.getMap(),
+        title: m?.getTitle()
+      })));
+      
+      let targetMarker = markersRef.current.find(m => 
+        m && m.bloodBankId === targetBloodBank.id && m.getMap()
+      );
+      
+      if (!targetMarker) {
+        // Try alternative search methods
+        console.log('🔄 Primary search failed, trying alternative methods...');
+        targetMarker = markersRef.current.find(m => 
+          m && m.getMap() && (
+            m.getTitle()?.includes(targetBloodBank.name || targetBloodBank.bloodBankName) ||
+            m.bloodBankData?.id === targetBloodBank.id ||
+            m.bloodBankData?.name === targetBloodBank.name
+          )
+        );
+        
+        if (targetMarker) {
+          console.log('✅ Found marker using alternative search method');
+        }
+      }
+
+      if (targetMarker) {
+        console.log('🎯 Highlighting marker for:', targetBloodBank.name || targetBloodBank.bloodBankName);
+        
+        try {
+          // Set as active marker
+          activeMarkerRef.current = targetMarker;
+          
+          // Change to highlighted icon (larger and different color)
+          targetMarker.setIcon({
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg width="44" height="52" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+                <g filter="url(#shadow)">
+                  <path d="M22 0C9.85 0 0 9.85 0 22c0 16.5 22 30 22 30s22-13.5 22-30C44 9.85 34.15 0 22 0z" fill="#3B82F6"/>
+                  <circle cx="22" cy="22" r="13" fill="#ffffff"/>
+                  <path d="M22 12v20M12 22h20" stroke="#3B82F6" stroke-width="3" stroke-linecap="round"/>
+                </g>
+                <defs>
+                  <filter id="shadow" x="-2" y="-2" width="48" height="56">
+                    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+                  </filter>
+                </defs>
+              </svg>
+            `),
+            scaledSize: new window.google.maps.Size(44, 52),
+            anchor: new window.google.maps.Point(22, 52)
+          });
+
+          // Add bounce animation if requested
+          if (shouldBounce) {
+            targetMarker.setAnimation(window.google.maps.Animation.BOUNCE);
+            setTimeout(() => {
+              try {
+                if (targetMarker === activeMarkerRef.current && targetMarker.getMap()) {
+                  targetMarker.setAnimation(null);
+                }
+              } catch (animError) {
+                console.warn('🚫 Error stopping marker animation:', animError);
+              }
+            }, 2000);
+          }
+
+          // Show info window without triggering click event (to prevent recursion)
+          try {
+            // Create and show info window directly
+            if (window.currentInfoWindow) {
+              window.currentInfoWindow.close();
+            }
+            
+            const infoWindow = new window.google.maps.InfoWindow({
+              content: `
+                <div style="padding: 8px; max-width: 200px;">
+                  <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #1f2937;">
+                    ${targetBloodBank.name || targetBloodBank.bloodBankName}
+                  </h3>
+                  <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">
+                    📍 ${targetBloodBank.address || 'Address not available'}
+                  </p>
+                  <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">
+                    📞 ${targetBloodBank.phone || 'Phone not available'}
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: ${targetBloodBank.isOpenToday ? '#059669' : '#dc2626'};">
+                    ${targetBloodBank.isOpenToday ? '🟢 Open Today' : '🔴 Closed Today'}
+                  </p>
+                </div>
+              `
+            });
+            
+            infoWindow.open(googleMapRef.current, targetMarker);
+            window.currentInfoWindow = infoWindow;
+          } catch (infoError) {
+            console.warn('🚫 Error showing info window:', infoError);
+          }
+          
+          return targetMarker;
+        } catch (highlightError) {
+          console.error('🚫 Error highlighting marker:', highlightError);
+          return null;
+        } finally {
+          // Clear highlighting flag
+          isHighlightingRef.current = false;
+        }
+      } else {
+        console.warn('🚫 Marker not found for highlighting:', targetBloodBank.name || targetBloodBank.bloodBankName);
+        console.log('🔧 Creating temporary marker for focusing...');
+        
+        // Create a temporary marker for focusing if none exists
+        try {
+          const tempLat = targetBloodBank.lat || targetBloodBank.coordinates?.lat || targetBloodBank.latitude;
+          const tempLng = targetBloodBank.lng || targetBloodBank.coordinates?.lng || targetBloodBank.longitude;
+          
+          if (tempLat && tempLng) {
+            const tempMarker = new window.google.maps.Marker({
+              position: { lat: parseFloat(tempLat), lng: parseFloat(tempLng) },
+              map: googleMapRef.current,
+              title: targetBloodBank.name || targetBloodBank.bloodBankName,
+              icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="44" height="52" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+                    <g filter="url(#shadow)">
+                      <path d="M22 0C9.85 0 0 9.85 0 22c0 16.5 22 30 22 30s22-13.5 22-30C44 9.85 34.15 0 22 0z" fill="#FF6B35"/>
+                      <circle cx="22" cy="22" r="13" fill="#ffffff"/>
+                      <path d="M22 12v20M12 22h20" stroke="#FF6B35" stroke-width="3" stroke-linecap="round"/>
+                    </g>
+                    <defs>
+                      <filter id="shadow" x="-2" y="-2" width="48" height="56">
+                        <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.3"/>
+                      </filter>
+                    </defs>
+                  </svg>
+                `),
+                scaledSize: new window.google.maps.Size(44, 52),
+                anchor: new window.google.maps.Point(22, 52)
+              },
+              animation: window.google.maps.Animation.DROP,
+              zIndex: 2000
+            });
+            
+            // Add bounce animation
+            if (shouldBounce) {
+              tempMarker.setAnimation(window.google.maps.Animation.BOUNCE);
+              setTimeout(() => {
+                if (tempMarker.getMap()) {
+                  tempMarker.setAnimation(null);
+                }
+              }, 2000);
+            }
+            
+            // Store as active marker
+            activeMarkerRef.current = tempMarker;
+            
+            // Add to markers array for future reference
+            tempMarker.bloodBankId = targetBloodBank.id;
+            tempMarker.bloodBankData = targetBloodBank;
+            markersRef.current.push(tempMarker);
+            
+            console.log('✅ Created temporary marker for focusing');
+            return tempMarker;
+          }
+        } catch (tempError) {
+          console.error('🚫 Error creating temporary marker:', tempError);
+        }
+        
+        isHighlightingRef.current = false;
+        return null;
+      }
+    } catch (error) {
+      console.error('🚫 Error in highlightMarker function:', error);
+      isHighlightingRef.current = false;
+      return null;
+    }
+  }, []);
+
+  // Force refresh all markers - completely recreate them
+  const forceRefreshMarkers = useCallback(() => {
+    console.log('🔄🔄🔄 FORCE REFRESHING ALL MARKERS 🔄🔄🔄');
+    
+    if (!googleMapRef.current || !window.google?.maps) {
+      console.log('❌ Cannot force refresh - Google Maps not ready');
+      return;
+    }
+
+    // Clear all existing markers
+    console.log('🗑️ Clearing all existing markers...');
+    markersRef.current.forEach(marker => {
+      if (marker && marker.setMap) {
+        try {
+          marker.setMap(null);
         } catch (error) {
-          console.error("Error creating marker for blood bank:", bloodBank.name, error);
+          console.warn('Error removing marker during force refresh:', error);
         }
       }
     });
-  }, [filteredAndSortedBloodBanks, isMobile]);
+    markersRef.current = [];
+    activeMarkerRef.current = null;
 
-  // Update markers when map is loaded
+    // Recreate all markers
+    console.log('🆕 Recreating all markers...');
+    filteredAndSortedBloodBanks.forEach((bloodBank) => {
+      // Use geocoded coordinates first (more accurate), then fallback to coordinates object
+      let lat = bloodBank.lat;
+      let lng = bloodBank.lng;
+      
+      if (!lat || !lng) {
+        if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+          lat = parseFloat(bloodBank.coordinates.lat);
+          lng = parseFloat(bloodBank.coordinates.lng);
+        } else {
+          console.warn(`No coordinates found for ${bloodBank.name} during force refresh`);
+          return;
+        }
+      } else {
+        lat = parseFloat(lat);
+        lng = parseFloat(lng);
+      }
+      
+      // Validate coordinates
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        console.warn(`Invalid coordinates for ${bloodBank.name}: lat=${lat}, lng=${lng}`);
+        return;
+      }
+
+      try {
+        const marker = new window.google.maps.Marker({
+          position: { lat, lng },
+          map: googleMapRef.current,
+          title: `${bloodBank.name || bloodBank.bloodBankName}${bloodBank.isOpenToday ? ' (Open)' : ' (Closed)'}`,
+          icon: {
+            url: bloodBank.isOpenToday 
+              ? 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                    <g filter="url(#shadow)">
+                      <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.059 27.941 0 18 0z" fill="#DC2626"/>
+                      <circle cx="18" cy="18" r="11" fill="#ffffff"/>
+                      <path d="M18 10v16M10 18h16" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
+                    </g>
+                    <defs>
+                      <filter id="shadow" x="-2" y="-2" width="40" height="48">
+                        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+                      </filter>
+                    </defs>
+                  </svg>
+                `)
+              : 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+                    <g filter="url(#shadow)">
+                      <path d="M18 0C8.059 0 0 8.059 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.059 27.941 0 18 0z" fill="#6B7280"/>
+                      <circle cx="18" cy="18" r="11" fill="#ffffff"/>
+                      <path d="M18 10v16M10 18h16" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round"/>
+                    </g>
+                    <defs>
+                      <filter id="shadow" x="-2" y="-2" width="40" height="48">
+                        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.25"/>
+                      </filter>
+                    </defs>
+                  </svg>
+                `),
+            scaledSize: new window.google.maps.Size(36, 44),
+            anchor: new window.google.maps.Point(18, 44)
+          },
+          animation: window.google.maps.Animation.DROP,
+          zIndex: 1000
+        });
+
+        // Add click listener to marker
+        marker.addListener("click", () => {
+          try {
+            console.log('🎯 Marker clicked during refresh - selecting:', bloodBank.name || bloodBank.bloodBankName);
+            setSelectedMarker(bloodBank);
+            setSelectedBloodBank(bloodBank);
+            
+            // Center map on selected marker
+            if (googleMapRef.current && marker.getPosition()) {
+              googleMapRef.current.panTo(marker.getPosition());
+              googleMapRef.current.setZoom(17);
+            }
+            
+            // Highlight this marker
+            if (!isHighlightingRef.current) {
+              highlightMarker(bloodBank, true);
+            }
+          } catch (error) {
+            console.error('🚫 Error in refreshed marker click handler:', error);
+          }
+        });
+
+        // Add bloodBankId to marker for identification
+        marker.bloodBankId = bloodBank.id;
+        marker.bloodBankData = bloodBank;
+        
+        markersRef.current.push(marker);
+        console.log(`✅ Force refreshed marker for: ${bloodBank.name || bloodBank.bloodBankName}`);
+      } catch (error) {
+        console.error("Error creating marker during force refresh:", bloodBank.name, error);
+      }
+    });
+
+    console.log(`✅ Force refresh complete - ${markersRef.current.length} markers created`);
+  }, [filteredAndSortedBloodBanks, highlightMarker]);
+
+  // Update markers when map is loaded or blood banks change
   useEffect(() => {
-    if (mapLoaded) {
-      updateMapMarkers();
+    console.log('🔄 MARKER UPDATE EFFECT TRIGGERED');
+    console.log('📊 Effect trigger conditions:', {
+      mapLoaded: mapLoaded,
+      bloodBanksCount: filteredAndSortedBloodBanks.length,
+      currentMarkersCount: markersRef.current.length,
+      focusingBloodBank: focusingBloodBank,
+      triggerReason: 'mapLoaded or filteredAndSortedBloodBanks or updateMapMarkers changed'
+    });
+    
+    // Skip marker updates if we're currently focusing on a blood bank
+    // This prevents markers from disappearing during focus operations
+    if (focusingBloodBank || isFocusingRef.current) {
+      console.log('⏸️ Skipping marker update - currently focusing on blood bank:', {
+        focusingBloodBank: focusingBloodBank,
+        isFocusingRef: isFocusingRef.current
+      });
+      return;
     }
-  }, [mapLoaded, updateMapMarkers]);
+    
+    if (mapLoaded && filteredAndSortedBloodBanks.length > 0) {
+      console.log('✅ Conditions met - calling updateMapMarkers');
+      console.log('🏥 Blood banks to process:', filteredAndSortedBloodBanks.map(bb => ({
+        id: bb.id,
+        name: bb.name || bb.bloodBankName,
+        hasCoordinates: !!(bb.lat && bb.lng) || !!(bb.coordinates?.lat && bb.coordinates?.lng)
+      })));
+      updateMapMarkers();
+    } else {
+      console.log('❌ Conditions not met for marker update:', {
+        mapNotLoaded: !mapLoaded,
+        noBloodBanks: filteredAndSortedBloodBanks.length === 0
+      });
+    }
+  }, [mapLoaded, filteredAndSortedBloodBanks, updateMapMarkers, focusingBloodBank]);
+
+  // Auto-refresh markers every 5 seconds to ensure they stay visible
+  useEffect(() => {
+    if (mapLoaded && filteredAndSortedBloodBanks.length > 0) {
+      console.log('⏰ Starting auto-refresh interval for markers...');
+      
+      markerRefreshIntervalRef.current = setInterval(() => {
+        // Check if markers are still visible on the map
+        const visibleMarkers = markersRef.current.filter(marker => 
+          marker && marker.getMap() && marker.getVisible()
+        );
+        
+        console.log(`🔍 Auto-refresh check: ${visibleMarkers.length}/${markersRef.current.length} markers visible`);
+        
+        // If less than expected markers are visible, force refresh
+        if (visibleMarkers.length < filteredAndSortedBloodBanks.length) {
+          console.log('🚨 Some markers missing - triggering auto-refresh');
+          forceRefreshMarkers();
+        }
+      }, 5000); // Check every 5 seconds
+      
+      return () => {
+        if (markerRefreshIntervalRef.current) {
+          console.log('🛑 Clearing auto-refresh interval');
+          clearInterval(markerRefreshIntervalRef.current);
+          markerRefreshIntervalRef.current = null;
+        }
+      };
+    }
+  }, [mapLoaded, filteredAndSortedBloodBanks.length, forceRefreshMarkers]);
 
   // Loading simulation
   useEffect(() => {
@@ -944,6 +1606,31 @@ export default function DonationCenter() {
     const timer = setTimeout(() => setIsLoading(false), 800)
     return () => clearTimeout(timer)
   }, [searchTerm, filters])
+
+  // Cleanup function to reset markers on unmount
+  useEffect(() => {
+    return () => {
+      // Clear auto-refresh interval
+      if (markerRefreshIntervalRef.current) {
+        clearInterval(markerRefreshIntervalRef.current);
+        markerRefreshIntervalRef.current = null;
+      }
+      // Reset active marker on cleanup
+      if (activeMarkerRef.current) {
+        activeMarkerRef.current = null;
+      }
+      // Reset all flags
+      isHighlightingRef.current = false;
+      isFocusingRef.current = false;
+      // Clear all markers on unmount
+      markersRef.current.forEach(marker => {
+        if (marker && marker.setMap) {
+          marker.setMap(null);
+        }
+      });
+      markersRef.current = [];
+    };
+  }, []);
 
   // Sorting function
   const requestSort = (key) => {
@@ -1054,25 +1741,436 @@ export default function DonationCenter() {
     }, 300)
   }
 
-  // Handle directions to blood bank
+  // Handle directions to blood bank with accurate coordinates
   const handleGetDirections = (bloodBank) => {
-    if (!bloodBank.coordinates) return;
+    // Use geocoded coordinates first (more accurate), then fallback to coordinates object
+    let lat = bloodBank.lat;
+    let lng = bloodBank.lng;
     
-    const { lat, lng } = bloodBank.coordinates;
+    if (!lat || !lng) {
+      if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+        lat = parseFloat(bloodBank.coordinates.lat);
+        lng = parseFloat(bloodBank.coordinates.lng);
+      } else {
+        console.warn(`No coordinates available for ${bloodBank.name}`);
+        return;
+      }
+    } else {
+      // Ensure geocoded coordinates are numbers
+      lat = parseFloat(lat);
+      lng = parseFloat(lng);
+    }
+    
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      console.warn(`Invalid coordinates for ${bloodBank.name}: lat=${lat}, lng=${lng}`);
+      return;
+    }
+    
     const destination = `${lat},${lng}`;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${bloodBank.name || bloodBank.bloodBankName}`;
+    const bloodBankName = encodeURIComponent(bloodBank.name || bloodBank.bloodBankName || 'Blood Bank');
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${bloodBankName}`;
+    
+    console.log(`🧭 Opening directions to ${bloodBank.name} at coordinates: ${lat}, ${lng}`);
     window.open(url, '_blank');
   };
 
-  // Focus map on specific blood bank
+
+  // Enhanced focus map on specific blood bank with full functionality
   const focusOnBloodBank = (bloodBank) => {
-    if (!googleMapRef.current || !bloodBank.coordinates) return;
+    console.log('🚀🚀🚀 FOCUS ON BLOOD BANK FUNCTION CALLED 🚀🚀🚀');
+    console.log('📊 Function entry - bloodBank parameter:', bloodBank);
+    console.log('🗺️ Google Map ref status:', {
+      exists: !!googleMapRef.current,
+      isInitialized: googleMapRef.current ? 'YES' : 'NO',
+      mapType: googleMapRef.current ? typeof googleMapRef.current : 'undefined'
+    });
     
-    const { lat, lng } = bloodBank.coordinates;
-    googleMapRef.current.setCenter({ lat: parseFloat(lat), lng: parseFloat(lng) });
-    googleMapRef.current.setZoom(16);
-    setSelectedMarker(bloodBank);
-    setSelectedBloodBank(bloodBank);
+    if (!googleMapRef.current) {
+      console.error('❌ CRITICAL: Google Map not initialized yet');
+      console.log('🔍 Debugging map initialization...');
+      console.log('📍 googleMapRef:', googleMapRef);
+      console.log('📍 googleMapRef.current:', googleMapRef.current);
+      return;
+    }
+    
+    if (!bloodBank) {
+      console.error('❌ CRITICAL: No blood bank provided to focus on');
+      console.log('🔍 bloodBank parameter is:', bloodBank);
+      return;
+    }
+    
+    console.log('✅ Initial checks passed - proceeding with focus operation');
+    
+    // Set focusing flag to prevent marker updates during focus operation
+    console.log('🔒 Setting focusing flag to prevent marker interference');
+    isFocusingRef.current = true;
+    
+    // Set focusing state for visual feedback
+    console.log('🎨 Setting focusing state for blood bank ID:', bloodBank.id);
+    setFocusingBloodBank(bloodBank.id);
+    console.log('✅ Focusing state set successfully');
+    
+    // Get coordinates from multiple possible sources with enhanced debugging
+    let lat, lng;
+    
+    console.log('🔍🔍🔍 COORDINATE RESOLUTION STARTING 🔍🔍🔍');
+    console.log('🏥 Blood bank name:', bloodBank.name || bloodBank.bloodBankName);
+    console.log('📍 RAW coordinate data inspection:');
+    console.log('   - bloodBank.lat:', bloodBank.lat, '(type:', typeof bloodBank.lat, ')');
+    console.log('   - bloodBank.lng:', bloodBank.lng, '(type:', typeof bloodBank.lng, ')');
+    console.log('   - bloodBank.coordinates:', bloodBank.coordinates);
+    console.log('   - bloodBank.latitude:', bloodBank.latitude, '(type:', typeof bloodBank.latitude, ')');
+    console.log('   - bloodBank.longitude:', bloodBank.longitude, '(type:', typeof bloodBank.longitude, ')');
+    console.log('📋 Complete bloodBank object keys:', Object.keys(bloodBank));
+    console.log('📋 Complete bloodBank object:', bloodBank);
+    
+    // Priority 1: Use geocoded coordinates (most accurate)
+    console.log('🔍 Checking Priority 1: geocoded coordinates (lat & lng)...');
+    if (bloodBank.lat && bloodBank.lng) {
+      console.log('✅ FOUND geocoded coordinates!');
+      lat = parseFloat(bloodBank.lat);
+      lng = parseFloat(bloodBank.lng);
+      console.log('📍 Parsed geocoded coordinates:', { 
+        original: { lat: bloodBank.lat, lng: bloodBank.lng },
+        parsed: { lat, lng },
+        isValidLat: !isNaN(lat),
+        isValidLng: !isNaN(lng)
+      });
+    }
+    // Priority 2: Use coordinates object
+    else {
+      console.log('❌ No geocoded coordinates found, checking Priority 2: coordinates object...');
+      if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+        console.log('✅ FOUND coordinates object!');
+        lat = parseFloat(bloodBank.coordinates.lat);
+        lng = parseFloat(bloodBank.coordinates.lng);
+        console.log('📍 Parsed coordinates object:', { 
+          original: bloodBank.coordinates,
+          parsed: { lat, lng },
+          isValidLat: !isNaN(lat),
+          isValidLng: !isNaN(lng)
+        });
+      }
+      // Priority 3: Use latitude/longitude properties
+      else {
+        console.log('❌ No coordinates object found, checking Priority 3: latitude/longitude properties...');
+        if (bloodBank.latitude && bloodBank.longitude) {
+          console.log('✅ FOUND latitude/longitude properties!');
+          lat = parseFloat(bloodBank.latitude);
+          lng = parseFloat(bloodBank.longitude);
+          console.log('📍 Parsed latitude/longitude:', { 
+            original: { latitude: bloodBank.latitude, longitude: bloodBank.longitude },
+            parsed: { lat, lng },
+            isValidLat: !isNaN(lat),
+            isValidLng: !isNaN(lng)
+          });
+        }
+        // Priority 4: No coordinates found
+        else {
+          console.error('❌❌❌ NO COORDINATES FOUND ANYWHERE! ❌❌❌');
+          console.log('🚫 Coordinate search failed for:', bloodBank.name || bloodBank.bloodBankName);
+          console.log('📋 All available properties:', Object.keys(bloodBank));
+          console.log('🔍 Detailed property inspection:');
+          Object.keys(bloodBank).forEach(key => {
+            console.log(`   - ${key}:`, bloodBank[key], `(type: ${typeof bloodBank[key]})`);
+          });
+          setFocusingBloodBank(null);
+          return;
+        }
+      }
+    }
+    
+    // Validate coordinates
+    console.log('🔍 Validating coordinates...');
+    console.log('📊 Coordinate validation check:', {
+      lat: lat,
+      lng: lng,
+      latIsNaN: isNaN(lat),
+      lngIsNaN: isNaN(lng),
+      latInRange: lat >= -90 && lat <= 90,
+      lngInRange: lng >= -180 && lng <= 180
+    });
+    
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      console.error('❌❌❌ COORDINATE VALIDATION FAILED! ❌❌❌');
+      console.error(`🚫 Invalid coordinates for ${bloodBank.name}: lat=${lat}, lng=${lng}`);
+      console.log('🔍 Validation details:', {
+        lat: { value: lat, isNaN: isNaN(lat), inRange: lat >= -90 && lat <= 90 },
+        lng: { value: lng, isNaN: isNaN(lng), inRange: lng >= -180 && lng <= 180 }
+      });
+      setFocusingBloodBank(null);
+      return;
+    }
+    
+    console.log('✅✅✅ COORDINATES VALIDATED SUCCESSFULLY! ✅✅✅');
+    console.log(`🎯 Focusing map on ${bloodBank.name || bloodBank.bloodBankName} at coordinates: ${lat}, ${lng}`);
+    
+    try {
+      console.log('🗺️🗺️🗺️ MAP TRANSITION STARTING 🗺️🗺️🗺️');
+      
+      // Get current map state for debugging
+      const currentCenter = googleMapRef.current.getCenter();
+      const initialZoom = googleMapRef.current.getZoom();
+      console.log('📊 Current map state before transition:', {
+        center: { lat: currentCenter.lat(), lng: currentCenter.lng() },
+        zoom: initialZoom,
+        mapExists: !!googleMapRef.current,
+        mapType: typeof googleMapRef.current
+      });
+      
+      // Create precise LatLng object for accurate positioning
+      const targetLatLng = new window.google.maps.LatLng(lat, lng);
+      console.log('🎯 Created precise LatLng object:', {
+        lat: targetLatLng.lat(),
+        lng: targetLatLng.lng(),
+        toString: targetLatLng.toString()
+      });
+      
+      // Calculate optimal zoom level based on device and screen size
+      const currentZoom = initialZoom;
+      let optimalZoom;
+      
+      if (isMobile) {
+        // Mobile: Optimized zoom for better context and touch navigation
+        optimalZoom = 16; // Increased from 15 for better detail on mobile
+      } else if (isTablet) {
+        // Tablet: Medium zoom for balanced view
+        optimalZoom = 16;
+      } else {
+        // Desktop: Higher zoom for detailed view
+        optimalZoom = 17;
+      }
+      
+      // Adjust zoom based on current map bounds to prevent jarring transitions
+      const mapBounds = googleMapRef.current.getBounds();
+      if (mapBounds) {
+        const ne = mapBounds.getNorthEast();
+        const sw = mapBounds.getSouthWest();
+        const boundsSize = Math.abs(ne.lat() - sw.lat()) + Math.abs(ne.lng() - sw.lng());
+        
+        // If currently zoomed out very far, use a more conservative zoom
+        if (boundsSize > 1) { // Very wide view
+          optimalZoom = Math.max(optimalZoom - 2, 13);
+        } else if (boundsSize > 0.1) { // Moderately wide view
+          optimalZoom = Math.max(optimalZoom - 1, 14);
+        }
+      }
+      
+      console.log('🔍 Zoom calculation:', {
+        currentZoom: currentZoom,
+        optimalZoom: optimalZoom,
+        isMobile: isMobile,
+        needsZoomChange: Math.abs(currentZoom - optimalZoom) > 0.5
+      });
+      
+      // Use smooth animated transition with precise centering
+      console.log('🎬 Executing smooth animated transition...');
+      
+      // Create bounds for precise centering with optimal padding
+      const bounds = new window.google.maps.LatLngBounds();
+      bounds.extend(targetLatLng);
+      
+      // Add device-specific padding around the target for better visibility
+      const padding = isMobile ? 60 : 120; // Reduced mobile padding for better centering
+      
+      // Method 1: Direct panTo for immediate response
+      console.log('🎯 Step 1: Initial pan to target location...');
+      googleMapRef.current.panTo(targetLatLng);
+      
+      // Method 2: Use fitBounds for precise centering if zoom needs significant adjustment
+      const zoomDifference = Math.abs(currentZoom - optimalZoom);
+      if (zoomDifference > 2) {
+        console.log('🔍 Large zoom difference detected, using fitBounds for precision...');
+        // Create a small bounds around the target for precise centering
+        const precisionBounds = new window.google.maps.LatLngBounds();
+        const offset = isMobile ? 0.002 : 0.001; // Larger offset for mobile for better context
+        precisionBounds.extend(new window.google.maps.LatLng(lat + offset, lng + offset));
+        precisionBounds.extend(new window.google.maps.LatLng(lat - offset, lng - offset));
+        
+        googleMapRef.current.fitBounds(precisionBounds, padding);
+        
+        // Fine-tune zoom to optimal level with mobile-specific timing
+        const fitBoundsDelay = isMobile ? 400 : 600;
+        setTimeout(() => {
+          googleMapRef.current.setZoom(optimalZoom);
+          googleMapRef.current.panTo(targetLatLng);
+          console.log('📱 FitBounds completed with mobile optimization');
+        }, fitBoundsDelay);
+      }
+      
+      // Mobile-optimized animation timing
+      const panDelay = isMobile ? 300 : 500; // Faster pan on mobile
+      const zoomDelay = isMobile ? 200 : 300; // Faster zoom adjustment on mobile
+      const finalAdjustmentDelay = isMobile ? 150 : 200; // Faster final adjustment on mobile
+      
+      console.log('⏰ Using mobile-optimized timing:', {
+        panDelay: panDelay,
+        zoomDelay: zoomDelay,
+        finalAdjustmentDelay: finalAdjustmentDelay,
+        isMobile: isMobile
+      });
+      
+      // Wait for pan to complete, then set zoom with animation
+      setTimeout(() => {
+        if (Math.abs(currentZoom - optimalZoom) > 0.5) {
+          console.log(`🔍 Animating zoom from ${currentZoom} to ${optimalZoom}`);
+          googleMapRef.current.setZoom(optimalZoom);
+        }
+        
+        // Ensure perfect centering after zoom
+        setTimeout(() => {
+          console.log('🎯 Final centering adjustment...');
+          googleMapRef.current.panTo(targetLatLng);
+          
+          // Mobile-specific: Add extra centering for touch devices
+          if (isMobile) {
+            setTimeout(() => {
+              console.log('📱 Mobile-specific extra centering...');
+              googleMapRef.current.panTo(targetLatLng);
+            }, 100);
+          }
+          
+          // Verify final position and accuracy
+          setTimeout(() => {
+            const finalCenter = googleMapRef.current.getCenter();
+            const finalZoom = googleMapRef.current.getZoom();
+            const latDiff = Math.abs(finalCenter.lat() - targetLatLng.lat());
+            const lngDiff = Math.abs(finalCenter.lng() - targetLatLng.lng());
+            const totalDiff = latDiff + lngDiff;
+            const isAccurate = totalDiff < (isMobile ? 0.0005 : 0.0001); // More lenient threshold for mobile
+            
+            console.log('📊 Final map state after transition:', {
+              center: { lat: finalCenter.lat(), lng: finalCenter.lng() },
+              zoom: finalZoom,
+              targetWas: { lat: targetLatLng.lat(), lng: targetLatLng.lng() },
+              centeringAccuracy: {
+                latDiff: latDiff,
+                lngDiff: lngDiff,
+                totalDiff: totalDiff,
+                isAccurate: isAccurate,
+                accuracyRating: isAccurate ? '🎯 EXCELLENT' : totalDiff < 0.001 ? '✅ GOOD' : '⚠️ NEEDS IMPROVEMENT',
+                isMobile: isMobile,
+                threshold: isMobile ? 0.0005 : 0.0001
+              }
+            });
+            
+            // If centering is not accurate enough, perform final adjustment
+            if (!isAccurate && totalDiff > (isMobile ? 0.002 : 0.001)) {
+              console.log('🔧 Performing final precision adjustment...');
+              setTimeout(() => {
+                googleMapRef.current.panTo(targetLatLng);
+                console.log('✅ Final precision adjustment completed');
+              }, finalAdjustmentDelay);
+            }
+          }, 100); // Quick verification
+        }, zoomDelay); // Allow zoom animation to complete
+      }, panDelay); // Allow pan animation to complete
+      
+      console.log('✅ Smooth transition initiated');
+      
+      // Update selected states
+      console.log('🎨 Updating selected states...');
+      setSelectedMarker(bloodBank);
+      setSelectedBloodBank(bloodBank);
+      setMapCenter({ lat, lng });
+      console.log('✅ Selected states updated');
+      
+      // For mobile, switch to map view if currently in list view
+      console.log('📱 Checking mobile view mode switch...', {
+        isMobile: isMobile,
+        currentViewMode: viewMode,
+        needsSwitch: isMobile && viewMode === "list"
+      });
+      if (isMobile && viewMode === "list") {
+        console.log('📱 Switching to map view on mobile');
+        setViewMode("map");
+        
+        // Mobile-specific: Wait for view switch to complete before continuing
+        setTimeout(() => {
+          console.log('📱 Mobile view switch completed, triggering map resize...');
+          // Trigger map resize for mobile viewport
+          if (googleMapRef.current) {
+            window.google.maps.event.trigger(googleMapRef.current, 'resize');
+            // Re-center after resize
+            setTimeout(() => {
+              googleMapRef.current.panTo(targetLatLng);
+              console.log('📱 Mobile map resized and re-centered');
+            }, 100);
+          }
+        }, 200);
+        
+        console.log('✅ View mode switched to map');
+      }
+      
+      // Highlight the marker with enhanced visual feedback
+      const highlightDelay = isMobile ? 600 : 1000; // Faster highlighting on mobile
+      console.log(`⏰ Setting up marker highlighting timeout (${highlightDelay}ms delay for smooth transition)...`);
+      setTimeout(() => {
+        try {
+          console.log('🎨🎨🎨 MARKER HIGHLIGHTING STARTING 🎨🎨🎨');
+          console.log('🔍 Available markers before highlighting:', markersRef.current.length);
+          console.log('📊 Markers details:', markersRef.current.map((m, index) => ({
+            index: index,
+            id: m?.bloodBankId,
+            title: m?.getTitle?.(),
+            hasMap: !!m?.getMap?.(),
+            position: m?.getPosition?.()?.toString()
+          })));
+          
+          console.log('🎯 Calling highlightMarker function...');
+          const highlightedMarker = highlightMarker(bloodBank, true);
+          
+          if (highlightedMarker) {
+            console.log('✅✅✅ MARKER HIGHLIGHTED SUCCESSFULLY! ✅✅✅');
+            console.log('🎯 Highlighted marker for:', bloodBank.name || bloodBank.bloodBankName);
+            console.log('📍 Highlighted marker details:', {
+              id: highlightedMarker.bloodBankId,
+              title: highlightedMarker.getTitle?.(),
+              position: highlightedMarker.getPosition?.()?.toString()
+            });
+          } else {
+            console.error('❌❌❌ MARKER HIGHLIGHTING FAILED! ❌❌❌');
+            console.warn('⚠️ Failed to highlight marker - marker not found');
+            console.log('🔍 Available markers after failed highlighting:', markersRef.current.map(m => ({
+              id: m?.bloodBankId,
+              title: m?.getTitle?.(),
+              position: m?.getPosition?.()?.toString(),
+              hasMap: !!m?.getMap?.()
+            })));
+          }
+        } catch (error) {
+          console.error('🚫🚫🚫 ERROR IN MARKER HIGHLIGHTING! 🚫🚫🚫');
+          console.error('🚫 Error highlighting marker in focusOnBloodBank:', error);
+          console.error('🔍 Error stack:', error.stack);
+        }
+        
+        // Clear focusing state after animation completes
+        console.log('⏰ Setting up focusing state cleanup timeout (1500ms delay)...');
+        setTimeout(() => {
+          console.log('🧹 Clearing focusing state...');
+          setFocusingBloodBank(null);
+          isFocusingRef.current = false; // Clear focusing flag
+          
+          // Force refresh markers after focusing to ensure they're all visible
+          console.log('🔄 Triggering force refresh after focus operation...');
+          setTimeout(() => {
+            forceRefreshMarkers();
+          }, 500);
+          
+          console.log('✅ Focusing state and flag cleared');
+        }, 1500);
+      }, highlightDelay); // Mobile-optimized delay to ensure smooth map transition completes
+      
+    } catch (error) {
+      console.error('🚫 Error in focusOnBloodBank:', error);
+      setFocusingBloodBank(null);
+      isFocusingRef.current = false; // Clear focusing flag on error
+      // Also trigger force refresh on error to ensure markers are visible
+      setTimeout(() => {
+        forceRefreshMarkers();
+      }, 1000);
+    }
   };
 
   // Toggle view mode
@@ -1099,18 +2197,51 @@ export default function DonationCenter() {
             ? "opacity-50 cursor-not-allowed grayscale-50 border-gray-200" 
             : "hover:shadow-lg cursor-pointer hover:border-red-100 active:scale-[0.98]"
           }
-          ${selectedBloodBank?.id === bloodBank.id && !isClosedToday ? "border-red-200 bg-red-50 shadow-md" : ""}
-          relative z-10
+          ${selectedBloodBank?.id === bloodBank.id && !isClosedToday ? "border-red-300 bg-red-50 shadow-lg ring-2 ring-red-200" : ""}
+          ${focusingBloodBank === bloodBank.id ? "border-blue-300 bg-blue-50 shadow-lg ring-2 ring-blue-200" : ""}
+          relative z-10 group
         `}
-      >
-        {/* Header with status and distance */}
+         onClick={() => {
+           console.log('🖱️ CARD CLICKED - Starting debug trace...');
+           console.log('📋 Card data:', {
+             id: bloodBank.id,
+             name: bloodBank.name || bloodBank.bloodBankName,
+             isClosedToday: isClosedToday,
+             coordinates: {
+               lat: bloodBank.lat,
+               lng: bloodBank.lng,
+               coordinates: bloodBank.coordinates,
+               latitude: bloodBank.latitude,
+               longitude: bloodBank.longitude
+             }
+           });
+           
+           try {
+             if (!isClosedToday) {
+               console.log('✅ Card is open - proceeding with focus');
+               console.log('🎯 Calling focusOnBloodBank with:', bloodBank.name || bloodBank.bloodBankName);
+               focusOnBloodBank(bloodBank);
+             } else {
+               console.log('❌ Card is closed today - focus blocked');
+             }
+           } catch (error) {
+             console.error('🚫 Error in card click handler:', error);
+             console.error('🔍 Error details:', {
+               message: error.message,
+               stack: error.stack,
+               bloodBank: bloodBank
+             });
+           }
+         }}
+       >
+          {/* Header with status and distance */}
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <motion.div 
-              whileHover={{ scale: 1.2 }} 
-              whileTap={{ scale: 0.9 }}
-              className={`p-2 rounded-full ${isClosedToday ? 'bg-gray-100' : 'bg-red-50'}`}
-            >
+            <div className="flex items-center gap-3">
+              <motion.div 
+                whileHover={{ scale: 1.2 }} 
+                whileTap={{ scale: 0.9 }}
+                className={`p-2 rounded-full ${isClosedToday ? 'bg-gray-100' : 'bg-red-50'}`}
+              >
               {bloodBank.urgent ? (
                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" title="Urgent need" />
               ) : (
@@ -1123,7 +2254,7 @@ export default function DonationCenter() {
                 {isClosedToday ? (
                   <span className="text-xs text-red-600 font-medium flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  Closed Today
+                  Closed
                 </span>
                 ) : (
                   <span className="text-xs text-green-600 font-medium flex items-center gap-1">
@@ -1192,20 +2323,69 @@ export default function DonationCenter() {
           </div>
         </div>
 
+        {/* Click to focus indicator - Desktop */}
+        {!isClosedToday && !isMobile && (
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
+            <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              Click to focus
+            </div>
+          </div>
+        )}
+
         {/* Action buttons */}
-        <div className="flex gap-2 pt-3 border-t border-gray-100">
+        <div className={`flex ${isMobile ? 'gap-2' : 'gap-1.5'} pt-3 border-t border-gray-100`}>
           {viewMode === "map" && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={(e) => {
-                e.stopPropagation();
-                focusOnBloodBank(bloodBank);
+                console.log('🗺️ VIEW ON MAP BUTTON CLICKED - Starting debug trace...');
+                console.log('📍 Button data:', {
+                  id: bloodBank.id,
+                  name: bloodBank.name || bloodBank.bloodBankName,
+                  event: e.type,
+                  coordinates: {
+                    lat: bloodBank.lat,
+                    lng: bloodBank.lng,
+                    coordinates: bloodBank.coordinates,
+                    latitude: bloodBank.latitude,
+                    longitude: bloodBank.longitude
+                  }
+                });
+                
+                try {
+                  e.stopPropagation();
+                  console.log('✅ Event propagation stopped');
+                  console.log('🎯 Calling focusOnBloodBank from View on Map button');
+                  focusOnBloodBank(bloodBank);
+                } catch (error) {
+                  console.error('🚫 Error in View on Map button click:', error);
+                  console.error('🔍 Button error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    bloodBank: bloodBank
+                  });
+                }
               }}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-50 text-blue-600 rounded-lg font-medium text-sm hover:bg-blue-100 transition-colors"
+              className={`flex-1 flex items-center justify-center gap-1.5 ${isMobile ? 'py-2.5 px-4' : 'py-1.5 px-3'} ${
+                focusingBloodBank === bloodBank.id 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+              } rounded-lg font-medium ${isMobile ? 'text-sm' : 'text-xs'} transition-all duration-300`}
             >
-              <Target className="w-4 h-4" />
-              View on Map
+              {focusingBloodBank === bloodBank.id ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                  className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`}
+                >
+                  <Loader className="w-full h-full" />
+                </motion.div>
+              ) : (
+                <Target className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
+              )}
+              {focusingBloodBank === bloodBank.id ? 'Focusing...' : 'View on Map'}
             </motion.button>
           )}
           <motion.button
@@ -1215,9 +2395,9 @@ export default function DonationCenter() {
               e.stopPropagation();
               handleGetDirections(bloodBank);
             }}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-green-50 text-green-600 rounded-lg font-medium text-sm hover:bg-green-100 transition-colors"
+            className={`flex-1 flex items-center justify-center gap-1.5 ${isMobile ? 'py-2.5 px-4' : 'py-1.5 px-3'} bg-green-50 text-green-600 rounded-lg font-medium ${isMobile ? 'text-sm' : 'text-xs'} hover:bg-green-100 transition-colors`}
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
             Get Directions
           </motion.button>
           {!isClosedToday && (
@@ -1225,9 +2405,9 @@ export default function DonationCenter() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleBloodBankSelect(bloodBank)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors"
+              className={`flex-1 flex items-center justify-center gap-1.5 ${isMobile ? 'py-2.5 px-4' : 'py-1.5 px-3'} bg-red-500 text-white rounded-lg font-medium ${isMobile ? 'text-sm' : 'text-xs'} hover:bg-red-600 transition-colors`}
             >
-              <CheckCircle className="w-4 h-4" />
+              <CheckCircle className={`${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`} />
               Select Center
             </motion.button>
           )}
@@ -1286,13 +2466,18 @@ export default function DonationCenter() {
         {!isMobile ? (
           <div className="flex h-full">
             {/* Left Sidebar - Blood Bank List */}
-            <div className={`${isTablet ? 'w-80' : 'w-96'} bg-white shadow-lg overflow-hidden flex flex-col`}>
-              {/* Sidebar Header */}
-              <div className={`${isTablet ? 'p-4' : 'p-6'} border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50`}>
-                <h1 className={`${isTablet ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 mb-2`}>Nearby Blood Banks</h1>
-                <p className="text-sm text-gray-600">
-                  Find donation centers near you
-                </p>
+            <div className={`${isTablet ? 'w-80 min-w-80 max-w-80' : 'w-96 min-w-96 max-w-96'} bg-white shadow-xl border-r border-gray-200 overflow-hidden flex flex-col`}>
+              {/* Enhanced Sidebar Header */}
+              <div className={`${isTablet ? 'p-4' : 'p-6'} border-b border-gray-200 bg-gradient-to-r from-red-50 via-pink-50 to-red-50`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Droplet className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h1 className={`${isTablet ? 'text-xl' : 'text-2xl'} font-bold text-gray-900`}>Blood Banks</h1>
+                    <p className="text-sm text-gray-600">Find centers near you</p>
+                  </div>
+                </div>
               </div>
 
               {/* Location Status */}
@@ -1320,298 +2505,406 @@ export default function DonationCenter() {
                               : 'Location access will help us show nearby blood banks'
                     }
                   </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-              {/* Tab Navigation */}
+        {/* Enhanced Tab Navigation */}
               <div className={`${isTablet ? 'p-4 pb-3' : 'p-6 pb-4'}`}>
-                <div className="bg-gray-100 p-1 rounded-lg inline-flex w-full">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleTabChange("nearby")}
-                    disabled={!userLocation || permissionStatus !== 'granted'}
-                    className={`
-                      flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                      ${!userLocation || permissionStatus !== 'granted' 
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                        : activeTab === "nearby" 
-                        ? "bg-white text-red-600 shadow-sm" 
-                        : "text-gray-600 hover:text-gray-900"
-                      }
-                    `}
-                  >
+                <div className="bg-gray-50 p-1.5 rounded-2xl inline-flex w-full border border-gray-200 shadow-sm">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleTabChange("nearby")}
+                disabled={!userLocation || permissionStatus !== 'granted'}
+                className={`
+                      flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2
+                  ${!userLocation || permissionStatus !== 'granted' 
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                    : activeTab === "nearby" 
+                    ? "bg-red-500 text-white shadow-lg shadow-red-500/25" 
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
+                  }
+                `}
+              >
                     <div className="flex items-center justify-center gap-2">
-                      {!userLocation || permissionStatus !== 'granted' ? (
-                        <MapPinOff className="w-4 h-4" />
-                      ) : (
-                        <MapPin className="w-4 h-4" />
-                      )}
-                      {!userLocation || permissionStatus !== 'granted' ? (
+                  {!userLocation || permissionStatus !== 'granted' ? (
+                    <MapPinOff className="w-4 h-4" />
+                  ) : (
+                  <MapPin className="w-4 h-4" />
+                  )}
+                  {!userLocation || permissionStatus !== 'granted' ? (
                         <span>Nearby</span>
-                      ) : (
-                        <span>Nearby ({nearbyCount})</span>
-                      )}
-                    </div>
-                  </motion.button>
+                  ) : (
+                    <span>Nearby ({nearbyCount})</span>
+                  )}
+                </div>
+              </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                    onClick={() => handleTabChange("all")}
-                    className={`
-                      flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                      ${activeTab === "all" 
-                        ? "bg-white text-red-600 shadow-sm" 
-                        : "text-gray-600 hover:text-gray-900"
-                      }
-                    `}
-                  >
+                onClick={() => handleTabChange("all")}
+                className={`
+                  flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2
+                  ${activeTab === "all" 
+                    ? "bg-red-500 text-white shadow-lg shadow-red-500/25" 
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
+                  }
+                `}
+              >
                     <div className="flex items-center justify-center gap-2">
-                      <Building className="w-4 h-4" />
+                  <Building className="w-4 h-4" />
                       All ({allCount})
-                    </div>
-                    </motion.button>
                 </div>
-              </div>
+                    </motion.button>
+          </div>
+        </div>
 
               {/* Search */}
               <div className="px-6 pb-4">
                 <div className="relative">
-                  <motion.input
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.2 }}
-                    type="text"
-                    placeholder="Search donation centers..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="
-                      w-full h-10 pl-10 pr-4 bg-gray-50 text-sm 
-                      rounded-lg border border-gray-200
-                      focus:outline-none focus:ring-2 focus:ring-red-500 
-                      focus:border-transparent placeholder-gray-400
-                      transition-all duration-200
-                    "
-                  />
+            <motion.input
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              type="text"
+              placeholder="Search blood banks by name or location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="
+                      w-full h-12 pl-12 pr-10 bg-gray-50 hover:bg-white focus:bg-white text-sm 
+                      rounded-xl border border-gray-200 shadow-sm
+                focus:outline-none focus:ring-2 focus:ring-red-500 focus:shadow-lg
+                focus:border-transparent placeholder-gray-500
+                transition-all duration-300
+              "
+            />
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                </div>
-              </div>
+          </div>
+        </div>
 
-              {/* Results Count */}
+        {/* Results Count */}
               <div className="px-6 pb-4">
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm text-gray-600">
-                    Found <span className="font-medium">{filteredAndSortedBloodBanks.length}</span> donation centers
+          <p className="text-sm text-gray-600">
+            Found <span className="font-medium">{filteredAndSortedBloodBanks.length}</span> donation centers
                   </p>
-                  {filteredAndSortedBloodBanks.length > 0 && (
-                    <div className="flex flex-col gap-2 text-xs">
-                      <div className="flex items-center gap-4">
-                        <span className="text-green-600 font-medium flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          {filteredAndSortedBloodBanks.filter(bank => bank.isOpenToday).length} Open Today
-                        </span>
-                        <span className="text-gray-500 font-medium flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {filteredAndSortedBloodBanks.filter(bank => !bank.isOpenToday).length} Closed Today
-                        </span>
-                      </div>
-                      {activeTab === "nearby" && userLocation && permissionStatus === 'granted' && (
-                        <div className="flex items-center gap-2 text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
-                          <Navigation className="w-3 h-3" />
-                          <span>All within 15km radius</span>
-                        </div>
+                </div>
+      </div>
+
+              {/* Enhanced Blood Bank List */}
+              <div className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-gradient-to-b from-transparent to-gray-50/30`}>
+        {isLoading || bloodBanksLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+            >
+              <Loader className="w-8 h-8 text-red-500" />
+            </motion.div>
+            <span className="ml-3 text-gray-600">
+              {bloodBanksLoading ? "Loading blood banks..." : "Loading..."}
+            </span>
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+              <motion.div className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {filteredAndSortedBloodBanks.length > 0 ? (
+                  filteredAndSortedBloodBanks.map((bloodBank) => renderMobileCard(bloodBank))
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="
+                      text-center py-12 px-4
+                      bg-white rounded-lg shadow-sm
+                      border border-gray-200
+                    "
+                  >
+                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-2">No donation centers found</p>
+                    <p className="text-sm text-gray-400">Try adjusting your search criteria</p>
+                  </motion.div>
+                )}
+              </motion.div>
+                  </AnimatePresence>
                   )}
                 </div>
-                  )}
               </div>
-            </div>
-
-              {/* Blood Bank List */}
-              <div className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400`}>
-                {isLoading || bloodBanksLoading ? (
-                  <div className="flex justify-center items-center py-12">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                    >
-                      <Loader className="w-8 h-8 text-red-500" />
-                    </motion.div>
-                    <span className="ml-3 text-gray-600">
-                      {bloodBanksLoading ? "Loading blood banks..." : "Loading..."}
-                    </span>
-                  </div>
-                ) : (
-                  <AnimatePresence mode="wait">
-                    <motion.div className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                      {filteredAndSortedBloodBanks.length > 0 ? (
-                        filteredAndSortedBloodBanks.map((bloodBank) => renderMobileCard(bloodBank))
-                      ) : (
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="
-                            text-center py-12 px-4
-                            bg-white rounded-lg shadow-sm
-                            border border-gray-200
-                          "
-                        >
-                          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-500 mb-2">No donation centers found</p>
-                          <p className="text-sm text-gray-400">Try adjusting your search criteria</p>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
-                )}
-              </div>
-            </div>
 
             {/* Right Side - Map */}
-            <div className="flex-1 relative">
+            <div className="flex-1 relative overflow-hidden rounded-lg shadow-lg">
               {mapError ? (
-                <div className="flex items-center justify-center h-full bg-gray-100">
-                  <div className="text-center">
-                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-2">Failed to load map</p>
-                    <p className="text-sm text-gray-400">{mapError}</p>
-                  </div>
+                <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
+                  <div className="text-center p-8">
+                    <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2 font-medium">Unable to load map</p>
+                    <p className="text-sm text-gray-500 max-w-sm mx-auto">{mapError}</p>
+                    <button 
+                      onClick={() => window.location.reload()} 
+                      className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      Retry
+                    </button>
+            </div>
                 </div>
               ) : (
-                <div ref={mapRef} className="w-full h-full" />
+                <div 
+                  ref={mapRef} 
+                  className="w-full h-full rounded-xl shadow-inner border border-gray-200"
+                  style={{ minHeight: '400px' }}
+                />
               )}
               
               {!mapLoaded && !mapError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                  <div className="text-center">
-                    <motion.div
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
+                  <div className="text-center p-8">
+              <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
                     >
-                      <Loader className="w-8 h-8 text-red-500 mx-auto mb-4" />
-                    </motion.div>
-                    <p className="text-gray-600">Loading map...</p>
+                      <Loader className="w-10 h-10 text-red-500 mx-auto mb-4" />
+          </motion.div>
+                    <p className="text-gray-700 font-medium">Loading interactive map...</p>
+                    <p className="text-sm text-gray-500 mt-2">Finding nearby blood banks</p>
                   </div>
                 </div>
               )}
             </div>
+            
           </div>
         ) : (
           /* Mobile Layout */
           <div className="h-full relative">
             {viewMode === "map" ? (
               /* Map View */
-              <div className="h-full relative">
+              <div className="h-full relative overflow-hidden">
                 {mapError ? (
-                  <div className="flex items-center justify-center h-full bg-gray-100">
-                    <div className="text-center">
-                      <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 mb-2">Failed to load map</p>
-                      <p className="text-sm text-gray-400">{mapError}</p>
+                  <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100">
+                    <div className="text-center p-6">
+                      <AlertCircle className="w-14 h-14 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-2 font-medium">Map unavailable</p>
+                      <p className="text-sm text-gray-500 px-4">{mapError}</p>
+                          <button
+                        onClick={() => window.location.reload()} 
+                        className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                          >
+                        Retry
+                          </button>
                     </div>
                   </div>
                 ) : (
-                  <div ref={mapRef} className="w-full h-full" />
+                  <div 
+                    ref={mapRef} 
+                    className="w-full h-full"
+                    style={{ minHeight: '100vh' }}
+                  />
                 )}
                 
                 {!mapLoaded && !mapError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                    <div className="text-center">
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                    <div className="text-center p-6">
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
                       >
-                        <Loader className="w-8 h-8 text-red-500 mx-auto mb-4" />
+                        <Loader className="w-10 h-10 text-red-500 mx-auto mb-4" />
                       </motion.div>
-                      <p className="text-gray-600">Loading map...</p>
+                      <p className="text-gray-700 font-medium">Loading map...</p>
+                      <p className="text-sm text-gray-500 mt-1">Please wait</p>
                     </div>
                   </div>
                 )}
 
-                {/* Bottom Sheet */}
-                {showBottomSheet && (
-                  <motion.div
-                    initial={{ y: "100%" }}
-                    animate={{ y: 0 }}
-                    exit={{ y: "100%" }}
-                    transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50"
-                    style={{ height: `${bottomSheetHeight}px` }}
-                    drag="y"
-                    dragConstraints={{ top: 0, bottom: 0 }}
-                    dragElastic={0.1}
-                    onDragEnd={(event, info) => {
-                      if (info.offset.y > 100) {
-                        setShowBottomSheet(false);
-                      }
-                    }}
-                  >
-                    {/* Handle */}
-                    <div className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
-                      <div className="w-12 h-1 bg-gray-300 rounded-full" />
-                    </div>
-
-                    {/* Header */}
-                    <div className="px-4 pb-3 border-b border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-gray-900">
-                          Nearby Blood Banks ({filteredAndSortedBloodBanks.length})
-                        </h2>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setShowBottomSheet(false)}
-                          className="p-2 rounded-full hover:bg-gray-100"
-                        >
-                          <ChevronDown className="w-5 h-5 text-gray-500" />
-                        </motion.button>
+                {/* Horizontal Scrollable Cards - ZUS Coffee Style */}
+                <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 z-40 shadow-2xl safe-area-inset-bottom">
+                  {/* Enhanced Header */}
+                  <div className="px-4 py-3 border-b border-gray-100/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">
+                          Nearby Blood Banks
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {filteredAndSortedBloodBanks.length} centers found
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 hidden sm:block">👈 Swipe to explore</span>
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                          <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                          <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Content */}
-                    <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                      {isLoading || bloodBanksLoading ? (
-                        <div className="flex justify-center items-center py-8">
+                  </div>
+                  
+                  {/* Enhanced Horizontal Scrollable Cards */}
+                  <div className="overflow-x-auto scrollbar-hide pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <div 
+                      className="flex gap-4 p-4 pb-6" 
+                      style={{ 
+                        width: `${Math.max(filteredAndSortedBloodBanks.length * 288 + (filteredAndSortedBloodBanks.length - 1) * 16, window.innerWidth)}px`,
+                        paddingLeft: '20px',
+                        paddingRight: '20px'
+                      }}
+                    >
+                        {filteredAndSortedBloodBanks.length > 0 ? (
+                        filteredAndSortedBloodBanks.map((bloodBank, index) => (
                           <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                              key={bloodBank.id}
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={{ 
+                              opacity: 1, 
+                              x: 0,
+                              scale: selectedBloodBank?.id === bloodBank.id ? 1.02 : 1
+                            }}
+                            transition={{ delay: index * 0.05, type: "spring", stiffness: 300, damping: 30 }}
+                            className={`flex-shrink-0 w-72 bg-white rounded-2xl shadow-lg border overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer group ${
+                              selectedBloodBank?.id === bloodBank.id 
+                                ? 'border-red-300 ring-2 ring-red-200 shadow-xl' 
+                                : focusingBloodBank === bloodBank.id
+                                  ? 'border-blue-300 ring-2 ring-blue-200 shadow-xl'
+                                  : 'border-gray-200/50'
+                            }`}
+                            onClick={() => {
+                              console.log('📱 HORIZONTAL CARD CLICKED - Starting debug trace...');
+                              console.log('🏥 Horizontal card data:', {
+                                id: bloodBank.id,
+                                name: bloodBank.name || bloodBank.bloodBankName,
+                                cardType: 'horizontal',
+                                coordinates: {
+                                  lat: bloodBank.lat,
+                                  lng: bloodBank.lng,
+                                  coordinates: bloodBank.coordinates,
+                                  latitude: bloodBank.latitude,
+                                  longitude: bloodBank.longitude
+                                }
+                              });
+                              
+                              try {
+                                console.log('✅ Horizontal card is clickable - proceeding with focus');
+                                console.log('🎯 Calling focusOnBloodBank from horizontal card');
+                                focusOnBloodBank(bloodBank);
+                              } catch (error) {
+                                console.error('🚫 Error in horizontal card click handler:', error);
+                                console.error('🔍 Horizontal card error details:', {
+                                  message: error.message,
+                                  stack: error.stack,
+                                  bloodBank: bloodBank
+                                });
+                              }
+                            }}
                           >
-                            <Loader className="w-6 h-6 text-red-500" />
+                            {/* Enhanced Blood Bank Image */}
+                            <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative">
+                              <img 
+                                src={bloodBank.image || '/api/placeholder/400/200'} 
+                                alt={bloodBank.name}
+                                className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                                onError={(e) => {
+                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDQwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMDAgNzBMMjMwIDEwMEgyMTBWMTMwSDE5MFYxMDBIMTcwTDIwMCA3MFoiIGZpbGw9IiNEQzI2MjYiLz4KPHRleHQgeD0iMjAwIiB5PSIxNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM2QjczODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjUwMCI+Qmxvb2QgQmFuayBJbWFnZTwvdGV4dD4KPC9zdmc+';
+                                }}
+                              />
+                              {/* Status Badge Overlay */}
+                              <div className="absolute top-3 left-3">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg ${
+                                  bloodBank.isOpenToday 
+                                    ? 'bg-green-500 text-white' 
+                                    : 'bg-red-500 text-white'
+                                }`}>
+                                  {bloodBank.isOpenToday ? '🟢 Open' : '🔴 Closed'}
+                                      </span>
+                              </div>
+                              {/* Distance Badge */}
+                              {bloodBank.distanceText && (
+                                <div className="absolute top-3 right-3">
+                                  <span className="bg-blue-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg">
+                                    {bloodBank.distanceText}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Click to focus indicator */}
+                              <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Target className="w-3 h-3" />
+                                  Tap to focus
+                                  </div>
+                                </div>
+                                </div>
+                            
+                            {/* Enhanced Card Content */}
+                            <div className="p-4">
+                              <div className="mb-4">
+                                <h4 className="font-bold text-gray-900 text-lg mb-2 line-clamp-1">
+                                  {bloodBank.name || bloodBank.bloodBankName}
+                                </h4>
+                                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                                  📍 {bloodBank.address || 'Address not available'}
+                                </p>
+                                {bloodBank.phone && (
+                                  <p className="text-xs text-gray-500 mb-2">
+                                    📞 {bloodBank.phone}
+                                  </p>
+                                )}
+                                </div>
+                              
+                              {/* Enhanced Action Buttons */}
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleGetDirections(bloodBank);
+                                  }}
+                                  className="flex-1 bg-blue-500 text-white py-2.5 px-4 rounded-xl text-sm font-semibold hover:bg-blue-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                                >
+                                  🧭 Direction
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleBloodBankSelect(bloodBank);
+                                  }}
+                                  disabled={!bloodBank.isOpenToday}
+                                  className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
+                                    bloodBank.isOpenToday
+                                      ? 'bg-red-500 text-white hover:bg-red-600 hover:shadow-lg'
+                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                >
+                                  📋 Select
+                                </button>
+                                </div>
+                                </div>
                           </motion.div>
-                          <span className="ml-3 text-gray-600 text-sm">Loading...</span>
-                        </div>
+                        ))
                       ) : (
-                        <div className="space-y-3">
-                          {filteredAndSortedBloodBanks.length > 0 ? (
-                            filteredAndSortedBloodBanks.slice(0, 5).map((bloodBank) => renderMobileCard(bloodBank))
-                          ) : (
-                            <div className="text-center py-8">
-                              <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                              <p className="text-gray-500 text-sm">No blood banks found</p>
-                            </div>
-                          )}
+                        <div className="flex-shrink-0 w-72 bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                          <div className="p-8 text-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <span className="text-2xl">🏥</span>
+                                </div>
+                            <h4 className="font-semibold text-gray-900 mb-2">No Blood Banks Found</h4>
+                            <p className="text-sm text-gray-500 mb-4">Try adjusting your location or search criteria</p>
+                            <button 
+                              onClick={() => window.location.reload()}
+                              className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors"
+                            >
+                              🔄 Refresh
+                            </button>
+                                </div>
                         </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
+                                          )}
+                                        </div>
+                                      </div>
+                </div>
 
-                {/* Floating Action Button */}
-                {!showBottomSheet && (
-                  <motion.button
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowBottomSheet(true)}
-                    className="absolute bottom-6 right-6 w-14 h-14 bg-red-500 text-white rounded-full shadow-lg flex items-center justify-center"
-                  >
-                    <List className="w-6 h-6" />
-                  </motion.button>
-                )}
-              </div>
+
+                                      </div>
             ) : (
               /* List View */
               <div className="h-full bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
@@ -1717,18 +3010,26 @@ export default function DonationCenter() {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.2 }}
               type="text"
-              placeholder="Search donation centers..."
+              placeholder="Search blood banks by name or location..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="
                 w-full h-12 pl-12 pr-12 bg-white text-base 
-                rounded-xl shadow-sm border border-gray-200
-                focus:outline-none focus:ring-2 focus:ring-red-500 
-                focus:border-transparent placeholder-gray-400
-                transition-all duration-200
+                rounded-xl shadow-lg border border-gray-200
+                focus:outline-none focus:ring-2 focus:ring-red-500 focus:shadow-xl
+                focus:border-transparent placeholder-gray-500
+                transition-all duration-300
               "
             />
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+            {searchTerm && (
+                                        <button 
+                onClick={() => setSearchTerm("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors text-xs"
+                                        >
+                ✕
+                                        </button>
+            )}
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -1745,170 +3046,10 @@ export default function DonationCenter() {
         </div>
 
         {/* Filters Section */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-red-500" />
-                    Advanced Filters
-                  </h2>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={resetFilters}
-                    className="
-                      text-xs px-3 py-1 rounded-full
-                      text-red-600 hover:text-red-700
-                      bg-red-50 hover:bg-red-100
-                      transition-colors duration-200
-                    "
-                  >
-                    Reset all
-                  </motion.button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <label className="flex text-xs font-medium text-gray-700 mb-1 items-center">
-                      <Building className="w-4 h-4 mr-1 text-red-500" />
-                      Donation Center
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="name"
-                        value={filters.name}
-                        onChange={handleFilterChange}
-                        className="
-                          w-full h-10 pl-9 pr-3 text-sm
-                          border border-gray-200 rounded-lg
-                          focus:outline-none focus:ring-1 focus:ring-red-500
-                          transition-all duration-200
-                        "
-                        placeholder="Filter by name..."
-                      />
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="flex text-xs font-medium text-gray-700 mb-1 items-center">
-                      <MapPin className="w-4 h-4 mr-1 text-red-500" />
-                      Location
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="location"
-                        value={filters.location}
-                        onChange={handleFilterChange}
-                        className="
-                          w-full h-10 pl-9 pr-3 text-sm
-                          border border-gray-200 rounded-lg
-                          focus:outline-none focus:ring-1 focus:ring-red-500
-                          transition-all duration-200
-                        "
-                        placeholder="Filter by location..."
-                      />
-                      <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="flex text-xs font-medium text-gray-700 mb-1 items-center">
-                      <Droplet className="w-4 h-4 mr-1 text-red-500" />
-                      Preferred Blood Types
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="bloodTypes"
-                        value={filters.bloodTypes}
-                        onChange={handleFilterChange}
-                        className="
-                          w-full h-10 pl-9 pr-3 text-sm
-                          border border-gray-200 rounded-lg
-                          focus:outline-none focus:ring-1 focus:ring-red-500
-                          transition-all duration-200
-                        "
-                        placeholder="Filter by blood type..."
-                      />
-                      <Droplet className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="flex text-xs font-medium text-gray-700 mb-1 items-center">
-                      <Clock className="w-4 h-4 mr-1 text-red-500" />
-                      Availability
-                    </label>
-                    <select
-                      name="availability"
-                      value={filters.availability}
-                      onChange={handleFilterChange}
-                      className="
-                        w-full h-10 pl-9 pr-3 text-sm
-                        border border-gray-200 rounded-lg
-                        focus:outline-none focus:ring-1 focus:ring-red-500
-                        transition-all duration-200
-                        appearance-none
-                        bg-white
-                      "
-                    >
-                      <option value="all">All</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
-                    <Clock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+       
 
         {/* Results Count */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-4 flex items-center justify-between"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <p className="text-sm text-gray-600">
-            Found <span className="font-medium">{filteredAndSortedBloodBanks.length}</span> donation centers
-            {searchTerm && (
-              <span className="ml-1">
-                matching "<span className="text-red-600">{searchTerm}</span>"
-              </span>
-            )}
-          </p>
-            {filteredAndSortedBloodBanks.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
-                <div className="flex items-center gap-4">
-                  <span className="text-green-600 font-medium flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" />
-                    {filteredAndSortedBloodBanks.filter(bank => bank.isOpenToday).length} Open Today
-                  </span>
-                  <span className="text-gray-500 font-medium flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {filteredAndSortedBloodBanks.filter(bank => !bank.isOpenToday).length} Closed Today
-                  </span>
-                </div>
-    {activeTab === "nearby" && userLocation && permissionStatus === 'granted' && (
-      <div className="flex items-center gap-2 text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
-        <Navigation className="w-3 h-3" />
-        <span>All within 15km radius</span>
-      </div>
-    )}
-              </div>
-            )}
-          </div>
-        </motion.div>
+
 
         {/* Blood Bank Loading Error */}
         {bloodBanksError && (
@@ -1968,7 +3109,7 @@ export default function DonationCenter() {
               </motion.div>
           </AnimatePresence>
         )}
-                </main>
+      </main>
                                   </div>
                                           )}
                                         </div>
