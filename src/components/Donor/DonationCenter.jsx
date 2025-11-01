@@ -47,6 +47,7 @@ export default function DonationCenter() {
   })
   const [showFilters, setShowFilters] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedBloodBank, setSelectedBloodBank] = useState(null)
   const [activeTab, setActiveTab] = useState("nearby") // "nearby" or "all"
@@ -185,7 +186,12 @@ export default function DonationCenter() {
 
   // Handle window resize
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    const handleResize = () => {
+      const width = window.innerWidth
+      setIsMobile(width < 768)
+      setIsTablet(width >= 768 && width < 1024)
+    }
+    
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
   }, [])
@@ -366,34 +372,63 @@ export default function DonationCenter() {
         ],
         mapTypeControl: false,
         streetViewControl: false,
-        fullscreenControl: false,
+        fullscreenControl: true,
+        fullscreenControlOptions: {
+          position: window.google.maps.ControlPosition.TOP_RIGHT
+        },
+        zoomControl: true,
         zoomControlOptions: {
-          position: window.google.maps.ControlPosition.RIGHT_BOTTOM
-        }
+          position: isMobile 
+            ? window.google.maps.ControlPosition.RIGHT_BOTTOM 
+            : window.google.maps.ControlPosition.RIGHT_CENTER
+        },
+        mapTypeControlOptions: {
+          position: window.google.maps.ControlPosition.TOP_LEFT
+        },
+        gestureHandling: 'greedy', // Better mobile interaction
+        clickableIcons: false, // Prevent interference with blood bank markers
+        disableDefaultUI: false,
+        keyboardShortcuts: false
       });
 
       googleMapRef.current = map;
       setMapLoaded(true);
       setMapError(null);
 
-      // Add user location marker
+      // Add user location marker with improved styling
       if (userLocation) {
         const userLat = userLocation.lat || userLocation.latitude;
         const userLng = userLocation.lng || userLocation.longitude;
         
+        // Create custom user location marker
         new window.google.maps.Marker({
-          position: { lat: userLat, lng: userLng },
+          position: { lat: parseFloat(userLat), lng: parseFloat(userLng) },
           map: map,
-          title: "Your Location",
+          title: "Your Current Location",
           icon: {
             path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 8,
+            scale: 12,
             fillColor: "#3B82F6",
             fillOpacity: 1,
             strokeColor: "#FFFFFF",
-            strokeWeight: 2
-          }
+            strokeWeight: 3
+          },
+          zIndex: 1000 // Ensure user marker appears above other markers
         });
+
+        // Add accuracy circle if available
+        if (userLocation.accuracy) {
+          new window.google.maps.Circle({
+            strokeColor: '#3B82F6',
+            strokeOpacity: 0.3,
+            strokeWeight: 1,
+            fillColor: '#3B82F6',
+            fillOpacity: 0.1,
+            map: map,
+            center: { lat: parseFloat(userLat), lng: parseFloat(userLng) },
+            radius: userLocation.accuracy
+          });
+        }
       }
 
       // Add blood bank markers will be handled by useEffect
@@ -849,22 +884,32 @@ export default function DonationCenter() {
     filteredAndSortedBloodBanks.forEach((bloodBank) => {
       if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
         try {
-          const marker = new window.google.maps.Marker({
-          position: {
-            lat: parseFloat(bloodBank.coordinates.lat),
-            lng: parseFloat(bloodBank.coordinates.lng)
-          },
-          map: googleMapRef.current,
-          title: bloodBank.name || bloodBank.bloodBankName,
-          icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: bloodBank.isOpenToday ? 10 : 8,
-            fillColor: bloodBank.isOpenToday ? "#EF4444" : "#9CA3AF",
-            fillOpacity: bloodBank.isOpenToday ? 1 : 0.6,
-            strokeColor: "#FFFFFF",
-            strokeWeight: 2
+          // Ensure precise coordinate parsing
+          const lat = parseFloat(bloodBank.coordinates.lat);
+          const lng = parseFloat(bloodBank.coordinates.lng);
+          
+          // Validate coordinates
+          if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            console.warn(`Invalid coordinates for ${bloodBank.name}: lat=${lat}, lng=${lng}`);
+            return;
           }
-        });
+
+          const marker = new window.google.maps.Marker({
+            position: { lat, lng },
+            map: googleMapRef.current,
+            title: `${bloodBank.name || bloodBank.bloodBankName}${bloodBank.isOpenToday ? ' (Open)' : ' (Closed)'}`,
+            icon: {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: bloodBank.isOpenToday ? 12 : 10,
+              fillColor: bloodBank.isOpenToday ? "#EF4444" : "#9CA3AF",
+              fillOpacity: bloodBank.isOpenToday ? 1 : 0.7,
+              strokeColor: "#FFFFFF",
+              strokeWeight: 3,
+              anchor: new window.google.maps.Point(0, 0) // Center the marker properly
+            },
+            zIndex: bloodBank.isOpenToday ? 100 : 50, // Open banks appear above closed ones
+            optimized: false // Better rendering for custom icons
+          });
 
         // Add click listener to marker
         marker.addListener("click", () => {
@@ -1049,12 +1094,13 @@ export default function DonationCenter() {
         key={bloodBank.id}
         className={`
           bg-white rounded-xl shadow-sm p-4 mb-3 
-          transition-all border border-transparent
+          transition-all duration-200 border border-transparent
           ${isClosedToday 
             ? "opacity-50 cursor-not-allowed grayscale-50 border-gray-200" 
-            : "hover:shadow-lg cursor-pointer hover:border-red-100"
+            : "hover:shadow-lg cursor-pointer hover:border-red-100 active:scale-[0.98]"
           }
           ${selectedBloodBank?.id === bloodBank.id && !isClosedToday ? "border-red-200 bg-red-50 shadow-md" : ""}
+          relative z-10
         `}
       >
         {/* Header with status and distance */}
@@ -1198,9 +1244,9 @@ export default function DonationCenter() {
       <div className="relative h-screen overflow-hidden">
         {/* View Mode Toggle - Mobile Only */}
         {isMobile && (
-          <div className="absolute top-4 left-4 right-4 z-20">
+          <div className="absolute top-4 left-4 right-4 z-30">
             <div className="flex justify-center">
-              <div className="bg-white/90 backdrop-blur-sm p-1 rounded-xl shadow-lg inline-flex">
+              <div className="bg-white/95 backdrop-blur-sm p-1 rounded-xl shadow-lg inline-flex border border-gray-200/50">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -1236,14 +1282,14 @@ export default function DonationCenter() {
           </div>
         )}
 
-        {/* Desktop Layout */}
+        {/* Desktop/Tablet Layout */}
         {!isMobile ? (
           <div className="flex h-full">
             {/* Left Sidebar - Blood Bank List */}
-            <div className="w-96 bg-white shadow-lg overflow-hidden flex flex-col">
+            <div className={`${isTablet ? 'w-80' : 'w-96'} bg-white shadow-lg overflow-hidden flex flex-col`}>
               {/* Sidebar Header */}
-              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Nearby Blood Banks</h1>
+              <div className={`${isTablet ? 'p-4' : 'p-6'} border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50`}>
+                <h1 className={`${isTablet ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 mb-2`}>Nearby Blood Banks</h1>
                 <p className="text-sm text-gray-600">
                   Find donation centers near you
                 </p>
@@ -1281,7 +1327,7 @@ export default function DonationCenter() {
               )}
 
               {/* Tab Navigation */}
-              <div className="p-6 pb-4">
+              <div className={`${isTablet ? 'p-4 pb-3' : 'p-6 pb-4'}`}>
                 <div className="bg-gray-100 p-1 rounded-lg inline-flex w-full">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -1384,7 +1430,7 @@ export default function DonationCenter() {
             </div>
 
               {/* Blood Bank List */}
-              <div className="flex-1 overflow-y-auto px-6 pb-6">
+              <div className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400`}>
                 {isLoading || bloodBanksLoading ? (
                   <div className="flex justify-center items-center py-12">
                     <motion.div
@@ -1491,11 +1537,19 @@ export default function DonationCenter() {
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl"
+                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50"
                     style={{ height: `${bottomSheetHeight}px` }}
+                    drag="y"
+                    dragConstraints={{ top: 0, bottom: 0 }}
+                    dragElastic={0.1}
+                    onDragEnd={(event, info) => {
+                      if (info.offset.y > 100) {
+                        setShowBottomSheet(false);
+                      }
+                    }}
                   >
                     {/* Handle */}
-                    <div className="flex justify-center pt-3 pb-2">
+                    <div className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
                       <div className="w-12 h-1 bg-gray-300 rounded-full" />
                     </div>
 
@@ -1517,7 +1571,7 @@ export default function DonationCenter() {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto px-4 py-3">
+                    <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                       {isLoading || bloodBanksLoading ? (
                         <div className="flex justify-center items-center py-8">
                           <motion.div
@@ -1560,7 +1614,7 @@ export default function DonationCenter() {
               </div>
             ) : (
               /* List View */
-              <div className="h-full bg-white overflow-y-auto">
+              <div className="h-full bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pt-20">
 
         {/* Location Status Indicator */}
