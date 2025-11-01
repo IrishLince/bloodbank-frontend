@@ -26,9 +26,15 @@ export const useLocation = () => {
       setPermissionStatus('granted');
       return position;
     } catch (err) {
-      setError(err.message);
-      if (err.message.includes('denied')) {
+      if (err.message.includes('denied') || err.code === 1) {
+        setError('Location access is required to find nearby blood banks. Please enable location access in your browser settings.');
         setPermissionStatus('denied');
+      } else if (err.message.includes('unavailable') || err.code === 2) {
+        setError('Location is currently unavailable. Please check your device settings and try again.');
+      } else if (err.message.includes('timeout') || err.code === 3) {
+        setError('Location request timed out. Please try again.');
+      } else {
+        setError('Unable to access your location. Please enable location services to find nearby blood banks.');
       }
       return null;
     } finally {
@@ -85,28 +91,41 @@ export const useLocation = () => {
     setPermissionStatus('prompt');
   }, []);
 
-  // Check permission status on mount
+  // Check permission status and automatically request location on mount
   useEffect(() => {
     if ('permissions' in navigator) {
       navigator.permissions.query({ name: 'geolocation' })
         .then((result) => {
           setPermissionStatus(result.state);
           
+          // Automatically request location if permission is granted or prompt
+          if (result.state === 'granted' || result.state === 'prompt') {
+            getCurrentLocation();
+          } else if (result.state === 'denied') {
+            setError('Location access is required to find nearby blood banks. Please enable location access in your browser settings.');
+          }
+          
           // Listen for permission changes
           result.addEventListener('change', () => {
             setPermissionStatus(result.state);
             if (result.state === 'denied') {
               setLocation(null);
-              setError('Location access denied');
+              setError('Location access is required to find nearby blood banks. Please enable location access in your browser settings.');
+            } else if (result.state === 'granted') {
+              getCurrentLocation();
             }
           });
         })
         .catch(() => {
-          // Fallback if permissions API is not supported
+          // Fallback if permissions API is not supported - automatically request location
           setPermissionStatus('prompt');
+          getCurrentLocation();
         });
+    } else {
+      // If permissions API is not supported, automatically request location
+      getCurrentLocation();
     }
-  }, []);
+  }, [getCurrentLocation]);
 
   return {
     location,

@@ -7,7 +7,7 @@ class GoogleMapsService {
 
   // Load Google Maps JavaScript API
   async loadGoogleMapsAPI() {
-    if (this.isLoaded || window.google) {
+    if (this.isLoaded && window.google && window.google.maps && window.google.maps.Map) {
       return Promise.resolve();
     }
 
@@ -17,14 +17,38 @@ class GoogleMapsService {
         return;
       }
 
+      // Check if script is already loading
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (existingScript) {
+        // Wait for existing script to load
+        this.waitForGoogleMaps().then(resolve).catch(reject);
+        return;
+      }
+
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${this.apiKey}&libraries=geometry`;
+      // Use callback parameter for better Firefox compatibility
+      const callbackName = 'initGoogleMaps' + Date.now();
+      window[callbackName] = () => {
+        this.waitForGoogleMaps().then(() => {
+          this.isLoaded = true;
+          delete window[callbackName]; // Clean up
+          resolve();
+        }).catch(reject);
+      };
+      
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${this.apiKey}&libraries=geometry,places&callback=${callbackName}`;
       script.async = true;
       script.defer = true;
       
+      // Fallback onload handler in case callback doesn't work
       script.onload = () => {
-        this.isLoaded = true;
-        resolve();
+        // Only resolve if callback hasn't already resolved
+        if (!this.isLoaded) {
+          this.waitForGoogleMaps().then(() => {
+            this.isLoaded = true;
+            resolve();
+          }).catch(reject);
+        }
       };
       
       script.onerror = () => {
@@ -32,6 +56,36 @@ class GoogleMapsService {
       };
 
       document.head.appendChild(script);
+    });
+  }
+
+  // Wait for Google Maps to be fully loaded and ready
+  async waitForGoogleMaps(maxAttempts = 50, delay = 100) {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      
+      const checkGoogleMaps = () => {
+        attempts++;
+        
+        if (window.google && 
+            window.google.maps && 
+            window.google.maps.Map && 
+            window.google.maps.Marker &&
+            window.google.maps.SymbolPath &&
+            window.google.maps.ControlPosition) {
+          resolve();
+          return;
+        }
+        
+        if (attempts >= maxAttempts) {
+          reject(new Error('Google Maps API failed to load completely'));
+          return;
+        }
+        
+        setTimeout(checkGoogleMaps, delay);
+      };
+      
+      checkGoogleMaps();
     });
   }
 

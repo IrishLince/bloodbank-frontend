@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -19,11 +19,19 @@ import {
   Navigation,
   MapPinOff,
   RefreshCw,
+  ExternalLink,
+  Target,
+  Map as MapIcon,
+  List,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import Header from "../Header"
 import useLocation from "../../hooks/useLocation"
 import useDistanceCalculation from "../../hooks/useDistanceCalculation"
 import hospitalService from "../../services/hospitalService"
+import googleMapsService from "../../services/googleMapsService"
 
 // Hospitals will be fetched from backend API
 
@@ -45,6 +53,19 @@ export default function DonationCenter() {
   const [allBloodBanks, setAllBloodBanks] = useState([])
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [lastRefreshTime, setLastRefreshTime] = useState(null)
+  
+  // Map-related state
+  const [viewMode, setViewMode] = useState("map") // "map" or "list"
+  const [mapCenter, setMapCenter] = useState(null)
+  const [mapZoom, setMapZoom] = useState(13)
+  const [selectedMarker, setSelectedMarker] = useState(null)
+  const [showBottomSheet, setShowBottomSheet] = useState(true)
+  const [bottomSheetHeight, setBottomSheetHeight] = useState(300)
+  const mapRef = useRef(null)
+  const googleMapRef = useRef(null)
+  const markersRef = useRef([])
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const [mapError, setMapError] = useState(null)
 
   // Helper function to calculate highly accurate straight-line distance using enhanced Haversine formula
   // This formula accounts for Earth's ellipsoidal shape for maximum precision
@@ -276,10 +297,143 @@ export default function DonationCenter() {
       console.log(`🔄 LOCATION UPDATE DETECTED: Recalculating distances for all centers`);
       console.log(`📍 New Location: ${userLocation.lat || userLocation.latitude}, ${userLocation.lng || userLocation.longitude}`);
       
+      // Update map center when user location changes
+      const lat = userLocation.lat || userLocation.latitude;
+      const lng = userLocation.lng || userLocation.longitude;
+      if (lat && lng) {
+        setMapCenter({ lat, lng });
+        // Re-center map if it's loaded
+        if (googleMapRef.current) {
+          googleMapRef.current.setCenter({ lat, lng });
+        }
+      }
+      
       // Re-fetch to ensure accurate distance calculations with new location
       fetchBloodBanks();
     }
   }, [userLocation])
+
+  // Initialize map center when user location is first available
+  useEffect(() => {
+    if (userLocation && !mapCenter) {
+      const lat = userLocation.lat || userLocation.latitude;
+      const lng = userLocation.lng || userLocation.longitude;
+      if (lat && lng) {
+        setMapCenter({ lat, lng });
+      }
+    }
+  }, [userLocation, mapCenter])
+
+  // Google Maps initialization
+  const initializeMap = useCallback(() => {
+    // Enhanced Firefox compatibility checks
+    if (!mapRef.current || 
+        !window.google || 
+        !window.google.maps || 
+        !window.google.maps.Map ||
+        !window.google.maps.Marker ||
+        !window.google.maps.SymbolPath ||
+        !window.google.maps.ControlPosition ||
+        !mapCenter) {
+      console.log("Map initialization skipped - missing dependencies:", {
+        mapRef: !!mapRef.current,
+        google: !!window.google,
+        googleMaps: !!window.google?.maps,
+        googleMapsMap: !!window.google?.maps?.Map,
+        googleMapsMarker: !!window.google?.maps?.Marker,
+        googleMapsSymbolPath: !!window.google?.maps?.SymbolPath,
+        googleMapsControlPosition: !!window.google?.maps?.ControlPosition,
+        mapCenter: !!mapCenter
+      });
+      return;
+    }
+
+    try {
+      const map = new window.google.maps.Map(mapRef.current, {
+        center: mapCenter,
+        zoom: mapZoom,
+        styles: [
+          {
+            featureType: "poi",
+            elementType: "labels",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "transit",
+            elementType: "labels",
+            stylers: [{ visibility: "off" }]
+          }
+        ],
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControlOptions: {
+          position: window.google.maps.ControlPosition.RIGHT_BOTTOM
+        }
+      });
+
+      googleMapRef.current = map;
+      setMapLoaded(true);
+      setMapError(null);
+
+      // Add user location marker
+      if (userLocation) {
+        const userLat = userLocation.lat || userLocation.latitude;
+        const userLng = userLocation.lng || userLocation.longitude;
+        
+        new window.google.maps.Marker({
+          position: { lat: userLat, lng: userLng },
+          map: map,
+          title: "Your Location",
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#3B82F6",
+            fillOpacity: 1,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 2
+          }
+        });
+      }
+
+      // Add blood bank markers will be handled by useEffect
+
+    } catch (error) {
+      console.error("Error initializing map:", error);
+      setMapError("Failed to load map");
+    }
+  }, [mapCenter, mapZoom, userLocation]);
+
+
+  // Load Google Maps script using centralized service
+  useEffect(() => {
+    const loadMaps = async () => {
+      try {
+        console.log("Loading Google Maps API...");
+        await googleMapsService.loadGoogleMapsAPI();
+        console.log("Google Maps API loaded successfully, initializing map...");
+        initializeMap();
+      } catch (error) {
+        console.error("Failed to load Google Maps:", error);
+        setMapError(`Failed to load Google Maps: ${error.message}`);
+      }
+    };
+
+    // Check if Google Maps is already fully loaded
+    if (window.google && 
+        window.google.maps && 
+        window.google.maps.Map &&
+        window.google.maps.Marker &&
+        window.google.maps.SymbolPath &&
+        window.google.maps.ControlPosition) {
+      console.log("Google Maps already loaded, initializing map...");
+      initializeMap();
+    } else {
+      loadMaps();
+    }
+  }, [initializeMap]);
+
+  // Update markers when blood banks change
 
   // Location change monitoring for dynamic updates
   const [previousLocation, setPreviousLocation] = useState(null)
@@ -309,58 +463,9 @@ export default function DonationCenter() {
     setPreviousLocation(userLocation);
   }, [userLocation, activeTab])
 
-  // Loading simulation
-  useEffect(() => {
-    setIsLoading(true)
-    const timer = setTimeout(() => setIsLoading(false), 800)
-    return () => clearTimeout(timer)
-  }, [searchTerm, filters])
-
-  // Sorting function
-  const requestSort = (key) => {
-    let direction = "ascending"
-    if (sortConfig.key === key && sortConfig.direction === "ascending") {
-      direction = "descending"
-    }
-    setSortConfig({ key, direction })
-  }
-
-  // Get sort icon with animation
-  const SortIcon = ({ columnName }) => {
-    if (sortConfig.key !== columnName) {
-      return <ChevronUp className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
-    }
-    return (
-      <motion.div
-        initial={{ rotate: 0 }}
-        animate={{ rotate: sortConfig.direction === "ascending" ? 0 : 180 }}
-        transition={{ duration: 0.2 }}
-      >
-        <ChevronUp className="w-4 h-4 text-red-500" />
-      </motion.div>
-    )
-  }
-
-  // Handle filter change with debounce
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target
-    setFilters((prev) => ({ ...prev, [name]: value }))
-  }
-
-  // Reset filters with animation
-  const resetFilters = () => {
-    setFilters({
-      name: "",
-      location: "",
-      bloodTypes: "",
-      availability: "all",
-    })
-    setSearchTerm("")
-  }
-
   // Check if blood center operates today (for donation scheduling purposes)
   // Shows blood banks that are open on the current day - users can see hours and plan accordingly
-  const isOpenNow = (hours) => {
+  const isOpenNow = useCallback((hours) => {
     // SAFETY WRAPPER: Catch any errors and default to showing the blood bank
     try {
     if (!hours || hours === '24/7') return true
@@ -466,58 +571,7 @@ export default function DonationCenter() {
       console.error('  Hours that caused error:', hours);
       return true; // SAFETY: Always show blood bank if there's any error
     }
-  }
-
-  // Helper to convert bloodTypes to searchable string
-  const getBloodTypesString = (bloodTypes) => {
-    if (!bloodTypes) return ''
-    if (Array.isArray(bloodTypes)) return bloodTypes.join(', ')
-    return String(bloodTypes)
-  }
-
-  // Get blood type badge color with hover effect
-  const getBloodTypeColor = (bloodType) => {
-    const baseColors = {
-      "O+": "bg-red-100 text-red-800 hover:bg-red-200",
-      "O-": "bg-red-200 text-red-800 hover:bg-red-300",
-      "A+": "bg-blue-100 text-blue-800 hover:bg-blue-200",
-      "A-": "bg-blue-200 text-blue-800 hover:bg-blue-300",
-      "B+": "bg-green-100 text-green-800 hover:bg-green-200",
-      "B-": "bg-green-200 text-green-800 hover:bg-green-300",
-      "AB+": "bg-purple-100 text-purple-800 hover:bg-purple-200",
-      "AB-": "bg-purple-200 text-purple-800 hover:bg-purple-300",
-    }
-    return baseColors[bloodType.trim()] || "bg-gray-100 text-gray-800 hover:bg-gray-200"
-  }
-
-  // Calculate counts for blood banks that are currently open and within distance
-  const nearbyCount = useMemo(() => {
-    // Only show nearby count if location permission is granted and location is available
-    if (!userLocation || permissionStatus !== 'granted') {
-      return 0;
-    }
-    return allBloodBanks.filter(bank => 
-      isWithinRadius(bank, userLocation, 15)
-    ).length
-  }, [allBloodBanks, userLocation, permissionStatus])
-
-  const nearbyOpenCount = useMemo(() => {
-    // Count of nearby blood banks that are also open today
-    if (!userLocation || permissionStatus !== 'granted') {
-      return 0;
-    }
-    return allBloodBanks.filter(bank => 
-      isOpenNow(bank.hours) && isWithinRadius(bank, userLocation, 15)
-    ).length
-  }, [allBloodBanks, userLocation, permissionStatus])
-
-  const allCount = useMemo(() => {
-    return allBloodBanks.length
-  }, [allBloodBanks])
-
-  const allOpenCount = useMemo(() => {
-    return allBloodBanks.filter(bank => isOpenNow(bank.hours)).length
-  }, [allBloodBanks])
+  }, [])
 
   // Filtered and sorted blood banks with memoization
   // ENHANCED GEOLOCATION SYSTEM:
@@ -768,6 +822,179 @@ export default function DonationCenter() {
     return filteredData
   }, [bloodBanks, searchTerm, filters, sortConfig, userLocation, sortHospitalsByDistance, activeTab, permissionStatus, isOpenNow])
 
+  // Update map markers
+  const updateMapMarkers = useCallback(() => {
+    if (!googleMapRef.current || 
+        !window.google || 
+        !window.google.maps ||
+        !window.google.maps.Marker ||
+        !window.google.maps.SymbolPath) {
+      console.log("Marker update skipped - Google Maps not ready");
+      return;
+    }
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => {
+      if (marker && marker.setMap) {
+        try {
+          marker.setMap(null);
+        } catch (error) {
+          console.warn("Error removing marker:", error);
+        }
+      }
+    });
+    markersRef.current = [];
+
+    // Add markers for filtered blood banks
+    filteredAndSortedBloodBanks.forEach((bloodBank) => {
+      if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+        try {
+          const marker = new window.google.maps.Marker({
+          position: {
+            lat: parseFloat(bloodBank.coordinates.lat),
+            lng: parseFloat(bloodBank.coordinates.lng)
+          },
+          map: googleMapRef.current,
+          title: bloodBank.name || bloodBank.bloodBankName,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: bloodBank.isOpenToday ? 10 : 8,
+            fillColor: bloodBank.isOpenToday ? "#EF4444" : "#9CA3AF",
+            fillOpacity: bloodBank.isOpenToday ? 1 : 0.6,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 2
+          }
+        });
+
+        // Add click listener to marker
+        marker.addListener("click", () => {
+          setSelectedMarker(bloodBank);
+          setSelectedBloodBank(bloodBank);
+          // Center map on selected marker
+          googleMapRef.current.setCenter(marker.getPosition());
+          // Show bottom sheet on mobile
+          if (isMobile) {
+            setShowBottomSheet(true);
+          }
+        });
+
+          markersRef.current.push(marker);
+        } catch (error) {
+          console.error("Error creating marker for blood bank:", bloodBank.name, error);
+        }
+      }
+    });
+  }, [filteredAndSortedBloodBanks, isMobile]);
+
+  // Update markers when map is loaded
+  useEffect(() => {
+    if (mapLoaded) {
+      updateMapMarkers();
+    }
+  }, [mapLoaded, updateMapMarkers]);
+
+  // Loading simulation
+  useEffect(() => {
+    setIsLoading(true)
+    const timer = setTimeout(() => setIsLoading(false), 800)
+    return () => clearTimeout(timer)
+  }, [searchTerm, filters])
+
+  // Sorting function
+  const requestSort = (key) => {
+    let direction = "ascending"
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending"
+    }
+    setSortConfig({ key, direction })
+  }
+
+  // Get sort icon with animation
+  const SortIcon = ({ columnName }) => {
+    if (sortConfig.key !== columnName) {
+      return <ChevronUp className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+    }
+    return (
+      <motion.div
+        initial={{ rotate: 0 }}
+        animate={{ rotate: sortConfig.direction === "ascending" ? 0 : 180 }}
+        transition={{ duration: 0.2 }}
+      >
+        <ChevronUp className="w-4 h-4 text-red-500" />
+      </motion.div>
+    )
+  }
+
+  // Handle filter change with debounce
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target
+    setFilters((prev) => ({ ...prev, [name]: value }))
+  }
+
+  // Reset filters with animation
+  const resetFilters = () => {
+    setFilters({
+      name: "",
+      location: "",
+      bloodTypes: "",
+      availability: "all",
+    })
+    setSearchTerm("")
+  }
+
+
+  // Helper to convert bloodTypes to searchable string
+  const getBloodTypesString = (bloodTypes) => {
+    if (!bloodTypes) return ''
+    if (Array.isArray(bloodTypes)) return bloodTypes.join(', ')
+    return String(bloodTypes)
+  }
+
+  // Get blood type badge color with hover effect
+  const getBloodTypeColor = (bloodType) => {
+    const baseColors = {
+      "O+": "bg-red-100 text-red-800 hover:bg-red-200",
+      "O-": "bg-red-200 text-red-800 hover:bg-red-300",
+      "A+": "bg-blue-100 text-blue-800 hover:bg-blue-200",
+      "A-": "bg-blue-200 text-blue-800 hover:bg-blue-300",
+      "B+": "bg-green-100 text-green-800 hover:bg-green-200",
+      "B-": "bg-green-200 text-green-800 hover:bg-green-300",
+      "AB+": "bg-purple-100 text-purple-800 hover:bg-purple-200",
+      "AB-": "bg-purple-200 text-purple-800 hover:bg-purple-300",
+    }
+    return baseColors[bloodType.trim()] || "bg-gray-100 text-gray-800 hover:bg-gray-200"
+  }
+
+  // Calculate counts for blood banks that are currently open and within distance
+  const nearbyCount = useMemo(() => {
+    // Only show nearby count if location permission is granted and location is available
+    if (!userLocation || permissionStatus !== 'granted') {
+      return 0;
+    }
+    return allBloodBanks.filter(bank => 
+      isWithinRadius(bank, userLocation, 15)
+    ).length
+  }, [allBloodBanks, userLocation, permissionStatus])
+
+  const nearbyOpenCount = useMemo(() => {
+    // Count of nearby blood banks that are also open today
+    if (!userLocation || permissionStatus !== 'granted') {
+      return 0;
+    }
+    return allBloodBanks.filter(bank => 
+      isOpenNow(bank.hours) && isWithinRadius(bank, userLocation, 15)
+    ).length
+  }, [allBloodBanks, userLocation, permissionStatus])
+
+  const allCount = useMemo(() => {
+    return allBloodBanks.length
+  }, [allBloodBanks])
+
+  const allOpenCount = useMemo(() => {
+    return allBloodBanks.filter(bank => isOpenNow(bank.hours)).length
+  }, [allBloodBanks])
+
+
   const handleBloodBankSelect = (bloodBank) => {
     // Prevent selecting closed blood banks
     if (!bloodBank.isOpenToday) {
@@ -782,7 +1009,33 @@ export default function DonationCenter() {
     }, 300)
   }
 
-  // Mobile card renderer with animations
+  // Handle directions to blood bank
+  const handleGetDirections = (bloodBank) => {
+    if (!bloodBank.coordinates) return;
+    
+    const { lat, lng } = bloodBank.coordinates;
+    const destination = `${lat},${lng}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${bloodBank.name || bloodBank.bloodBankName}`;
+    window.open(url, '_blank');
+  };
+
+  // Focus map on specific blood bank
+  const focusOnBloodBank = (bloodBank) => {
+    if (!googleMapRef.current || !bloodBank.coordinates) return;
+    
+    const { lat, lng } = bloodBank.coordinates;
+    googleMapRef.current.setCenter({ lat: parseFloat(lat), lng: parseFloat(lng) });
+    googleMapRef.current.setZoom(16);
+    setSelectedMarker(bloodBank);
+    setSelectedBloodBank(bloodBank);
+  };
+
+  // Toggle view mode
+  const toggleViewMode = () => {
+    setViewMode(viewMode === "map" ? "list" : "map");
+  };
+
+  // Enhanced mobile card renderer with map integration
   const renderMobileCard = (bloodBank) => {
     const distanceInfo = getHospitalDistance(bloodBank.id)
     const isClosedToday = !bloodBank.isOpenToday
@@ -794,73 +1047,86 @@ export default function DonationCenter() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         key={bloodBank.id}
-        onClick={() => handleBloodBankSelect(bloodBank)}
         className={`
-          bg-white rounded-lg shadow-sm p-4 mb-3 
+          bg-white rounded-xl shadow-sm p-4 mb-3 
           transition-all border border-transparent
           ${isClosedToday 
             ? "opacity-50 cursor-not-allowed grayscale-50 border-gray-200" 
-            : "hover:shadow-md cursor-pointer hover:border-red-100"
+            : "hover:shadow-lg cursor-pointer hover:border-red-100"
           }
-          ${selectedBloodBank?.id === bloodBank.id && !isClosedToday ? "border-red-200 bg-red-50" : ""}
+          ${selectedBloodBank?.id === bloodBank.id && !isClosedToday ? "border-red-200 bg-red-50 shadow-md" : ""}
         `}
       >
+        {/* Header with status and distance */}
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
+          <div className="flex items-center gap-3">
+            <motion.div 
+              whileHover={{ scale: 1.2 }} 
+              whileTap={{ scale: 0.9 }}
+              className={`p-2 rounded-full ${isClosedToday ? 'bg-gray-100' : 'bg-red-50'}`}
+            >
               {bloodBank.urgent ? (
-                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" title="Urgent need" />
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" title="Urgent need" />
               ) : (
-                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" title="Normal status" />
+                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" title="Normal status" />
               )}
             </motion.div>
             <div className="flex flex-col">
-            <h3 className="font-medium text-gray-900">{bloodBank.name}</h3>
-              {isClosedToday && (
-                <span className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+              <h3 className="font-semibold text-gray-900 text-base">{bloodBank.name || bloodBank.bloodBankName}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                {isClosedToday ? (
+                  <span className="text-xs text-red-600 font-medium flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Closed Today
                 </span>
+                ) : (
+                  <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Open Now
+                </span>
               )}
+              </div>
           </div>
           </div>
           {(distanceInfo || bloodBank.calculatedDistance || bloodBank.distanceText) && permissionStatus === 'granted' && userLocation ? (
-            <div className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-full">
-              <Navigation className="w-3 h-3" />
-              <span className="text-xs font-medium">
+            <div className="flex items-center gap-1 text-red-600 bg-red-100 px-3 py-1.5 rounded-full">
+              <Navigation className="w-4 h-4" />
+              <span className="text-sm font-semibold">
                 {distanceInfo?.distance?.text || bloodBank.distanceText || (bloodBank.calculatedDistance ? formatDistanceMeters(bloodBank.calculatedDistance) : 'N/A')}
               </span>
             </div>
           ) : (!userLocation || permissionStatus !== 'granted') && (
-            <div className="flex items-center gap-1 text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
-              <MapPinOff className="w-3 h-3" />
-              <span className="text-xs">Enable location</span>
+            <div className="flex items-center gap-1 text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">
+              <MapPinOff className="w-4 h-4" />
+              <span className="text-sm">Enable location</span>
             </div>
           )}
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-gray-600">
+        {/* Details */}
+        <div className="space-y-2.5 mb-4">
+          <div className="flex items-center gap-3 text-gray-600">
             <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <span className="text-sm">{bloodBank.address || bloodBank.location}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-3 text-gray-600">
             <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <span className="text-sm">{bloodBank.phone}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-3 text-gray-600">
             <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <span className="text-sm">{bloodBank.hours}</span>
           </div>
           {distanceInfo?.duration && (
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-3 text-gray-600">
               <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span className="text-sm">{distanceInfo.duration.text} drive</span>
             </div>
           )}
         </div>
 
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        {/* Blood types */}
+        <div className="mb-4">
           <div className="flex flex-wrap gap-1.5">
             {(bloodBank.bloodTypesAvailable || bloodBank.bloodTypes?.split(", ") || []).map((type, i) => (
               <motion.span
@@ -868,7 +1134,7 @@ export default function DonationCenter() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`
-                  px-2 py-1 rounded-full text-xs font-medium 
+                  px-2.5 py-1 rounded-full text-xs font-medium 
                   flex items-center transition-colors duration-200
                   ${getBloodTypeColor(type)}
                 `}
@@ -879,6 +1145,47 @@ export default function DonationCenter() {
             ))}
           </div>
         </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-3 border-t border-gray-100">
+          {viewMode === "map" && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                focusOnBloodBank(bloodBank);
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-50 text-blue-600 rounded-lg font-medium text-sm hover:bg-blue-100 transition-colors"
+            >
+              <Target className="w-4 h-4" />
+              View on Map
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleGetDirections(bloodBank);
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-green-50 text-green-600 rounded-lg font-medium text-sm hover:bg-green-100 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Get Directions
+          </motion.button>
+          {!isClosedToday && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleBloodBankSelect(bloodBank)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Select Center
+            </motion.button>
+          )}
+        </div>
       </motion.div>
     )
   }
@@ -887,7 +1194,374 @@ export default function DonationCenter() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      {/* Mobile/Desktop Layout */}
+      <div className="relative h-screen overflow-hidden">
+        {/* View Mode Toggle - Mobile Only */}
+        {isMobile && (
+          <div className="absolute top-4 left-4 right-4 z-20">
+            <div className="flex justify-center">
+              <div className="bg-white/90 backdrop-blur-sm p-1 rounded-xl shadow-lg inline-flex">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setViewMode("map")}
+                  className={`
+                    px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2
+                    ${viewMode === "map" 
+                      ? "bg-red-500 text-white shadow-sm" 
+                      : "text-gray-600 hover:text-gray-900"
+                    }
+                  `}
+                >
+                  <MapIcon className="w-4 h-4" />
+                  Map
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setViewMode("list")}
+                  className={`
+                    px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2
+                    ${viewMode === "list" 
+                      ? "bg-red-500 text-white shadow-sm" 
+                      : "text-gray-600 hover:text-gray-900"
+                    }
+                  `}
+                >
+                  <List className="w-4 h-4" />
+                  List
+                </motion.button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Layout */}
+        {!isMobile ? (
+          <div className="flex h-full">
+            {/* Left Sidebar - Blood Bank List */}
+            <div className="w-96 bg-white shadow-lg overflow-hidden flex flex-col">
+              {/* Sidebar Header */}
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Nearby Blood Banks</h1>
+                <p className="text-sm text-gray-600">
+                  Find donation centers near you
+                </p>
+              </div>
+
+              {/* Location Status */}
+        {(!userLocation || permissionStatus !== 'granted') && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+                  className="mx-6 mt-4"
+          >
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                {permissionStatus === 'denied' ? (
+                  <MapPinOff className="w-5 h-5 text-red-500" />
+                ) : locationLoading ? (
+                  <Loader className="w-5 h-5 text-blue-500 animate-spin" />
+                ) : (
+                  <MapPin className="w-5 h-5 text-blue-500" />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">
+                    {permissionStatus === 'denied' 
+                            ? 'Location access is required to find nearby blood banks. Please enable location access in your browser settings.'
+                      : locationLoading 
+                        ? 'Getting your location...'
+                              : 'Location access will help us show nearby blood banks'
+                    }
+                  </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Tab Navigation */}
+              <div className="p-6 pb-4">
+                <div className="bg-gray-100 p-1 rounded-lg inline-flex w-full">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleTabChange("nearby")}
+                    disabled={!userLocation || permissionStatus !== 'granted'}
+                    className={`
+                      flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
+                      ${!userLocation || permissionStatus !== 'granted' 
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                        : activeTab === "nearby" 
+                        ? "bg-white text-red-600 shadow-sm" 
+                        : "text-gray-600 hover:text-gray-900"
+                      }
+                    `}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      {!userLocation || permissionStatus !== 'granted' ? (
+                        <MapPinOff className="w-4 h-4" />
+                      ) : (
+                        <MapPin className="w-4 h-4" />
+                      )}
+                      {!userLocation || permissionStatus !== 'granted' ? (
+                        <span>Nearby</span>
+                      ) : (
+                        <span>Nearby ({nearbyCount})</span>
+                      )}
+                    </div>
+                  </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    onClick={() => handleTabChange("all")}
+                    className={`
+                      flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
+                      ${activeTab === "all" 
+                        ? "bg-white text-red-600 shadow-sm" 
+                        : "text-gray-600 hover:text-gray-900"
+                      }
+                    `}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Building className="w-4 h-4" />
+                      All ({allCount})
+                    </div>
+                    </motion.button>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="px-6 pb-4">
+                <div className="relative">
+                  <motion.input
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    type="text"
+                    placeholder="Search donation centers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="
+                      w-full h-10 pl-10 pr-4 bg-gray-50 text-sm 
+                      rounded-lg border border-gray-200
+                      focus:outline-none focus:ring-2 focus:ring-red-500 
+                      focus:border-transparent placeholder-gray-400
+                      transition-all duration-200
+                    "
+                  />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Results Count */}
+              <div className="px-6 pb-4">
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-gray-600">
+                    Found <span className="font-medium">{filteredAndSortedBloodBanks.length}</span> donation centers
+                  </p>
+                  {filteredAndSortedBloodBanks.length > 0 && (
+                    <div className="flex flex-col gap-2 text-xs">
+                      <div className="flex items-center gap-4">
+                        <span className="text-green-600 font-medium flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          {filteredAndSortedBloodBanks.filter(bank => bank.isOpenToday).length} Open Today
+                        </span>
+                        <span className="text-gray-500 font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {filteredAndSortedBloodBanks.filter(bank => !bank.isOpenToday).length} Closed Today
+                        </span>
+                      </div>
+                      {activeTab === "nearby" && userLocation && permissionStatus === 'granted' && (
+                        <div className="flex items-center gap-2 text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
+                          <Navigation className="w-3 h-3" />
+                          <span>All within 15km radius</span>
+                        </div>
+                  )}
+                </div>
+                  )}
+              </div>
+            </div>
+
+              {/* Blood Bank List */}
+              <div className="flex-1 overflow-y-auto px-6 pb-6">
+                {isLoading || bloodBanksLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                    >
+                      <Loader className="w-8 h-8 text-red-500" />
+                    </motion.div>
+                    <span className="ml-3 text-gray-600">
+                      {bloodBanksLoading ? "Loading blood banks..." : "Loading..."}
+                    </span>
+                  </div>
+                ) : (
+                  <AnimatePresence mode="wait">
+                    <motion.div className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      {filteredAndSortedBloodBanks.length > 0 ? (
+                        filteredAndSortedBloodBanks.map((bloodBank) => renderMobileCard(bloodBank))
+                      ) : (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="
+                            text-center py-12 px-4
+                            bg-white rounded-lg shadow-sm
+                            border border-gray-200
+                          "
+                        >
+                          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-500 mb-2">No donation centers found</p>
+                          <p className="text-sm text-gray-400">Try adjusting your search criteria</p>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side - Map */}
+            <div className="flex-1 relative">
+              {mapError ? (
+                <div className="flex items-center justify-center h-full bg-gray-100">
+                  <div className="text-center">
+                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-2">Failed to load map</p>
+                    <p className="text-sm text-gray-400">{mapError}</p>
+                  </div>
+                </div>
+              ) : (
+                <div ref={mapRef} className="w-full h-full" />
+              )}
+              
+              {!mapLoaded && !mapError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <div className="text-center">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                    >
+                      <Loader className="w-8 h-8 text-red-500 mx-auto mb-4" />
+                    </motion.div>
+                    <p className="text-gray-600">Loading map...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Mobile Layout */
+          <div className="h-full relative">
+            {viewMode === "map" ? (
+              /* Map View */
+              <div className="h-full relative">
+                {mapError ? (
+                  <div className="flex items-center justify-center h-full bg-gray-100">
+                    <div className="text-center">
+                      <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">Failed to load map</p>
+                      <p className="text-sm text-gray-400">{mapError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div ref={mapRef} className="w-full h-full" />
+                )}
+                
+                {!mapLoaded && !mapError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                    <div className="text-center">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                      >
+                        <Loader className="w-8 h-8 text-red-500 mx-auto mb-4" />
+                      </motion.div>
+                      <p className="text-gray-600">Loading map...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bottom Sheet */}
+                {showBottomSheet && (
+                  <motion.div
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl"
+                    style={{ height: `${bottomSheetHeight}px` }}
+                  >
+                    {/* Handle */}
+                    <div className="flex justify-center pt-3 pb-2">
+                      <div className="w-12 h-1 bg-gray-300 rounded-full" />
+                    </div>
+
+                    {/* Header */}
+                    <div className="px-4 pb-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          Nearby Blood Banks ({filteredAndSortedBloodBanks.length})
+                        </h2>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setShowBottomSheet(false)}
+                          className="p-2 rounded-full hover:bg-gray-100"
+                        >
+                          <ChevronDown className="w-5 h-5 text-gray-500" />
+                        </motion.button>
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 overflow-y-auto px-4 py-3">
+                      {isLoading || bloodBanksLoading ? (
+                        <div className="flex justify-center items-center py-8">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                          >
+                            <Loader className="w-6 h-6 text-red-500" />
+                          </motion.div>
+                          <span className="ml-3 text-gray-600 text-sm">Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredAndSortedBloodBanks.length > 0 ? (
+                            filteredAndSortedBloodBanks.slice(0, 5).map((bloodBank) => renderMobileCard(bloodBank))
+                          ) : (
+                            <div className="text-center py-8">
+                              <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                              <p className="text-gray-500 text-sm">No blood banks found</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Floating Action Button */}
+                {!showBottomSheet && (
+                  <motion.button
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowBottomSheet(true)}
+                    className="absolute bottom-6 right-6 w-14 h-14 bg-red-500 text-white rounded-full shadow-lg flex items-center justify-center"
+                  >
+                    <List className="w-6 h-6" />
+                  </motion.button>
+                )}
+              </div>
+            ) : (
+              /* List View */
+              <div className="h-full bg-white overflow-y-auto">
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pt-20">
 
         {/* Location Status Indicator */}
         {(!userLocation || permissionStatus !== 'granted') && (
@@ -908,30 +1582,20 @@ export default function DonationCenter() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-blue-900">
                     {permissionStatus === 'denied' 
-                      ? 'Location access denied'
+                      ? 'Location access is required to find nearby blood banks'
                       : locationLoading 
                         ? 'Getting your location...'
-                        : 'Enable location for better experience'
+                        : 'Location access will help us show nearby blood banks'
                     }
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
                     {permissionStatus === 'denied'
-                      ? 'Please enable location in your browser settings to see nearby centers'
+                      ? 'Location access is required to find nearby blood banks. Please enable location access in your browser settings.'
                       : locationLoading
-                        ? 'This will help us show blood banks near you'
-                        : 'Allow location access to see nearby donation centers and distances'
+                        ? 'Getting your location to show nearby blood banks...'
+                        : 'Location access will help us show nearby donation centers and distances'
                     }
                   </p>
-                  {permissionStatus !== 'denied' && !locationLoading && (
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={getCurrentLocation}
-                      className="mt-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Enable Location
-                    </motion.button>
-                  )}
                 </div>
               </div>
             </div>
@@ -1185,17 +1849,6 @@ export default function DonationCenter() {
       <div className="flex items-center gap-2 text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
         <Navigation className="w-3 h-3" />
         <span>All within 15km radius</span>
-        {filteredAndSortedBloodBanks.length > 0 && (
-          <span className="text-blue-500">
-            (Closest: {Math.min(...filteredAndSortedBloodBanks.filter(b => b.calculatedDistance && b.calculatedDistance <= 15000).map(b => b.calculatedDistance / 1000)).toFixed(1)}km)
-          </span>
-        )}
-        {/* Debug: Show furthest distance */}
-        {filteredAndSortedBloodBanks.length > 0 && (
-          <span className="text-xs text-gray-500">
-            | Furthest: {Math.max(...filteredAndSortedBloodBanks.filter(b => b.calculatedDistance && b.calculatedDistance <= 15000).map(b => b.calculatedDistance / 1000)).toFixed(1)}km
-          </span>
-        )}
       </div>
     )}
               </div>
@@ -1239,8 +1892,7 @@ export default function DonationCenter() {
           </div>
         ) : (
           <AnimatePresence mode="wait">
-            {isMobile ? (
-              // Mobile View - Cards
+                      {/* Mobile View - Cards */}
               <motion.div className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {filteredAndSortedBloodBanks.length > 0 ? (
                   filteredAndSortedBloodBanks.map((bloodBank) => renderMobileCard(bloodBank))
@@ -1260,319 +1912,14 @@ export default function DonationCenter() {
                   </motion.div>
                 )}
               </motion.div>
-            ) : (
-              // Desktop View - Table
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200"
-              >
-                {/* Auto-refresh UI - Top Right of Table (Hidden) */}
-                {/* <div className="flex items-center justify-end gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center gap-2"
-                  >
-                    <input
-                      type="checkbox"
-                      id="autoRefreshTable"
-                      checked={autoRefresh}
-                      onChange={(e) => setAutoRefresh(e.target.checked)}
-                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer"
-                    />
-                    <label htmlFor="autoRefreshTable" className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer whitespace-nowrap">
-                      <RefreshCw className={`w-4 h-4 text-red-500 ${autoRefresh ? 'animate-spin' : ''}`} />
-                      Auto-refresh (20s)
-                    </label>
-                    {lastRefreshTime && (
-                      <span className="text-xs text-gray-500 whitespace-nowrap">
-                        Last: {lastRefreshTime.toLocaleTimeString()}
-                      </span>
-                    )}
-                  </motion.div>
-                </div> */}
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse min-w-[800px]">
-                    <thead>
-                      <tr className="bg-gray-50 text-xs text-gray-600">
-                        <th className="text-left py-4 px-4 font-medium">
-                          <button
-                            onClick={() => requestSort("name")}
-                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                          >
-                            <Building className="w-4 h-4 text-red-500" />
-                            Donation Center
-                            <SortIcon columnName="name" />
-                          </button>
-                        </th>
-                        <th className="text-left py-4 px-4 font-medium">
-                          <button
-                            onClick={() => requestSort("location")}
-                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                          >
-                            <MapPin className="w-4 h-4 text-red-500" />
-                            Location
-                            <SortIcon columnName="location" />
-                          </button>
-                        </th>
-                        <th className="text-left py-4 px-4 font-medium">
-                          <button
-                            onClick={() => requestSort("phone")}
-                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                          >
-                            <Phone className="w-4 h-4 text-red-500" />
-                            Contact
-                            <SortIcon columnName="phone" />
-                          </button>
-                        </th>
-                        <th className="text-left py-4 px-4 font-medium">
-                          <button
-                            onClick={() => requestSort("hours")}
-                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                          >
-                            <Calendar className="w-4 h-4 text-red-500" />
-                            Day and Hours
-                            <SortIcon columnName="hours" />
-                          </button>
-                        </th>
-                        <th className="text-left py-4 px-4 font-medium">
-                          <button
-                            onClick={() => requestSort("bloodTypes")}
-                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                          >
-                            <Droplet className="w-4 h-4 text-red-500" />
-                            Preferred Blood Types
-                            <SortIcon columnName="bloodTypes" />
-                          </button>
-                        </th>
-                        <th className="text-left py-4 px-4 font-medium">
-                          <button
-                            onClick={() => requestSort("distance")}
-                            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
-                          >
-                            <Navigation className="w-4 h-4 text-red-500" />
-                            Distance
-                            <SortIcon columnName="distance" />
-                          </button>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <AnimatePresence>
-                        {filteredAndSortedBloodBanks.length > 0 ? (
-                          filteredAndSortedBloodBanks.map((bloodBank, index) => {
-                            const isClosedToday = !bloodBank.isOpenToday
-                            return (
-                            <motion.tr
-                              key={bloodBank.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -20 }}
-                              transition={{ delay: index * 0.05 }}
-                              onClick={() => handleBloodBankSelect(bloodBank)}
-                              className={`
-                                border-t border-gray-100 
-                                transition-colors duration-200
-                                  ${isClosedToday 
-                                    ? "opacity-50 cursor-not-allowed grayscale-50 bg-gray-50" 
-                                    : "hover:bg-red-50 cursor-pointer"
-                                  }
-                                  ${selectedBloodBank?.id === bloodBank.id && !isClosedToday ? "bg-red-50" : ""}
-                              `}
-                            >
-                              <td className="py-4 px-4">
-                                <div className="flex items-center gap-2">
-                                  <motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
-                                    {bloodBank.urgent ? (
-                                      <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                    ) : (
-                                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                    )}
-                                  </motion.div>
-                                  <div className="flex flex-col">
-                                  <span className="text-sm text-gray-900">{bloodBank.name}</span>
-                                    {isClosedToday && (
-                                      <span className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        Closed Today
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                  <span className="text-sm text-gray-600">{bloodBank.address || bloodBank.location}</span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="flex items-center gap-2">
-                                  <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                  <span className="text-sm text-gray-600">{bloodBank.phone}</span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                  <span className="text-sm text-gray-600">{bloodBank.hours}</span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {(bloodBank.bloodTypesAvailable || bloodBank.bloodTypes?.split(", ") || []).map((type, i) => (
-                                    <motion.span
-                                      key={i}
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      className={`
-                                        px-2 py-1 rounded-full text-xs font-medium 
-                                        flex items-center transition-colors duration-200
-                                        ${getBloodTypeColor(type)}
-                                      `}
-                                    >
-                                      <Droplet className="w-3 h-3 mr-1 flex-shrink-0" />
-                                      {type}
-                                    </motion.span>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                {(() => {
-                                  const distanceInfo = getHospitalDistance(bloodBank.id)
-                                  
-                                  // Show distance if available from any source
-                                  if (distanceInfo?.distance?.text) {
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                        <div className="flex flex-col">
-                                          <span className="text-sm text-gray-900 font-medium">
-                                            {distanceInfo.distance.text}
-                                          </span>
-                                          {distanceInfo?.duration && (
-                                            <span className="text-xs text-gray-500">
-                                              {distanceInfo.duration.text}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )
-                                  }
-                                  
-                                  // Show calculated distance
-                                  if (bloodBank.distanceText) {
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                        <span className="text-sm text-gray-900 font-medium">
-                                          {bloodBank.distanceText}
-                                        </span>
-                                      </div>
-                                    )
-                                  }
-                                  
-                                  // Show raw calculated distance
-                                  if (bloodBank.calculatedDistance && bloodBank.calculatedDistance !== 999000) {
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        <Navigation className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                        <span className="text-sm text-gray-900 font-medium">
-                                          {formatDistanceMeters(bloodBank.calculatedDistance)}
-                                        </span>
-                                      </div>
-                                    )
-                                  }
-                                  
-                                  // Show loading state
-                                  if (distanceLoading) {
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        <Loader className="w-4 h-4 text-gray-400 animate-spin" />
-                                        <span className="text-xs text-gray-500">Calculating...</span>
-                                      </div>
-                                    )
-                                  }
-                                  
-                                  // Show location-related messages based on permission status
-                                  if (!userLocation) {
-                                    // Check permission status to show appropriate message
-                                    if (permissionStatus === 'denied') {
-                                    return (
-                                        <div className="flex items-center gap-1">
-                                          <MapPinOff className="w-4 h-4 text-red-400" />
-                                          <span className="text-xs text-red-500">Location denied</span>
-                                        </div>
-                                      )
-                                    } else if (permissionStatus === 'prompt' || permissionStatus === 'default') {
-                                      return (
-                                        <button 
-                                          onClick={getCurrentLocation}
-                                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors"
-                                        >
-                                          <MapPin className="w-4 h-4" />
-                                          Enable location
-                                        </button>
-                                      )
-                                    } else if (locationLoading) {
-                                      return (
-                                        <div className="flex items-center gap-1">
-                                          <Loader className="w-4 h-4 text-gray-400 animate-spin" />
-                                          <span className="text-xs text-gray-400">Getting location...</span>
-                                        </div>
-                                      )
-                                    } else {
-                                      return (
-                                        <span className="text-xs text-gray-400">Location unavailable</span>
-                                      )
-                                    }
-                                  }
-                                  
-                                  // Debug: Show what we have
-                                  console.log('Debug - Blood Bank:', bloodBank.name, {
-                                    coordinates: bloodBank.coordinates,
-                                    calculatedDistance: bloodBank.calculatedDistance,
-                                    distanceText: bloodBank.distanceText,
-                                    userLocation: userLocation
-                                  })
-                                  
-                                  // Default fallback
-                                  return (
-                                    <span className="text-xs text-gray-400">N/A</span>
-                                  )
-                                })()}
-                              </td>
-                            </motion.tr>
-                            )
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan="6">
-                              <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="py-12 text-center"
-                              >
-                                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-500 mb-2">No donation centers found</p>
-                                <p className="text-sm text-gray-400">Try adjusting your search criteria</p>
-                              </motion.div>
-                            </td>
-                          </tr>
-                        )}
-                      </AnimatePresence>
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-            )}
           </AnimatePresence>
         )}
-      </main>
+                </main>
+                                  </div>
+                                          )}
+                                        </div>
+        )}
+                </div>
     </div>
   )
 }
