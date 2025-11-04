@@ -70,6 +70,11 @@ export default function DonationCenter() {
   const markerRefreshIntervalRef = useRef(null) // Auto-refresh interval
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapError, setMapError] = useState(null)
+  
+  // Refs for auto-scrolling list when marker is clicked
+  const bloodBankListRef = useRef(null) // Reference to the scrollable list container
+  const bloodBankCardsRef = useRef({}) // Reference to each blood bank card
+  const horizontalScrollRef = useRef(null) // Reference to horizontal scrollable container (mobile map view)
 
   // Helper function to calculate highly accurate straight-line distance using enhanced Haversine formula
   // This formula accounts for Earth's ellipsoidal shape for maximum precision
@@ -583,6 +588,46 @@ export default function DonationCenter() {
     // Update previous location for next comparison
     setPreviousLocation(userLocation);
   }, [userLocation, activeTab])
+
+  // Auto-scroll list when marker is clicked on map
+  useEffect(() => {
+    if (selectedBloodBank && bloodBankCardsRef.current[selectedBloodBank.id]) {
+      console.log('🎯 AUTO-SCROLL: Scrolling to selected blood bank:', selectedBloodBank.name || selectedBloodBank.bloodBankName);
+      
+      const cardElement = bloodBankCardsRef.current[selectedBloodBank.id];
+      const listContainer = bloodBankListRef.current;
+      const horizontalContainer = horizontalScrollRef.current;
+      
+      // Determine if we're in horizontal scroll mode (mobile map view) or vertical scroll mode
+      const isHorizontalScroll = horizontalContainer && isMobile && viewMode === "map";
+      
+      if (cardElement) {
+        if (isHorizontalScroll) {
+          // Mobile map view with horizontal scrolling
+          console.log('📱 Mobile horizontal scroll detected');
+          cardElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center' // Center horizontally for horizontal scroll
+          });
+          console.log('✅ AUTO-SCROLL: Successfully scrolled horizontally to blood bank');
+        } else if (listContainer) {
+          // Desktop/tablet vertical list or mobile list view
+          console.log('🖥️ Vertical scroll detected');
+          cardElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center', // Center vertically for vertical scroll
+            inline: 'nearest'
+          });
+          console.log('✅ AUTO-SCROLL: Successfully scrolled vertically to blood bank (centered)');
+        } else {
+          console.log('⚠️ AUTO-SCROLL: No scroll container found');
+        }
+      } else {
+        console.log('⚠️ AUTO-SCROLL: Card element not found');
+      }
+    }
+  }, [selectedBloodBank, isMobile, viewMode])
 
   // Check if blood center operates today (for donation scheduling purposes)
   // Shows blood banks that are open on the current day - users can see hours and plan accordingly
@@ -2190,6 +2235,11 @@ export default function DonationCenter() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         key={bloodBank.id}
+        ref={(el) => {
+          if (el) {
+            bloodBankCardsRef.current[bloodBank.id] = el;
+          }
+        }}
         className={`
           bg-white rounded-xl shadow-sm p-4 mb-3 
           transition-all duration-200 border border-transparent
@@ -2595,7 +2645,7 @@ export default function DonationCenter() {
       </div>
 
               {/* Enhanced Blood Bank List */}
-              <div className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-gradient-to-b from-transparent to-gray-50/30`}>
+              <div ref={bloodBankListRef} className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-gradient-to-b from-transparent to-gray-50/30`}>
         {isLoading || bloodBanksLoading ? (
           <div className="flex justify-center items-center py-12">
             <motion.div
@@ -2743,7 +2793,7 @@ export default function DonationCenter() {
                   </div>
                   
                   {/* Enhanced Horizontal Scrollable Cards */}
-                  <div className="overflow-x-auto scrollbar-hide pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div ref={horizontalScrollRef} className="overflow-x-auto scrollbar-hide pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
                     <div 
                       className="flex gap-4 p-4 pb-6" 
                       style={{ 
@@ -2756,6 +2806,11 @@ export default function DonationCenter() {
                         filteredAndSortedBloodBanks.map((bloodBank, index) => (
                           <motion.div
                               key={bloodBank.id}
+                            ref={(el) => {
+                              if (el) {
+                                bloodBankCardsRef.current[bloodBank.id] = el;
+                              }
+                            }}
                             initial={{ opacity: 0, x: 50 }}
                             animate={{ 
                               opacity: 1, 
@@ -2907,7 +2962,7 @@ export default function DonationCenter() {
                                       </div>
             ) : (
               /* List View */
-              <div className="h-full bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div ref={bloodBankListRef} className="h-full bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pt-20">
 
         {/* Location Status Indicator */}
