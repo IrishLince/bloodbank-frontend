@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Droplet, Phone, AlertTriangle, User, MapPin, Briefcase, Users, Heart, XCircle } from "lucide-react"
+import { Calendar, Droplet, Phone, AlertTriangle, User, MapPin, Briefcase, Users, Heart, XCircle, Download, FileText } from "lucide-react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { fetchWithAuth } from "../../utils/api"
 
@@ -10,16 +10,9 @@ const EligibilityCheck = () => {
   const location = useLocation()
   const { selectedHospital, appointmentDate, appointmentTime } = location.state || {}
 
-  // Helper function to format date for form (YYYY-MM-DD)
-  const formatDateForForm = (date) => {
-    if (!date) return new Date().toISOString().split("T")[0]
-    const dateObj = date instanceof Date ? date : new Date(date)
-    return dateObj.toISOString().split("T")[0]
-  }
-
   const initialFormData = {
     bloodType: "",
-    date: formatDateForForm(appointmentDate), // Use the selected appointment date, not today's date
+    date: new Date().toISOString().split("T")[0],
     surname: "",
     firstName: "",
     middleInitial: "",
@@ -34,7 +27,8 @@ const EligibilityCheck = () => {
     patientName: "",
     parentalConsent: "",
     parentName: "",
-    parentSignature: "",
+    consentFormDownloaded: false,
+    ageFromBackend: false,
   }
 
   const [formData, setFormData] = useState(initialFormData)
@@ -59,7 +53,7 @@ const EligibilityCheck = () => {
     ]
 
     if (age === 16 || age === 17) {
-      return [...baseFields, "parentalConsent", "parentName", "parentSignature"]
+      return [...baseFields, "parentalConsent", "parentName"]
     }
 
     return baseFields
@@ -95,6 +89,9 @@ const EligibilityCheck = () => {
       
       if (response.ok) {
         const userData = await response.json();
+        console.log('🔍 Backend user data:', userData);
+        console.log('🔍 Age from backend:', userData.age, 'Type:', typeof userData.age);
+        console.log('🔍 Date of birth:', userData.dateOfBirth || userData.birthDate);
         
         // Extract name parts (assuming name is "FirstName [MiddleInitial] LastName")
         const fullName = userData.name || '';
@@ -116,10 +113,16 @@ const EligibilityCheck = () => {
         // Construct full name for patientName (auto-fetched)
         const patientFullName = `${firstName} ${middleInitial ? middleInitial + ' ' : ''}${lastName}`.trim();
         
-        // Calculate age from dateOfBirth if available
+        // Calculate age from dateOfBirth if available, or use age from backend if provided
         let calculatedAge = '';
         const birthDateField = userData.dateOfBirth || userData.birthDate; // Try both field names
-        if (birthDateField) {
+        
+        // First check if backend provides age directly
+        if (userData.age) {
+          calculatedAge = userData.age.toString();
+          console.log('✅ Using age from backend:', calculatedAge);
+        } else if (birthDateField) {
+          // Otherwise calculate from birthday
           const birthDate = new Date(birthDateField);
           const today = new Date();
           let age = today.getFullYear() - birthDate.getFullYear();
@@ -129,6 +132,7 @@ const EligibilityCheck = () => {
             age--;
           }
           calculatedAge = age.toString();
+          console.log('✅ Calculated age from birthday:', calculatedAge);
         }
         
         // Update form data with user information
@@ -144,7 +148,9 @@ const EligibilityCheck = () => {
           sex: userData.sex || '',
           homeAddress: userData.address || '',
           phoneNumber: userData.contactInformation ? stripCountryCode(userData.contactInformation) : '',
-          patientName: patientFullName
+          patientName: patientFullName,
+          // Store a flag to indicate age came from backend
+          ageFromBackend: !!userData.age
         }));
         
         // Form data is now auto-populated from user profile
@@ -164,8 +170,38 @@ const EligibilityCheck = () => {
     fetchAndPopulateUserData();
   }, []);
 
-  // Validate age based on birthday
+  // Debug log for age changes
   useEffect(() => {
+    if (formData.age) {
+      console.log('Current age:', formData.age, 'Type:', typeof formData.age, 'Parsed:', Number.parseInt(formData.age));
+    }
+  }, [formData.age]);
+
+  // Function to handle consent form download
+  const handleDownloadConsentForm = () => {
+    // The PDF is located in: bloodbank-frontend-main/public/forms/PARENT_CONSENT_FORM.pdf
+    const consentFormUrl = '/forms/PARENT_CONSENT_FORM.pdf';
+    
+    // Create a temporary link element to trigger download
+    const link = document.createElement('a');
+    link.href = consentFormUrl;
+    link.download = 'Parental_Consent_Form.pdf';
+    link.target = '_blank'; // Open in new tab if download fails
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Mark that the form was downloaded
+    setFormData(prev => ({ ...prev, consentFormDownloaded: true }));
+  };
+
+  // Validate age based on birthday (only if age wasn't provided by backend)
+  useEffect(() => {
+    // Don't recalculate if age came from backend
+    if (formData.ageFromBackend) {
+      return;
+    }
+    
     if (formData.birthday) {
       const birthDate = new Date(formData.birthday)
       const today = new Date()
@@ -178,7 +214,7 @@ const EligibilityCheck = () => {
 
       setFormData((prev) => ({ ...prev, age: age.toString() }))
     }
-  }, [formData.birthday])
+  }, [formData.birthday, formData.ageFromBackend])
 
   const validateField = (name, value) => {
     let fieldError = ""
@@ -225,12 +261,6 @@ const EligibilityCheck = () => {
         const age = Number.parseInt(formData.age)
         if ((age === 16 || age === 17) && formData.parentalConsent === "yes" && !value.trim()) {
           fieldError = "Parent/Guardian name is required"
-        }
-        break
-      case "parentSignature":
-        const donorAge = Number.parseInt(formData.age)
-        if ((donorAge === 16 || donorAge === 17) && formData.parentalConsent === "yes" && !value.trim()) {
-          fieldError = "Parent/Guardian signature is required"
         }
         break
       default:
@@ -296,7 +326,7 @@ const EligibilityCheck = () => {
         firstName: formData.firstName,
         middleInitial: formData.middleInitial || "",
         bloodType: formData.bloodType,
-        dateToday: formData.date, // This should now be the appointment date, not today's date
+        dateToday: formData.date,
         birthday: formData.birthday,
         age: formData.age,
         sex: formData.sex,
@@ -314,13 +344,13 @@ const EligibilityCheck = () => {
         // Parental consent (if applicable)
         parentalConsent: formData.parentalConsent,
         parentName: formData.parentName,
-        parentSignature: formData.parentSignature,
+        consentFormDownloaded: formData.consentFormDownloaded,
 
         // Appointment Details
         donationCenter: selectedHospital?.name || selectedHospital?.bloodBankName || "",
         bloodBankId: selectedHospital?.id || "",
         selectedHospital: selectedHospital, // Pass the full selected hospital/blood bank object
-        appointmentDate: appointmentDate || formData.date, // Ensure appointmentDate is set correctly
+        appointmentDate: appointmentDate,
         appointmentTime: appointmentTime,
       }
 
@@ -362,33 +392,33 @@ const EligibilityCheck = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-300 p-6">
-        <h1 className="text-3xl font-bold text-red-700 mb-6 flex justify-center items-center gap-2">
-          <Heart className="h-8 w-8" />
-          Blood Donor Interview Data Sheet
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-300 p-4 sm:p-6">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-red-700 mb-4 sm:mb-6 flex justify-center items-center gap-2 text-center">
+          <Heart className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+          <span>Blood Donor Interview Data Sheet</span>
         </h1>
 
         {/* Loading indicator while fetching user data */}
         {isLoadingUserData && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2 text-blue-600">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-              <p className="font-medium">Loading your personal information...</p>
+              <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-blue-600"></div>
+              <p className="font-medium text-sm sm:text-base">Loading your personal information...</p>
             </div>
           </div>
         )}
 
         {showErrorSummary && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              <p className="font-medium">Please fill in all required fields:</p>
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <p className="font-medium text-sm sm:text-base">Please fill in all required fields:</p>
             </div>
-            <ul className="mt-2 list-disc list-inside text-sm text-red-600">
+            <ul className="mt-2 list-disc list-inside text-xs sm:text-sm text-red-600 space-y-1">
               {Object.entries(errors).map(([field, error]) =>
                 error ? (
-                  <li key={field} className="capitalize">
+                  <li key={field} className="capitalize break-words">
                     {field.replace(/([A-Z])/g, " $1").trim()}: {error}
                   </li>
                 ) : null,
@@ -397,13 +427,14 @@ const EligibilityCheck = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Blood Type and Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                <Droplet className="h-4 w-4" />
-                Blood Type <span className="text-red-500">*</span>
+              <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm sm:text-base">
+                <Droplet className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span>Blood Type</span>
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -416,7 +447,7 @@ const EligibilityCheck = () => {
                       : 'No blood type in profile'
                 }
                 readOnly
-                className="w-full p-2 pl-3 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                className="w-full p-2 pl-3 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm sm:text-base"
                 placeholder="Blood type from your profile"
               />
               {!formData.bloodType && !isLoadingUserData && (
@@ -426,32 +457,33 @@ const EligibilityCheck = () => {
               )}
             </div>
             <div>
-              <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Date Today
+              <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm sm:text-base">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span>Date Today</span>
               </label>
               <input
                 type="date"
                 name="date"
                 value={formData.date}
-                className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-gray-50"
+                className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-gray-50 text-sm sm:text-base"
                 readOnly
               />
             </div>
           </div>
 
           {/* Personal Data */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <User className="h-5 w-5 text-red-600" />
-              I. Personal Data
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+              <User className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
+              <span>I. Personal Data</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* Surname - Read-only, auto-filled */}
               <div className="relative">
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  Surname <span className="text-red-500">*</span>
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Surname</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -464,16 +496,17 @@ const EligibilityCheck = () => {
                         : 'No last name in profile'
                   }
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="Last name from profile"
                 />
               </div>
               
               {/* First Name - Read-only, auto-filled */}
               <div className="relative">
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  First Name <span className="text-red-500">*</span>
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>First Name</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -486,34 +519,36 @@ const EligibilityCheck = () => {
                         : 'No first name in profile'
                   }
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="First name from profile"
                 />
               </div>
               
               {/* Middle Name - Read-only, auto-filled */}
-              <div className="relative">
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  Middle Name <span className="text-red-500">*</span>
+              <div className="relative sm:col-span-2 lg:col-span-1">
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Middle Name</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   name="middleInitial"
                   value={formData.middleInitial}
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="Middle Initial from profile"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
               {/* Birthday - Read-only, auto-filled */}
               <div>
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  Birthday <span className="text-red-500">*</span>
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Birthday</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -530,7 +565,7 @@ const EligibilityCheck = () => {
                         : 'No birthday in profile'
                   }
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="Birthday from profile"
                 />
                 {!isLoadingUserData && !formData.birthday && (
@@ -542,9 +577,9 @@ const EligibilityCheck = () => {
               
               {/* Age - Read-only, auto-calculated */}
               <div>
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  Age
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Age</span>
                 </label>
                 <input
                   type="text"
@@ -557,7 +592,7 @@ const EligibilityCheck = () => {
                         : 'No birthday to calculate age'
                   }
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="Calculated from birthday"
                 />
                 {!isLoadingUserData && !formData.age && (
@@ -568,10 +603,11 @@ const EligibilityCheck = () => {
               </div>
               
               {/* Sex - Read-only, auto-filled */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  Sex <span className="text-red-500">*</span>
+              <div className="sm:col-span-2 lg:col-span-1">
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <Users className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Sex</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -584,7 +620,7 @@ const EligibilityCheck = () => {
                         : 'No sex in profile'
                   }
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="Sex from profile"
                 />
                 {!isLoadingUserData && !formData.sex && (
@@ -595,17 +631,18 @@ const EligibilityCheck = () => {
               </div>
             </div>
 
-            <div className="mt-4">
-              <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                Civil Status <span className="text-red-500">*</span>
+            <div className="mt-3 sm:mt-4">
+              <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span>Civil Status</span>
+                <span className="text-red-500">*</span>
               </label>
               <select
                 name="civilStatus"
                 value={formData.civilStatus}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-2 border rounded-lg shadow-sm
+                className={`w-full p-2 border rounded-lg shadow-sm text-sm
                   ${
                     errors.civilStatus && touched.civilStatus
                       ? "border-red-500 bg-red-50"
@@ -625,18 +662,19 @@ const EligibilityCheck = () => {
           </div>
 
           {/* Contact Info */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Phone className="h-5 w-5 text-red-600" />
-              II. Contact Information
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+              <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
+              <span>II. Contact Information</span>
             </h2>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* Home Address - Read-only, auto-filled */}
               <div>
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  Home Address <span className="text-red-500">*</span>
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Home Address</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   name="homeAddress"
@@ -649,17 +687,18 @@ const EligibilityCheck = () => {
                   }
                   readOnly
                   rows={2}
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed resize-none"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed resize-none text-sm"
                   placeholder="Address from profile"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 {/* Phone Number - Read-only, auto-filled */}
                 <div>
-                  <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                    <Phone className="h-4 w-4" />
-                    Phone Number <span className="text-red-500">*</span>
+                  <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                    <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span>Phone Number</span>
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -672,14 +711,14 @@ const EligibilityCheck = () => {
                           : 'No phone number in profile'
                     }
                     readOnly
-                    className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                    className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                     placeholder="Phone from profile"
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                    <Phone className="h-4 w-4" />
-                    Office Tel No.
+                  <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                    <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span>Office Tel No.</span>
                   </label>
                   <input
                     type="tel"
@@ -688,7 +727,7 @@ const EligibilityCheck = () => {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     placeholder="Enter office number (optional)"
-                    className={`w-full p-2 border rounded-lg shadow-sm
+                    className={`w-full p-2 border rounded-lg shadow-sm text-sm
                       ${
                         errors.officePhone && touched.officePhone
                           ? "border-red-500 bg-red-50"
@@ -704,17 +743,18 @@ const EligibilityCheck = () => {
           </div>
 
           {/* Additional Info */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-red-600" />
-              III. Additional Info
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+              <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
+              <span>III. Additional Info</span>
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <Briefcase className="h-4 w-4" />
-                  Occupation <span className="text-red-500">*</span>
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Occupation</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   name="occupation"
@@ -722,7 +762,7 @@ const EligibilityCheck = () => {
                   onChange={handleChange}
                   onBlur={handleBlur}
                   placeholder="Enter occupation"
-                  className={`w-full p-2 border rounded-lg shadow-sm
+                  className={`w-full p-2 border rounded-lg shadow-sm text-sm
                     ${
                       errors.occupation && touched.occupation
                         ? "border-red-500 bg-red-50"
@@ -734,9 +774,10 @@ const EligibilityCheck = () => {
                 )}
               </div>
               <div>
-                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  Name of Patient <span className="text-red-500">*</span>
+                <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span>Name of Patient</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -749,7 +790,7 @@ const EligibilityCheck = () => {
                         : 'No name in profile'
                   }
                   readOnly
-                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed"
+                  className="w-full p-2 border rounded-lg shadow-sm bg-gray-50 border-gray-300 text-gray-700 cursor-not-allowed text-sm"
                   placeholder="Patient name from profile"
                 />
                 {!isLoadingUserData && !formData.patientName && (
@@ -762,26 +803,34 @@ const EligibilityCheck = () => {
           </div>
 
           {/* Parental Consent Section - Only show for ages 16-17 */}
-          {(Number.parseInt(formData.age) === 16 || Number.parseInt(formData.age) === 17) && (
-            <div className="bg-yellow-50 border-2 border-yellow-200 p-4 rounded-lg">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                V. Parental Consent Required <span className="text-red-500">*</span>
+          {(() => {
+            const age = Number.parseInt(formData.age);
+            const showConsent = !isNaN(age) && (age === 16 || age === 17);
+            console.log('Parental consent check - Age:', formData.age, 'Parsed:', age, 'Show:', showConsent);
+            return showConsent;
+          })() && (
+            <div className="bg-yellow-50 border-2 border-yellow-200 p-3 sm:p-4 rounded-lg">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 flex-shrink-0" />
+                  <span>V. Parental Consent Required</span>
+                </div>
+                <span className="text-red-500 text-sm sm:text-base">*</span>
               </h2>
 
-              <div className="mb-4 p-3 bg-yellow-100 rounded-lg">
-                <p className="text-sm text-yellow-800">
+              <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-yellow-100 rounded-lg">
+                <p className="text-xs sm:text-sm text-yellow-800">
                   <strong>Notice:</strong> Donors aged 16-17 require written consent from a parent or legal guardian to
                   donate blood.
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block font-medium text-gray-700 mb-2">
+                  <label className="block font-medium text-gray-700 mb-2 text-sm sm:text-base">
                     Do you have parental consent to donate blood? <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex gap-6">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
                     {["yes", "no"].map((option) => (
                       <label key={option} className="relative flex items-center gap-2 cursor-pointer group">
                         <input
@@ -791,9 +840,9 @@ const EligibilityCheck = () => {
                           checked={formData.parentalConsent === option}
                           onChange={handleChange}
                           onBlur={handleBlur}
-                          className="form-radio h-5 w-5 text-red-600 border-gray-300 focus:ring-red-500"
+                          className="form-radio h-4 w-4 sm:h-5 sm:w-5 text-red-600 border-gray-300 focus:ring-red-500"
                         />
-                        <span className="text-gray-700 group-hover:text-red-600 transition-colors capitalize">
+                        <span className="text-gray-700 group-hover:text-red-600 transition-colors capitalize text-sm sm:text-base">
                           {option}
                         </span>
                       </label>
@@ -805,11 +854,12 @@ const EligibilityCheck = () => {
                 </div>
 
                 {formData.parentalConsent === "yes" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-white rounded-lg border border-gray-200">
                     <div>
-                      <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                        <User className="h-4 w-4" />
-                        Parent/Guardian Full Name <span className="text-red-500">*</span>
+                      <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1 text-sm">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                        <span>Parent/Guardian Full Name</span>
+                        <span className="text-red-500">*</span>
                       </label>
                       <input
                         name="parentName"
@@ -817,7 +867,7 @@ const EligibilityCheck = () => {
                         onChange={handleChange}
                         onBlur={handleBlur}
                         placeholder="Enter parent/guardian full name"
-                        className={`w-full p-2 border rounded-lg shadow-sm
+                        className={`w-full p-2 border rounded-lg shadow-sm text-sm
                           ${
                             errors.parentName && touched.parentName
                               ? "border-red-500 bg-red-50"
@@ -829,39 +879,42 @@ const EligibilityCheck = () => {
                       )}
                     </div>
 
-                    <div>
-                      <label className="block font-medium text-gray-700 mb-1 flex items-center gap-1">
-                        <User className="h-4 w-4" />
-                        Parent/Guardian Signature <span className="text-red-500">*</span>
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 sm:p-4">
+                      <label className="block font-medium text-gray-700 mb-2 flex items-center gap-1 text-sm">
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                        <span>Parental Consent Form</span>
+                        <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        name="parentSignature"
-                        value={formData.parentSignature}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        placeholder="Type full name as signature"
-                        className={`w-full p-2 border rounded-lg shadow-sm
-                          ${
-                            errors.parentSignature && touched.parentSignature
-                              ? "border-red-500 bg-red-50"
-                              : "border-gray-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                          }`}
-                      />
-                      {errors.parentSignature && touched.parentSignature && (
-                        <p className="mt-1 text-xs text-red-500">{errors.parentSignature}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 mb-3">
+                        Please download, print, and have your parent/guardian sign the consent form. Bring the signed form to the hospital on your appointment day.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleDownloadConsentForm}
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
+                      >
+                        <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="hidden sm:inline">Download Parental Consent Form (PDF)</span>
+                        <span className="sm:hidden">Download Consent Form</span>
+                      </button>
+                      {formData.consentFormDownloaded && (
+                        <p className="mt-2 text-xs sm:text-sm text-green-600 flex items-center gap-1">
+                          <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+                          Consent form downloaded! Please print and have it signed.
+                        </p>
                       )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        By typing your name, you confirm consent for your child to donate blood
+                      <p className="mt-2 sm:mt-3 text-xs text-gray-500 italic">
+                        <strong>Important:</strong> Remember to bring the signed consent form with you on your appointment date. Without it, you will not be able to donate.
                       </p>
                     </div>
                   </div>
                 )}
 
                 {formData.parentalConsent === "no" && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600 flex items-center gap-2">
-                      <XCircle className="w-4 h-4" />
-                      You cannot proceed with blood donation without parental consent.
+                  <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs sm:text-sm text-red-600 flex items-center gap-2">
+                      <XCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span>You cannot proceed with blood donation without parental consent.</span>
                     </p>
                   </div>
                 )}
@@ -870,7 +923,7 @@ const EligibilityCheck = () => {
           )}
 
           {/* Submit Button */}
-          <div className="pt-6 flex justify-end">
+          <div className="pt-4 sm:pt-6 flex justify-center sm:justify-end">
             <button
               type="submit"
               disabled={formData.parentalConsent === "no"}
@@ -878,11 +931,11 @@ const EligibilityCheck = () => {
                 formData.parentalConsent === "no"
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-              } text-white px-8 py-3 rounded-lg flex items-center gap-2 font-semibold
-                shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200`}
+              } w-full sm:w-auto text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 font-semibold
+                shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm sm:text-base`}
             >
-              Proceed to Medical History
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span>Proceed to Medical History</span>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
               </svg>
             </button>

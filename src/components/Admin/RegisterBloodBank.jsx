@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, ArrowLeft, Check, X } from 'lucide-react';
+import { Building2, ArrowLeft, Check, X, Upload } from 'lucide-react';
 import Header from '../Header';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../../utils/api';
@@ -22,6 +22,8 @@ const RegisterBloodBank = () => {
   });
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,6 +47,32 @@ const RegisterBloodBank = () => {
     // Clear operating days error when user makes changes
     if (errors.operatingDays) {
       setErrors(prev => ({ ...prev, operatingDays: '' }));
+    }
+  };
+
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, photo: 'Please select an image file' }));
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, photo: 'Image size must be less than 5MB' }));
+        return;
+      }
+      
+      setPhotoFile(file);
+      setErrors(prev => ({ ...prev, photo: '' }));
+
+      // Create a preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -94,6 +122,11 @@ const RegisterBloodBank = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (loading) {
+      return;
+    }
+    
     if (!validate()) {
       return;
     }
@@ -101,22 +134,27 @@ const RegisterBloodBank = () => {
     setLoading(true);
 
     try {
+      // Build FormData for multipart/form-data
+      const formDataToSend = new FormData();
+      formDataToSend.append('data', new Blob([JSON.stringify({
+        email: formData.email,
+        password: formData.password,
+        bloodBankName: formData.bloodBankName,
+        licenseNumber: formData.licenseNumber,
+        contactNumber: formData.contactNumber,
+        address: formData.address,
+        operatingDays: formData.operatingDays,
+        openingTime: formData.openingTime,
+        closingTime: formData.closingTime
+      })], { type: 'application/json' }));
+      
+      if (photoFile) {
+        formDataToSend.append('photo', photoFile);
+      }
+
       const response = await fetchWithAuth('/admin/register-bloodbank', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          bloodBankName: formData.bloodBankName,
-          licenseNumber: formData.licenseNumber,
-          contactNumber: formData.contactNumber,
-          address: formData.address,
-          operatingDays: formData.operatingDays,
-          openingTime: formData.openingTime,
-          closingTime: formData.closingTime
-        })
+        body: formDataToSend
       });
 
       const data = await response.json();
@@ -251,6 +289,38 @@ const RegisterBloodBank = () => {
                       <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Profile Picture Upload */}
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Profile Picture</h2>
+                <div className="flex flex-col items-center">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg mb-4 hover:border-red-300 transition-colors duration-300">
+                    {previewImage ? (
+                      <img src={previewImage} alt="Profile preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <Upload className="text-gray-400 w-8 h-8" />
+                      </div>
+                    )}
+                  </div>
+                  <label className="cursor-pointer flex items-center justify-center px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-full text-sm font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:scale-105 shadow-sm">
+                    <Upload size={16} className="mr-2" />
+                    Choose Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {errors.photo && (
+                    <p className="mt-2 text-sm text-red-600">{errors.photo}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Optional - Upload a profile picture for this blood bank
+                  </p>
                 </div>
               </div>
 

@@ -1286,43 +1286,43 @@ const RewardsSystem = () => {
   }
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       {/* Background decorative elements */}
       <div className="absolute top-0 right-0 w-full h-32 bg-[#C91C1C] rounded-b-[30%] opacity-5" />
       <div className="absolute top-0 left-0 w-48 h-48 bg-[#C91C1C] rounded-full blur-3xl opacity-10 -translate-x-1/2 -translate-y-1/2" />
       
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-4xl mx-auto relative z-10">
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 md:mb-8 gap-4">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 md:p-6 lg:p-8 w-full max-w-full relative z-10">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
           <div className="flex items-center">
-            <div className="bg-red-50 p-2 md:p-3 rounded-full mr-3 md:mr-4">
-              <Gift className="w-5 h-5 md:w-6 md:h-6 text-[#C91C1C]" />
+            <div className="bg-red-50 p-2 rounded-full mr-2 sm:mr-3">
+              <Gift className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#C91C1C]" />
             </div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800">Rewards Center</h2>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Rewards Center</h2>
           </div>
           
-          <div className="bg-gradient-to-r from-[#C91C1C] to-[#FF5757] w-full sm:w-auto px-4 md:px-6 py-2 md:py-3 rounded-xl flex items-center justify-between sm:justify-start shadow-md">
+          <div className="bg-gradient-to-r from-[#C91C1C] to-[#FF5757] w-full sm:w-auto px-3 sm:px-4 md:px-6 py-2 md:py-3 rounded-lg sm:rounded-xl flex items-center justify-between sm:justify-start shadow-sm sm:shadow-md">
             <div>
-              <span className="text-white/80 text-xs md:text-sm block">Points Balance</span>
-              <span className="text-white font-bold text-xl md:text-2xl">{userPoints}</span>
+              <span className="text-white/80 text-xs sm:text-sm block">Points Balance</span>
+              <span className="text-white font-bold text-lg sm:text-xl md:text-2xl">{userPoints}</span>
             </div>
-            <div className="ml-4 pl-4 border-l border-white/20">
-              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
+            <div className="ml-2 sm:ml-4 pl-2 sm:pl-4 border-l border-white/20">
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
             </div>
           </div>
         </div>
 
         {/* Donor Tier Status */}
-        <div className={`mb-6 p-4 md:p-6 rounded-xl border-2 ${currentTier.borderColor} ${currentTier.bgColor}`}>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-full ${currentTier.bgColor} border ${currentTier.borderColor}`}>
+        <div className={`mb-4 sm:mb-6 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl border-2 ${currentTier.borderColor} ${currentTier.bgColor}`}>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+              <div className={`p-2 sm:p-3 rounded-full ${currentTier.bgColor} border ${currentTier.borderColor}`}>
                 <div className={currentTier.color}>
                   {getTierIcon(currentTier.tier)}
                 </div>
               </div>
               <div>
-                <h3 className={`text-lg font-bold ${currentTier.color}`}>{currentTier.name}</h3>
-                <p className="text-sm text-gray-600">{totalDonations} donation{totalDonations !== 1 ? 's' : ''} completed</p>
+                <h3 className={`text-base sm:text-lg font-bold ${currentTier.color}`}>{currentTier.name}</h3>
+                <p className="text-xs sm:text-sm text-gray-600">{totalDonations} donation{totalDonations !== 1 ? 's' : ''} completed</p>
               </div>
             </div>
             
@@ -1378,7 +1378,7 @@ const RewardsSystem = () => {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="flex flex-nowrap overflow-x-auto pb-1 border-b border-gray-200 mb-6 gap-1 no-scrollbar">
+        <div className="flex flex-nowrap overflow-x-auto pb-1 border-b border-gray-200 mb-4 sm:mb-6 gap-1 no-scrollbar">
           <button
             className={`px-4 py-2 md:px-5 md:py-3 font-medium text-sm whitespace-nowrap rounded-t-lg transition-colors ${
               activeTab === "available" 

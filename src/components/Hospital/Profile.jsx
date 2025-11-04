@@ -6,6 +6,7 @@ import {
   ArrowLeft, Eye, EyeOff
 } from "lucide-react"
 import { hospitalProfileAPI, uploadHospitalProfilePhoto, removeHospitalProfilePhoto } from '../../utils/api'
+import { formatLandlinePhone } from '../../utils/phoneFormatter'
 
 
 const ProfileManagement = () => {
@@ -354,13 +355,13 @@ const ProfileManagement = () => {
                 <p className="text-sm text-gray-500 uppercase mb-1">Phone</p>
                 <div className="flex items-center">
                   <Phone className="w-4 h-4 mr-2 text-red-600" />
-                  <span className="font-medium">{hospitalData.phone || 'Not provided'}</span>
+                  <span className="font-medium">{formatLandlinePhone(hospitalData.phone) || 'Not provided'}</span>
                 </div>
               </div>
               
               <div className="mb-5">
                 <p className="text-sm text-gray-500 uppercase mb-1">Hospital ID</p>
-                <span className="font-medium">{hospitalData.hospitalId || 'Not provided'}</span>
+                <span className="font-medium">{hospitalData.id || hospitalData.hospitalId || 'Not provided'}</span>
               </div>
             </div>
             
@@ -461,14 +462,14 @@ const ProfileManagement = () => {
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-gray-700">Hospital ID</label>
                     <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-                      {hospitalData.hospitalId || 'Not provided'}
+                      {hospitalData.id || hospitalData.hospitalId || 'Not provided'}
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-gray-700">Contact Number</label>
                     <div className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
-                      {hospitalData.phone || 'Not provided'}
+                      {formatLandlinePhone(hospitalData.phone) || 'Not provided'}
                     </div>
                   </div>
 

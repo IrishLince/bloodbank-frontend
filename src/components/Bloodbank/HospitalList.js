@@ -86,19 +86,44 @@ export default function HospitalList() {
           // Group requests by hospital
           const hospitalMap = {};
           hospitalRequests.forEach(request => {
+            console.log('📋 Processing request:', {
+              hospitalName: request.hospital_name || request.hospitalName,
+              hospitalAddress: request.hospital_address || request.hospitalAddress,
+              contactInformation: request.contact_information || request.contactInformation,
+              allFields: Object.keys(request)
+            });
+            
             const hospitalId = request.hospital_id || request.hospitalId;
+            const hospitalAddress = request.hospitalAddress || request.hospital_address || '';
+            const contactInfo = request.contactInformation || request.contact_information || '';
+            
             if (!hospitalMap[hospitalId]) {
+              console.log(`🔍 Hospital ${hospitalId} initial data:`, {
+                hospitalAddress,
+                contactInfo
+              });
+              
               hospitalMap[hospitalId] = {
                 id: hospitalId,
                 name: request.hospital_name || request.hospitalName,
-                location: request.hospital_address || request.hospitalAddress || request.contactInformation || 'N/A',
-                phone: request.contact_information || request.contactInformation || request.hospital_phone || request.hospitalPhone || 'N/A',
+                location: hospitalAddress || 'N/A',
+                phone: contactInfo || 'N/A',
                 bloodTypes: [],
                 requests: 0,
                 deliveryStatus: request.status || 'PENDING',
                 dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleString(),
                 dateRequest: new Date(request.request_date || request.requestDate).toLocaleString()
               };
+            } else {
+              // Update location and phone if current request has valid data and existing data is N/A
+              if (hospitalAddress && hospitalMap[hospitalId].location === 'N/A') {
+                console.log(`🔄 Updating location for hospital ${hospitalId}: ${hospitalAddress}`);
+                hospitalMap[hospitalId].location = hospitalAddress;
+              }
+              if (contactInfo && hospitalMap[hospitalId].phone === 'N/A') {
+                console.log(`🔄 Updating phone for hospital ${hospitalId}: ${contactInfo}`);
+                hospitalMap[hospitalId].phone = contactInfo;
+              }
             }
             
             // Add blood types from this request
@@ -115,13 +140,59 @@ export default function HospitalList() {
             });
           });
           
+          // Fetch complete hospital details for each unique hospital ID
+          const hospitalIds = Object.keys(hospitalMap);
+          console.log('🏥 Fetching details for hospital IDs:', hospitalIds);
+          
+          const hospitalDetailsPromises = hospitalIds.map(async (hospitalId) => {
+            try {
+              console.log(`📞 Calling API: /hospital/${hospitalId}`);
+              const hospitalResponse = await fetchWithAuth(`/hospital/${hospitalId}`);
+              if (hospitalResponse.ok) {
+                const hospitalData = await hospitalResponse.json();
+                console.log(`✅ Hospital ${hospitalId} response:`, hospitalData);
+                const hospitalDTO = hospitalData.data || hospitalData;
+                return {
+                  id: hospitalId,
+                  address: hospitalDTO.address,
+                  phone: hospitalDTO.phone
+                };
+              } else {
+                console.error(`❌ Failed to fetch hospital ${hospitalId}: ${hospitalResponse.status}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error fetching hospital ${hospitalId} details:`, error);
+            }
+            return { id: hospitalId, address: null, phone: null };
+          });
+          
+          // Wait for all hospital details to be fetched
+          const hospitalDetails = await Promise.all(hospitalDetailsPromises);
+          console.log('📋 All hospital details fetched:', hospitalDetails);
+          
+          // Merge hospital details with the hospitalMap
+          hospitalDetails.forEach(detail => {
+            if (hospitalMap[detail.id]) {
+              console.log(`🔄 Merging details for hospital ${detail.id}:`, { 
+                before: { location: hospitalMap[detail.id].location, phone: hospitalMap[detail.id].phone },
+                after: { location: detail.address, phone: detail.phone }
+              });
+              if (detail.address) {
+                hospitalMap[detail.id].location = detail.address;
+              }
+              if (detail.phone) {
+                hospitalMap[detail.id].phone = detail.phone;
+              }
+            }
+          });
+          
           // Convert map to array and format blood types
           const hospitalsArray = Object.values(hospitalMap).map(hospital => ({
             ...hospital,
             bloodTypes: hospital.bloodTypes.join(', ')
           }));
           
-          console.log('Transformed hospitals:', hospitalsArray);
+          console.log('Transformed hospitals with details:', hospitalsArray);
           setHospitals(hospitalsArray);
         } else {
           const errorData = await response.json();

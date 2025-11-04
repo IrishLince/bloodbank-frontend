@@ -235,22 +235,22 @@ const DonationHistory = () => {
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-6">
         {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Donation History</h1>
-          <p className="text-gray-600">Track your blood donation contributions over time</p>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">Donation History</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600">Track your blood donation contributions over time</p>
         </div>
 
         {/* Filters and Controls */}
-        <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm sm:shadow-lg border border-red-100 p-3 sm:p-4 md:p-5 mb-3 sm:mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {/* Status Filter */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-3 sm:px-4 py-2 pr-8 text-sm sm:text-base focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
                 <option value="all">All Status</option>
                 <option value="Complete">Complete</option>
@@ -262,11 +262,11 @@ const DonationHistory = () => {
             </div>
 
             {/* Date Filter */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-3 sm:px-4 py-2 pr-8 text-sm sm:text-base focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
                 <option value="all">All Time</option>
                 <option value="month">This Month</option>
@@ -279,57 +279,57 @@ const DonationHistory = () => {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6">
-            <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
+          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-3 sm:p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+              <div className="bg-green-100 p-2 sm:p-3 rounded-lg self-start">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Complete</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Complete</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                   {allDonations.filter(d => d.status === 'Complete').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6">
-            <div className="flex items-center">
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600" />
+          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-3 sm:p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+              <div className="bg-yellow-100 p-2 sm:p-3 rounded-lg self-start">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-yellow-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Pending</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                   {allDonations.filter(d => d.status === 'Pending').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6">
-            <div className="flex items-center">
-              <div className="bg-red-100 p-3 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-600" />
+          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-3 sm:p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+              <div className="bg-red-100 p-2 sm:p-3 rounded-lg self-start">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-red-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Missed</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Missed</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                   {allDonations.filter(d => d.status === 'Missed').length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-6">
-            <div className="flex items-center">
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <Clock className="w-6 h-6 text-orange-600" />
+          <div className="bg-white rounded-xl shadow-lg border border-red-100 p-3 sm:p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+              <div className="bg-orange-100 p-2 sm:p-3 rounded-lg self-start">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-orange-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Deferred</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="sm:ml-3 lg:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Deferred</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                   {allDonations.filter(d => d.status === 'Deferred').length}
                 </p>
               </div>
@@ -339,14 +339,14 @@ const DonationHistory = () => {
 
         {/* Donations Table */}
         <div className="bg-white rounded-xl shadow-lg border border-red-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-5 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Donation Records ({filteredDonations.length})
+          <div className="bg-gradient-to-r from-red-600 to-red-700 px-3 sm:px-4 lg:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="truncate">Donation Records ({filteredDonations.length})</span>
             </h3>
             <button
               onClick={exportToCSV}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30 hover:scale-105"
+              className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30 hover:scale-105 text-sm sm:text-base"
             >
               <Download className="w-4 h-4" />
               <span className="font-medium">Export CSV</span>
@@ -354,21 +354,21 @@ const DonationHistory = () => {
           </div>
 
           {loading ? (
-            <div className="px-6 py-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading donation history...</p>
+            <div className="px-3 sm:px-6 py-8 sm:py-12 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+              <p className="text-sm sm:text-base text-gray-600">Loading donation history...</p>
             </div>
           ) : error ? (
-            <div className="px-6 py-12 text-center">
-              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Data</h3>
-              <p className="text-gray-600">{error}</p>
+            <div className="px-3 sm:px-6 py-8 sm:py-12 text-center">
+              <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-red-400 mx-auto mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Error Loading Data</h3>
+              <p className="text-sm sm:text-base text-gray-600">{error}</p>
             </div>
           ) : filteredDonations.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No donations found</h3>
-              <p className="text-gray-600">Try adjusting your filters to see more results.</p>
+            <div className="px-3 sm:px-6 py-8 sm:py-12 text-center">
+              <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No donations found</h3>
+              <p className="text-sm sm:text-base text-gray-600">Try adjusting your filters to see more results.</p>
             </div>
           ) : (
             <>
@@ -378,18 +378,18 @@ const DonationHistory = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th 
-                        className="w-1/4 px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        className="w-1/4 px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={() => handleSort('date')}
                       >
-                        <div className="flex items-center gap-2">
-                          <ArrowUpDown className="w-4 h-4" />
-                          Date
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span>Date</span>
                         </div>
                       </th>
-                      <th className="w-1/2 px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="w-1/2 px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Location
                       </th>
-                      <th className="w-1/4 px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="w-1/4 px-3 sm:px-6 py-3 sm:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
@@ -397,16 +397,16 @@ const DonationHistory = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {paginatedDonations.map((donation, index) => (
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
                           {formatDate(donation.date)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
-                          {donation.location}
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-700">
+                          <div className="truncate max-w-xs">{donation.location}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(donation.status)}`}>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border ${getStatusColor(donation.status)}`}>
                             {getStatusIcon(donation.status)}
-                            {donation.status}
+                            <span className="hidden sm:inline">{donation.status}</span>
                           </span>
                         </td>
                       </tr>
@@ -418,17 +418,17 @@ const DonationHistory = () => {
               {/* Mobile Cards */}
               <div className="sm:hidden">
                 {paginatedDonations.map((donation, index) => (
-                  <div key={index} className="p-5 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors">
+                  <div key={index} className="p-4 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors">
                     <div className="flex justify-between items-start mb-3">
                       <div className="text-sm font-semibold text-gray-900">
                         {formatDate(donation.date)}
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${getStatusColor(donation.status)}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(donation.status)}`}>
                         {getStatusIcon(donation.status)}
-                        {donation.status}
+                        <span>{donation.status}</span>
                       </span>
                     </div>
-                    <div className="text-sm text-gray-600 font-medium">{donation.location}</div>
+                    <div className="text-sm text-gray-600 font-medium break-words">{donation.location}</div>
                   </div>
                 ))}
               </div>

@@ -178,47 +178,47 @@ const EligibilityCheck2 = () => {
 
   // Add review summary component
   const ReviewSummary = () => (
-    <div id="printable-content" className="p-8">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-800">Medical History Review - Part 1</h2>
-        <p className="text-gray-600 mt-2">Blood Donation Eligibility Check</p>
-        <p className="text-sm text-gray-500 mt-1">Date: {new Date().toLocaleDateString()}</p>
+    <div id="printable-content" className="p-4 sm:p-6 lg:p-8">
+      <div className="text-center mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Medical History Review - Part 1</h2>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">Blood Donation Eligibility Check</p>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">Date: {new Date().toLocaleDateString()}</p>
       </div>
 
-      <div className="space-y-6">
-        <div className="border-b pb-4">
-          <h3 className="font-semibold text-gray-800 mb-4">Previous Donation History</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="border-b pb-3 sm:pb-4">
+          <h3 className="font-semibold text-gray-800 mb-3 sm:mb-4 text-sm sm:text-base">Previous Donation History</h3>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
               <span className="text-gray-600">Have you donated blood before?</span>
               <span className="font-medium">{answers.q1 || "Not answered"}</span>
             </div>
             {answers.q1 === "Yes" && (
               <>
-                <div className="flex justify-between text-sm">
+                <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
                   <span className="text-gray-600">Last Donation Date:</span>
-                  <span className="font-medium">{answers.lastDonationDate || "Not provided"}</span>
+                  <span className="font-medium break-words">{answers.lastDonationDate || "Not provided"}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
                   <span className="text-gray-600">Last Donation Place:</span>
-                  <span className="font-medium">{answers.lastDonationPlace || "Not provided"}</span>
+                  <span className="font-medium break-words">{answers.lastDonationPlace || "Not provided"}</span>
                 </div>
               </>
             )}
           </div>
         </div>
 
-        <div className="border-b pb-4">
-          <h3 className="font-semibold text-gray-800 mb-4">Donation History Verification</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Used different name for donation?</span>
+        <div className="border-b pb-3 sm:pb-4">
+          <h3 className="font-semibold text-gray-800 mb-3 sm:mb-4 text-sm sm:text-base">Donation History Verification</h3>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
+              <span className="text-gray-600 break-words">Used different name for donation?</span>
               <span className={`font-medium ${answers.q2 === "Yes" ? "text-red-600" : ""}`}>
                 {answers.q2 || "Not answered"}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Previously deferred from donation?</span>
+            <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm gap-1 sm:gap-0">
+              <span className="text-gray-600 break-words">Previously deferred from donation?</span>
               <span className={`font-medium ${answers.q3 === "Yes" ? "text-red-600" : ""}`}>
                 {answers.q3 || "Not answered"}
               </span>
@@ -226,26 +226,26 @@ const EligibilityCheck2 = () => {
           </div>
         </div>
 
-        <div className="border-b pb-4">
-          <h3 className="font-semibold text-gray-800 mb-4">Eligibility Status</h3>
-          <div className="flex items-center gap-2">
+        <div className="border-b pb-3 sm:pb-4">
+          <h3 className="font-semibold text-gray-800 mb-3 sm:mb-4 text-sm sm:text-base">Eligibility Status</h3>
+          <div className="flex items-start sm:items-center gap-2">
             {eligible ? (
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0 mt-0.5 sm:mt-0" />
             ) : (
-              <XCircle className="w-5 h-5 text-red-500" />
+              <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5 sm:mt-0" />
             )}
-            <span className={`font-medium ${eligible ? "text-green-600" : "text-red-600"}`}>
+            <span className={`font-medium text-xs sm:text-sm break-words ${eligible ? "text-green-600" : "text-red-600"}`}>
               {eligible ? "Eligible to proceed" : "Not eligible to proceed"}
             </span>
           </div>
           {!eligible && reasons.length > 0 && (
-            <div className="mt-3">
-              <p className="text-sm font-medium text-gray-700">Reasons for Ineligibility:</p>
-              <ul className="mt-2 space-y-1">
+            <div className="mt-2 sm:mt-3">
+              <p className="text-xs sm:text-sm font-medium text-gray-700">Reasons for Ineligibility:</p>
+              <ul className="mt-1 sm:mt-2 space-y-1">
                 {reasons.map((reason, i) => (
-                  <li key={i} className="text-sm text-red-600 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <span>{reason}</span>
+                  <li key={i} className="text-xs sm:text-sm text-red-600 flex items-start gap-2">
+                    <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 mt-0.5" />
+                    <span className="break-words">{reason}</span>
                   </li>
                 ))}
               </ul>
@@ -253,7 +253,7 @@ const EligibilityCheck2 = () => {
           )}
         </div>
 
-        <div className="text-xs text-gray-500 text-center pt-4">
+        <div className="text-xs text-gray-500 text-center pt-3 sm:pt-4">
           This document is part of your blood donation eligibility check.
           <br />
           Generated on {new Date().toLocaleString()}
@@ -276,13 +276,13 @@ const EligibilityCheck2 = () => {
       {item.t && <p className="text-sm italic text-gray-500 mt-1 ml-8">{item.t}</p>}
 
       <div className="mt-4 ml-8 space-y-4">
-        <div className="flex gap-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
           {["Yes", "No"].map((option) => (
             <label
               key={option}
               className={`
-                flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg
-                transition-all duration-200
+                flex items-center gap-2 cursor-pointer px-3 sm:px-4 py-2 rounded-lg
+                transition-all duration-200 text-sm sm:text-base
                 ${answers[item.name] === option ? "bg-red-50 text-red-600 font-medium" : "hover:bg-gray-50"}
               `}
             >
@@ -293,7 +293,7 @@ const EligibilityCheck2 = () => {
                 checked={answers[item.name] === option}
                 onChange={() => handleChange(item.name, option)}
                 onBlur={() => handleBlur(item.name)}
-                className="form-radio text-red-600 focus:ring-red-500"
+                className="form-radio text-red-600 focus:ring-red-500 w-3 h-3 sm:w-4 sm:h-4"
               />
               {option}
             </label>
@@ -301,18 +301,18 @@ const EligibilityCheck2 = () => {
         </div>
 
         {errors[item.name] && touched[item.name] && (
-          <p className="text-sm text-red-500 flex items-center gap-1">
-            <AlertCircle className="w-4 h-4" />
-            {errors[item.name]}
+          <p className="text-xs sm:text-sm text-red-500 flex items-start gap-1">
+            <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 mt-0.5" />
+            <span className="break-words">{errors[item.name]}</span>
           </p>
         )}
 
         {item.extra && answers.q1 === "Yes" && (
-          <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3 sm:space-y-4 bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                   Date of Last Donation
                 </label>
                 <input
@@ -320,7 +320,7 @@ const EligibilityCheck2 = () => {
                   value={answers.lastDonationDate}
                   onChange={(e) => handleChange("lastDonationDate", e.target.value)}
                   onBlur={() => handleBlur("lastDonationDate")}
-                  className={`w-full p-2 border rounded-lg shadow-sm
+                  className={`w-full p-2 border rounded-lg shadow-sm text-sm
                     ${
                       errors.lastDonationDate && touched.lastDonationDate
                         ? "border-red-500 bg-red-50"
@@ -329,15 +329,15 @@ const EligibilityCheck2 = () => {
                   max={new Date().toISOString().split("T")[0]}
                 />
                 {errors.lastDonationDate && touched.lastDonationDate && (
-                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {errors.lastDonationDate}
+                  <p className="mt-1 text-xs text-red-500 flex items-start gap-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                    <span className="break-words">{errors.lastDonationDate}</span>
                   </p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                  <User className="w-4 h-4" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
                   Place of Last Donation
                 </label>
                 <input
@@ -346,7 +346,7 @@ const EligibilityCheck2 = () => {
                   onChange={(e) => handleChange("lastDonationPlace", e.target.value)}
                   onBlur={() => handleBlur("lastDonationPlace")}
                   placeholder="Enter location"
-                  className={`w-full p-2 border rounded-lg shadow-sm
+                  className={`w-full p-2 border rounded-lg shadow-sm text-sm
                     ${
                       errors.lastDonationPlace && touched.lastDonationPlace
                         ? "border-red-500 bg-red-50"
@@ -354,9 +354,9 @@ const EligibilityCheck2 = () => {
                     }`}
                 />
                 {errors.lastDonationPlace && touched.lastDonationPlace && (
-                  <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {errors.lastDonationPlace}
+                  <p className="mt-1 text-xs text-red-500 flex items-start gap-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                    <span className="break-words">{errors.lastDonationPlace}</span>
                   </p>
                 )}
               </div>
@@ -368,22 +368,23 @@ const EligibilityCheck2 = () => {
   )
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6">
-        <h2 className="text-3xl font-bold text-red-700 mb-6 text-center tracking-wide flex items-center justify-center gap-2">
-          <span className="text-4xl">🩺</span> Medical History
+    <div className="max-w-3xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-10">
+      <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-3 sm:p-4 lg:p-6">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-red-700 mb-4 sm:mb-6 text-center tracking-wide flex flex-col sm:flex-row items-center justify-center gap-2">
+          <span className="text-2xl sm:text-3xl lg:text-4xl">🩺</span> 
+          <span>Medical History</span>
         </h2>
 
         {showErrorSummary && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              <p className="font-medium">Please correct the following errors:</p>
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <p className="font-medium text-sm sm:text-base">Please correct the following errors:</p>
             </div>
-            <ul className="mt-2 list-disc list-inside text-sm text-red-600">
+            <ul className="mt-2 list-disc list-inside text-xs sm:text-sm text-red-600 space-y-1">
               {Object.entries(errors).map(([field, error]) =>
                 error ? (
-                  <li key={field} className="capitalize">
+                  <li key={field} className="capitalize break-words">
                     {field.replace(/([A-Z])/g, " $1").trim()}: {error}
                   </li>
                 ) : null,
@@ -392,7 +393,7 @@ const EligibilityCheck2 = () => {
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {[
             {
               q: "Have you donated blood before? If yes, indicate the date and place of last donation",
@@ -416,28 +417,28 @@ const EligibilityCheck2 = () => {
         {eligible !== null && (
           <div
             className={`
-            mt-8 rounded-lg p-6 border-2 transition-all duration-300
+            mt-6 sm:mt-8 rounded-lg p-4 sm:p-6 border-2 transition-all duration-300
             ${eligible ? "bg-green-50 border-green-500 text-green-800" : "bg-red-50 border-red-500 text-red-800"}
           `}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               {eligible ? (
-                <CheckCircle className="w-6 h-6 text-green-500" />
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0 mt-0.5" />
               ) : (
-                <XCircle className="w-6 h-6 text-red-500" />
+                <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0 mt-0.5" />
               )}
-              <div>
-                <p className="font-semibold">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-sm sm:text-base">
                   {eligible
                     ? "You are eligible to proceed with the donation process"
                     : "You are not eligible to proceed"}
                 </p>
                 {!eligible && reasons.length > 0 && (
                   <div className="mt-2">
-                    <p className="font-medium text-sm">Reason(s):</p>
-                    <ul className="list-disc list-inside text-sm space-y-1 mt-1">
+                    <p className="font-medium text-xs sm:text-sm">Reason(s):</p>
+                    <ul className="list-disc list-inside text-xs sm:text-sm space-y-1 mt-1">
                       {reasons.map((reason, i) => (
-                        <li key={i}>{reason}</li>
+                        <li key={i} className="break-words">{reason}</li>
                       ))}
                     </ul>
                   </div>
@@ -447,13 +448,13 @@ const EligibilityCheck2 = () => {
           </div>
         )}
 
-        <div className="pt-8 flex justify-end">
+        <div className="pt-6 sm:pt-8 flex justify-center sm:justify-end">
           <button
             onClick={handleNextClick}
             disabled={!eligible}
             className={`
-              flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold
-              transition-all duration-200 transform
+              w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-lg font-semibold
+              transition-all duration-200 transform text-sm sm:text-base
               ${
                 !eligible
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -461,8 +462,8 @@ const EligibilityCheck2 = () => {
               }
             `}
           >
-            Proceed to Next Step
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span>Proceed to Next Step</span>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -482,26 +483,26 @@ const EligibilityCheck2 = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-auto"
+              className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-auto mx-3 sm:mx-0"
             >
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-red-500" />
-                  Answer Review
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-3 sm:p-4 flex items-center justify-between">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                  <span>Answer Review</span>
                 </h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <button
                     onClick={handlePrint}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     title="Print Review"
                   >
-                    <Printer className="w-5 h-5 text-gray-600" />
+                    <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                   </button>
                   <button
                     onClick={() => setShowReviewModal(false)}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <X className="w-5 h-5 text-gray-600" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                   </button>
                 </div>
               </div>
@@ -510,10 +511,10 @@ const EligibilityCheck2 = () => {
                 <ReviewSummary />
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end">
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3 sm:p-4 flex justify-end">
                 <button
                   onClick={() => setShowReviewModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors text-sm sm:text-base"
                 >
                   Close
                 </button>

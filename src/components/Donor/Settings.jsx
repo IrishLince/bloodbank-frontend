@@ -155,42 +155,42 @@ const DonorSettings = () => {
   ]
 
   const renderNotificationSettings = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Bell className="w-5 h-5 mr-2 text-red-600" />
-          Notification Preferences
+    <div className="space-y-4 sm:space-y-6">
+      <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+          <Bell className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600 flex-shrink-0" />
+          <span className="break-words">Notification Preferences</span>
         </h3>
         
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Appointment Reminders */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium text-gray-900">Appointment Reminders</label>
-              <p className="text-sm text-gray-500">Get notified about upcoming donation appointments</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="min-w-0 flex-1">
+              <label className="text-sm font-medium text-gray-900 break-words">Appointment Reminders</label>
+              <p className="text-xs sm:text-sm text-gray-500 break-words">Get notified about upcoming donation appointments</p>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'appointmentReminders')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 ${
                 settings.notifications.appointmentReminders ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.appointmentReminders ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.appointmentReminders ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
           {/* Reminder Time */}
           {settings.notifications.appointmentReminders && (
-            <div className="ml-4 p-4 bg-gray-50 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="ml-0 sm:ml-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Remind me
               </label>
               <select
                 value={settings.notifications.reminderTime}
                 onChange={(e) => updateSetting('notifications', 'reminderTime', e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 text-sm"
               >
                 <option value="1">1 hour before</option>
                 <option value="6">6 hours before</option>
@@ -201,37 +201,37 @@ const DonorSettings = () => {
           )}
 
           {/* Donation Eligibility */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium text-gray-900">Donation Eligibility</label>
-              <p className="text-sm text-gray-500">Notifications when you're eligible to donate again</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="min-w-0 flex-1">
+              <label className="text-sm font-medium text-gray-900 break-words">Donation Eligibility</label>
+              <p className="text-xs sm:text-sm text-gray-500 break-words">Notifications when you're eligible to donate again</p>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'donationEligibility')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 ${
                 settings.notifications.donationEligibility ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.donationEligibility ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.donationEligibility ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
           {/* Reward Updates */}
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="text-sm font-medium text-gray-900">Reward Points Updates</label>
-              <p className="text-sm text-gray-500">Get notified about reward points and achievements</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="min-w-0 flex-1">
+              <label className="text-sm font-medium text-gray-900 break-words">Reward Points Updates</label>
+              <p className="text-xs sm:text-sm text-gray-500 break-words">Get notified about reward points and achievements</p>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'rewardUpdates')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 ${
                 settings.notifications.rewardUpdates ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.rewardUpdates ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.rewardUpdates ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
@@ -239,97 +239,97 @@ const DonorSettings = () => {
       </div>
 
       {/* Notification Channels */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <MessageSquare className="w-5 h-5 mr-2 text-red-600" />
-          Notification Channels
+      <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+          <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600 flex-shrink-0" />
+          <span className="break-words">Notification Channels</span>
         </h3>
         
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Email Notifications */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Mail className="w-5 h-5 mr-3 text-gray-400" />
-              <div>
-                <label className="text-sm font-medium text-gray-900">Email Notifications</label>
-                <p className="text-sm text-gray-500">Receive notifications via email</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex items-start sm:items-center min-w-0 flex-1">
+              <Mail className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-gray-400 flex-shrink-0 mt-1 sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <label className="text-sm font-medium text-gray-900 break-words">Email Notifications</label>
+                <p className="text-xs sm:text-sm text-gray-500 break-words">Receive notifications via email</p>
               </div>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'emailNotifications')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 self-start sm:self-center ${
                 settings.notifications.emailNotifications ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.emailNotifications ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.emailNotifications ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
           {/* SMS Notifications */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Smartphone className="w-5 h-5 mr-3 text-gray-400" />
-              <div>
-                <label className="text-sm font-medium text-gray-900">SMS Notifications</label>
-                <p className="text-sm text-gray-500">Receive notifications via text message</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex items-start sm:items-center min-w-0 flex-1">
+              <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-gray-400 flex-shrink-0 mt-1 sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <label className="text-sm font-medium text-gray-900 break-words">SMS Notifications</label>
+                <p className="text-xs sm:text-sm text-gray-500 break-words">Receive notifications via text message</p>
               </div>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'smsNotifications')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 self-start sm:self-center ${
                 settings.notifications.smsNotifications ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.smsNotifications ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.smsNotifications ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
           {/* Push Notifications */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Monitor className="w-5 h-5 mr-3 text-gray-400" />
-              <div>
-                <label className="text-sm font-medium text-gray-900">Push Notifications</label>
-                <p className="text-sm text-gray-500">Receive browser push notifications</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex items-start sm:items-center min-w-0 flex-1">
+              <Monitor className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-gray-400 flex-shrink-0 mt-1 sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <label className="text-sm font-medium text-gray-900 break-words">Push Notifications</label>
+                <p className="text-xs sm:text-sm text-gray-500 break-words">Receive browser push notifications</p>
               </div>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'pushNotifications')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 self-start sm:self-center ${
                 settings.notifications.pushNotifications ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.pushNotifications ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.pushNotifications ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
           {/* Sound */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex items-start sm:items-center min-w-0 flex-1">
               {settings.notifications.soundEnabled ? (
-                <Volume2 className="w-5 h-5 mr-3 text-gray-400" />
+                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-gray-400 flex-shrink-0 mt-1 sm:mt-0" />
               ) : (
-                <VolumeX className="w-5 h-5 mr-3 text-gray-400" />
+                <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-gray-400 flex-shrink-0 mt-1 sm:mt-0" />
               )}
-              <div>
-                <label className="text-sm font-medium text-gray-900">Notification Sounds</label>
-                <p className="text-sm text-gray-500">Play sound with notifications</p>
+              <div className="min-w-0 flex-1">
+                <label className="text-sm font-medium text-gray-900 break-words">Notification Sounds</label>
+                <p className="text-xs sm:text-sm text-gray-500 break-words">Play sound with notifications</p>
               </div>
             </div>
             <button
               onClick={() => toggleSetting('notifications', 'soundEnabled')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors flex-shrink-0 self-start sm:self-center ${
                 settings.notifications.soundEnabled ? 'bg-red-600' : 'bg-gray-200'
               }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings.notifications.soundEnabled ? 'translate-x-6' : 'translate-x-1'
+              <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${
+                settings.notifications.soundEnabled ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
@@ -708,38 +708,38 @@ const DonorSettings = () => {
       
       {/* Header */}
       <div className="bg-gradient-to-r from-red-600 to-red-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
+            <div className="flex items-center min-w-0 flex-1">
               <button
                 onClick={() => navigate(-1)}
-                className="mr-4 p-2 rounded-lg hover:bg-white/20 transition-colors"
+                className="mr-3 sm:mr-4 p-2 rounded-lg hover:bg-white/20 transition-colors flex-shrink-0"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold flex items-center">
-                  <SettingsIcon className="w-6 h-6 mr-2" />
-                  Settings
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold flex items-center">
+                  <SettingsIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0" />
+                  <span className="truncate">Settings</span>
                 </h1>
-                <p className="text-red-100 mt-1">Customize your donation experience</p>
+                <p className="text-red-100 mt-1 text-sm sm:text-base truncate">Customize your donation experience</p>
               </div>
             </div>
             
             <button
               onClick={saveSettings}
               disabled={isSaving}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg backdrop-blur-sm shadow-md transition-all flex items-center disabled:opacity-50"
+              className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg backdrop-blur-sm shadow-md transition-all flex items-center disabled:opacity-50 text-sm sm:text-base w-full sm:w-auto justify-center sm:justify-start flex-shrink-0"
             >
               {isSaving ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Saving...
+                  <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2 flex-shrink-0"></div>
+                  <span className="truncate">Saving...</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                  <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Save Changes</span>
                 </>
               )}
             </button>
@@ -750,28 +750,53 @@ const DonorSettings = () => {
       {/* Save Message */}
       {saveMessage && (
         <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4`}>
-          <div className={`p-4 rounded-lg flex items-center ${
+          <div className={`p-3 sm:p-4 rounded-lg flex items-start gap-2 ${
             saveMessage.includes('successfully') 
               ? 'bg-green-50 border border-green-200 text-green-800'
               : 'bg-red-50 border border-red-200 text-red-800'
           }`}>
             {saveMessage.includes('successfully') ? (
-              <Check className="w-5 h-5 mr-2" />
+              <Check className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
             ) : (
-              <X className="w-5 h-5 mr-2" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
             )}
-            {saveMessage}
+            <span className="text-sm sm:text-base break-words">{saveMessage}</span>
           </div>
         </div>
       )}
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
           {/* Sidebar */}
           <div className="lg:w-1/4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <nav className="space-y-2">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+              {/* Mobile: Horizontal scroll tabs */}
+              <nav className="lg:space-y-2">
+                <div className="lg:hidden">
+                  <div className="flex overflow-x-auto space-x-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                    {tabs.map((tab) => {
+                      const Icon = tab.icon
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
+                            activeTab === tab.id
+                              ? 'bg-red-50 text-red-700 border border-red-200'
+                              : 'text-gray-700 hover:bg-gray-50 border border-gray-200'
+                          }`}
+                        >
+                          <Icon className="w-3 h-3 mr-1.5" />
+                          <span className="truncate">{tab.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                
+                {/* Desktop: Vertical tabs */}
+                <div className="hidden lg:block space-y-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
                   return (
@@ -784,11 +809,12 @@ const DonorSettings = () => {
                           : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
-                      <Icon className="w-4 h-4 mr-3" />
-                      {tab.label}
+                        <Icon className="w-4 h-4 mr-3 flex-shrink-0" />
+                        <span className="truncate">{tab.label}</span>
                     </button>
                   )
                 })}
+                </div>
               </nav>
             </div>
           </div>

@@ -1,8 +1,8 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Mail, Phone, MapPin, Shield, Eye, EyeOff, User, Pencil, Clock, CheckCircle } from "lucide-react"
+import { ArrowLeft, Mail, Phone, MapPin, Shield, Eye, EyeOff, Pencil, Clock, CheckCircle, Building2, Loader2, AlertTriangle, Camera } from "lucide-react"
+import { bloodBankProfileAPI, uploadBloodBankProfilePhoto, removeBloodBankProfilePhoto } from '../../utils/api'
+import { formatLandlinePhone } from '../../utils/phoneFormatter'
 
 
 const ProfileManagement = () => {
@@ -10,18 +10,22 @@ const ProfileManagement = () => {
   const [showOldPassword, setShowOldPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [confirmText, setConfirmText] = useState("")
   const [isMobile, setIsMobile] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [userData, setUserData] = useState({
-    fullName: "REDSOURCE ADMIN",
-    email: "admin@redsource.org",
-    phone: "+63 2 1234 5678",
-    address: "Red Cross Building, Bonifacio Drive, Port Area, Manila",
-    role: "Super Administrator",
-    adminId: "ADMIN-001",
+    fullName: "",
+    email: "",
+    phone: "",
+    address: "",
+    role: "",
+    bloodBankId: "",
+    licenseNumber: "",
+    profilePhotoUrl: "",
     status: "Active"
   })
-  const navigate = useNavigate()
 
   // Add state for form data
   const [formData, setFormData] = useState({
@@ -36,32 +40,51 @@ const ProfileManagement = () => {
 
   // Fetch user data on component mount
   useEffect(() => {
-    const fetchUserData = () => {
+    const fetchUserData = async () => {
       try {
-        // Try to get user data from localStorage
-        const storedUser = localStorage.getItem('userData');
+        setLoading(true);
+        // Fetch from /auth/me to get blood bank user ID
+        const userResponse = await bloodBankProfileAPI.getCurrentProfile();
+        const authData = userResponse.data || userResponse;
         
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          const updatedUserData = {
-            ...userData,
-            fullName: parsedUser.fullName || parsedUser.name || userData.fullName,
-            email: parsedUser.email || userData.email,
-            phone: parsedUser.phone || userData.phone,
-            adminId: parsedUser.adminId || parsedUser.id || userData.adminId,
-            // Keep other defaults if not provided
-          };
-          
-          setUserData(updatedUserData);
-          setFormData({
-            fullName: updatedUserData.fullName,
-            email: updatedUserData.email,
-            phone: updatedUserData.phone,
-            address: updatedUserData.address
-          });
+        // Get the blood bank user ID
+        const bloodBankUserId = authData.bloodBankUserId || authData.id;
+        
+        if (!bloodBankUserId) {
+          throw new Error('Blood bank user ID not found');
         }
+        
+        // Fetch full blood bank profile
+        const profileResponse = await bloodBankProfileAPI.getProfileById(bloodBankUserId);
+        const profileData = profileResponse.data || profileResponse;
+        
+        // Extract data from response
+        const bloodBankData = profileData.data || profileData;
+        
+        const updatedUserData = {
+          fullName: bloodBankData.bloodBankName || bloodBankData.name || authData.bloodBankName || "",
+          email: bloodBankData.email || authData.email || "",
+          phone: bloodBankData.phone || authData.phone || "",
+          address: bloodBankData.address || authData.address || "",
+          role: "Blood Bank",
+          bloodBankId: bloodBankData.id || bloodBankData.bloodBankId || bloodBankUserId || "",
+          licenseNumber: bloodBankData.licenseNumber || "",
+          profilePhotoUrl: bloodBankData.profilePhotoUrl || authData.profilePhotoUrl || "",
+          status: "Active"
+        };
+        
+        setUserData(updatedUserData);
+        setFormData({
+          fullName: updatedUserData.fullName,
+          email: updatedUserData.email,
+          phone: updatedUserData.phone,
+          address: updatedUserData.address
+        });
+        setError(null);
       } catch (error) {
-        // Error is handled by the UI state
+        setError(error.message || 'Failed to load blood bank profile');
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -85,6 +108,58 @@ const ProfileManagement = () => {
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
+
+  // Handle profile photo upload
+  const handleProfilePhotoUpload = async (file) => {
+    setIsUpdating(true);
+    try {
+      setError(null);
+
+      const result = await uploadBloodBankProfilePhoto(userData.bloodBankId, file);
+      
+      if (result.success) {
+        // Update local state
+        setUserData(prev => ({
+          ...prev,
+          profilePhotoUrl: result.photoUrl
+        }));
+
+        // Update localStorage to sync with header
+        const currentBloodBankData = JSON.parse(localStorage.getItem('bloodBankData') || '{}');
+        const updatedBloodBankData = {
+          ...currentBloodBankData,
+          profilePhotoUrl: result.photoUrl
+        };
+        localStorage.setItem('bloodBankData', JSON.stringify(updatedBloodBankData));
+        
+        // Dispatch custom event to notify header of update
+        window.dispatchEvent(new CustomEvent('bloodBankDataUpdated'));
+
+        setShowProfileModal(false);
+      } else {
+        setError(result.error || 'Failed to upload profile photo');
+      }
+    } catch (error) {
+      setError('Failed to upload profile photo: ' + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Handle remove profile photo
+  const handleRemoveProfilePhoto = async () => {
+    setIsUpdating(true);
+    try {
+      await removeBloodBankProfilePhoto(userData.bloodBankId);
+      setUserData({ ...userData, profilePhotoUrl: null });
+      setShowProfileModal(false);
+      setError(null);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Handle input changes in the edit form
   const handleInputChange = (e) => {
@@ -142,22 +217,40 @@ const ProfileManagement = () => {
         <div className="bg-gradient-to-r from-red-600 to-red-500 rounded-xl shadow-lg overflow-hidden mb-6">
           <div className="relative p-5 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8">
             {/* Profile Image */}
-            <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-full border-4 border-white flex items-center justify-center relative -mt-4 sm:mt-0">
-              <Shield className="w-14 h-14 sm:w-16 sm:h-16 text-red-600" />
-              <div className="absolute bottom-1 right-1 bg-red-500 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
-                <Shield className="w-3 h-3 text-white" />
-              </div>
+            <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-full border-4 border-white flex items-center justify-center relative -mt-4 sm:mt-0 overflow-hidden">
+              {userData.profilePhotoUrl ? (
+                <img 
+                  src={userData.profilePhotoUrl} 
+                  alt="Blood Bank Profile" 
+                  className="w-full h-full rounded-full object-cover" 
+                />
+              ) : (
+                <Building2 className="w-14 h-14 sm:w-16 sm:h-16 text-red-600" />
+              )}
+              
+              {/* Camera Button for Profile Photo */}
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="absolute bottom-0 right-0 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-105"
+                title="Change Profile Photo"
+              >
+                {isUpdating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+              </button>
             </div>
             
-            {/* Admin Info & Tags */}
+            {/* Blood Bank Info & Tags */}
             <div className="text-center sm:text-left flex-1">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">{userData.fullName}</h2>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">{userData.fullName || 'Blood Bank'}</h2>
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2 sm:mt-3">
                 <span className="bg-white/20 text-white text-xs sm:text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1.5" /> {userData.role}
+                  <Building2 className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1.5" /> {userData.role || 'Blood Bank'}
                 </span>
                 <span className="bg-white/20 text-white text-xs sm:text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1.5" /> Active since 2020
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1.5" /> {userData.status || 'Active'}
                 </span>
               </div>
             </div>
@@ -176,8 +269,8 @@ const ProfileManagement = () => {
         <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-gray-800 flex items-center">
-              <User className="w-5 h-5 mr-2 text-red-600" />
-              Admin Information
+              <Building2 className="w-5 h-5 mr-2 text-red-600" />
+              Blood Bank Information
             </h3>
             <button 
               onClick={() => setView("editDetails")}
@@ -193,7 +286,7 @@ const ProfileManagement = () => {
                 <p className="text-sm text-gray-500 uppercase mb-1">Email</p>
                 <div className="flex items-center">
                   <Mail className="w-4 h-4 mr-2 text-red-600" />
-                  <span className="font-medium">{userData.email}</span>
+                  <span className="font-medium">{userData.email || 'Not provided'}</span>
                 </div>
               </div>
               
@@ -201,13 +294,13 @@ const ProfileManagement = () => {
                 <p className="text-sm text-gray-500 uppercase mb-1">Phone</p>
                 <div className="flex items-center">
                   <Phone className="w-4 h-4 mr-2 text-red-600" />
-                  <span className="font-medium">{userData.phone}</span>
+                  <span className="font-medium">{formatLandlinePhone(userData.phone) || 'Not provided'}</span>
                 </div>
               </div>
               
               <div className="mb-5">
-                <p className="text-sm text-gray-500 uppercase mb-1">Admin ID</p>
-                <span className="font-medium">{userData.adminId}</span>
+                <p className="text-sm text-gray-500 uppercase mb-1">Blood Bank ID</p>
+                <span className="font-medium">{userData.bloodBankId || 'Not provided'}</span>
               </div>
             </div>
             
@@ -216,16 +309,13 @@ const ProfileManagement = () => {
                 <p className="text-sm text-gray-500 uppercase mb-1">Address</p>
                 <div className="flex items-start">
                   <MapPin className="w-4 h-4 mr-2 text-red-600 mt-0.5 flex-shrink-0" />
-                  <span className="font-medium">{userData.address}</span>
+                  <span className="font-medium">{userData.address || 'Not provided'}</span>
                 </div>
               </div>
               
               <div className="mb-5">
-                <p className="text-sm text-gray-500 uppercase mb-1">Role</p>
-                <div className="flex items-center">
-                  <Shield className="w-4 h-4 mr-2 text-red-600" />
-                  <span className="font-medium">{userData.role}</span>
-                </div>
+                <p className="text-sm text-gray-500 uppercase mb-1">License Number</p>
+                <span className="font-medium">{userData.licenseNumber || 'Not provided'}</span>
               </div>
               
               <div className="mb-5">
@@ -248,7 +338,7 @@ const ProfileManagement = () => {
             <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="font-medium text-sm sm:text-base">Back to Profile</span>
           </button>
-          <h1 className="text-center flex-1 font-bold mr-8 sm:mr-12 text-base sm:text-lg">Edit Admin Details</h1>
+          <h1 className="text-center flex-1 font-bold mr-8 sm:mr-12 text-base sm:text-lg">Edit Blood Bank Details</h1>
         </div>
 
         {/* Success Message */}
@@ -261,16 +351,16 @@ const ProfileManagement = () => {
 
         {/* Form */}
         <form className="p-4 sm:p-6 overflow-x-hidden" onSubmit={handleSubmit}>
-          {/* Admin Details Section */}
+          {/* Blood Bank Details Section */}
           <div className="mb-6 sm:mb-8">
             <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-gray-800 flex items-center">
-              <User className="mr-2 h-4 sm:h-5 w-4 sm:w-5 text-red-600" />
-              Admin Details
+              <Building2 className="mr-2 h-4 sm:h-5 w-4 sm:w-5 text-red-600" />
+              Blood Bank Details
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                <label className="block text-sm font-medium text-gray-700">Blood Bank Name</label>
                 <input
                   type="text"
                   name="fullName"
@@ -281,14 +371,24 @@ const ProfileManagement = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Admin ID</label>
+                <label className="block text-sm font-medium text-gray-700">Blood Bank ID</label>
                 <input
                   type="text"
-                  defaultValue={userData.adminId}
+                  defaultValue={userData.bloodBankId}
                   className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
                   disabled
                 />
-                <p className="text-xs text-gray-500 mt-1">Admin ID cannot be changed</p>
+                <p className="text-xs text-gray-500 mt-1">Blood Bank ID cannot be changed</p>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">License Number</label>
+                <input
+                  type="text"
+                  defaultValue={userData.licenseNumber}
+                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
+                  disabled
+                />
               </div>
 
               <div className="space-y-1">
@@ -314,7 +414,7 @@ const ProfileManagement = () => {
               </div>
 
               <div className="space-y-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Office Address</label>
+                <label className="block text-sm font-medium text-gray-700">Address</label>
                 <input
                   type="text"
                   name="address"
@@ -323,16 +423,15 @@ const ProfileManagement = () => {
                   className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
                 />
               </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Role</label>
-                <input
-                  type="text"
-                  defaultValue={userData.role}
-                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
-                  disabled
-                />
-              </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700 flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Blood bank details are managed by system administrators and cannot be modified here.
+              </p>
             </div>
           </div>
 
@@ -415,7 +514,7 @@ const ProfileManagement = () => {
 
           {/* Security Notice */}
           <div className="mb-6 p-4 bg-blue-50 rounded-lg text-sm text-blue-800">
-            <p>As an administrator, please ensure your password is strong and changed regularly for security purposes.</p>
+            <p>Please ensure your password is strong and changed regularly for security purposes.</p>
           </div>
 
           {/* Action Buttons */}
@@ -453,9 +552,9 @@ const ProfileManagement = () => {
           <div className="w-24 h-24 bg-red-100 rounded-full mb-4 flex items-center justify-center">
             <Shield className="h-12 w-12 text-red-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">ADMIN ACCOUNT</h3>
+          <h3 className="text-xl font-bold text-gray-800">BLOOD BANK ACCOUNT</h3>
           <p className="text-red-600 mt-4">
-            Admin accounts cannot be deactivated through this interface.
+            Blood bank accounts cannot be deactivated through this interface.
           </p>
           <p className="text-sm text-gray-600 mt-2">
             Please contact system support for account changes.
@@ -472,11 +571,85 @@ const ProfileManagement = () => {
     </div>
   )
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <AlertTriangle className="w-10 h-10 text-red-600 mb-4 mx-auto" />
+          <h2 className="text-lg font-bold text-gray-800 mb-2">Error</h2>
+          <p className="text-sm text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-full overflow-x-hidden">
       {view === "profile" && renderProfile()}
       {view === "editDetails" && renderEditDetails()}
       {view === "archiveConfirmation" && renderArchiveConfirmation()}
+      
+      {/* Profile Picture Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Profile Picture</h3>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => document.getElementById('bloodbank-profile-photo-input').click()}
+                className="w-full flex items-center justify-center gap-3 p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                disabled={isUpdating}
+              >
+                <Camera className="w-5 h-5" />
+                Change Picture
+              </button>
+              
+              {userData.profilePhotoUrl && (
+                <button
+                  onClick={handleRemoveProfilePhoto}
+                  className="w-full flex items-center justify-center gap-3 p-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  disabled={isUpdating}
+                >
+                  <AlertTriangle className="w-5 h-5" />
+                  Remove Photo
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="w-full p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                disabled={isUpdating}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Hidden File Input */}
+      <input
+        id="bloodbank-profile-photo-input"
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) {
+            handleProfilePhotoUpload(file);
+            e.target.value = ''; // Reset input
+          }
+        }}
+        className="hidden"
+      />
     </div>
   )
 }

@@ -48,13 +48,10 @@ const BloodRequestForm = () => {
   const fetchHospitalProfile = async () => {
     try {
       setHospitalLoading(true);
-      console.log('Fetching hospital profile...');
       const response = await hospitalProfileAPI.getCurrentProfile();
-      console.log('Hospital Profile Response:', response);
       
       // Handle different response structures
       const data = response.data || response;
-      console.log('Hospital Profile Data:', data);
       
       setHospitalData({
         hospitalName: data.hospitalName || data.name || localStorage.getItem('userName') || 'Hospital',
@@ -65,8 +62,6 @@ const BloodRequestForm = () => {
         licenseNumber: data.licenseNumber || 'License not available',
         profilePhotoUrl: data.profilePhotoUrl
       });
-      
-      console.log('Hospital data set successfully');
     } catch (error) {
       console.error('Error fetching hospital profile:', error);
       
@@ -91,7 +86,6 @@ const BloodRequestForm = () => {
     if (!autoRefresh) return;
 
     const intervalId = setInterval(() => {
-      console.log('Auto-refreshing blood bank inventory...');
       fetchBloodBanksWithInventory();
     }, 30000); // 30 seconds
 
@@ -111,33 +105,21 @@ const BloodRequestForm = () => {
     setLoading(true);
     try {
       const response = await bloodBankAPI.getAll();
-      console.log('Blood Bank API Response:', response);
       
       // Handle different response structures
       const bloodBanks = response.data?.data || response.data || response || [];
-      console.log('Extracted blood banks:', bloodBanks);
-      console.log('First blood bank object:', bloodBanks[0]);
-      console.log('First blood bank address:', bloodBanks[0]?.address);
       
       // Fetch inventory for each blood bank
       const centersWithInventory = await Promise.all(
         bloodBanks.map(async (bloodBank) => {
           const bankName = bloodBank.bloodBankName || bloodBank.name || 'Unnamed Blood Bank';
-          console.log(`Fetching inventory for: ${bankName} (ID: ${bloodBank.id})`);
           try {
             const inventoryResponse = await fetchWithAuth(`/blood-inventory/bloodbank/${bloodBank.id}`);
-            console.log(`Inventory response status for ${bankName}:`, inventoryResponse.status);
             
             if (inventoryResponse.ok) {
               const inventoryData = await inventoryResponse.json();
-              console.log(`Inventory data for ${bankName}:`, inventoryData);
-              console.log(`Inventory data structure:`, inventoryData.data);
               const inventory = inventoryData.data || [];
-              console.log(`Inventory array:`, inventory);
-              console.log(`All inventory items:`, inventory);
               inventory.forEach((item, index) => {
-                console.log(`Item ${index}:`, item);
-                console.log(`  bloodTypeId: ${item.bloodTypeId}, quantity: ${item.quantity}`);
               });
 
               // Transform inventory to the format needed - sum quantities for same blood type
@@ -158,10 +140,7 @@ const BloodRequestForm = () => {
                 { type: "O-", available: sumQuantityByType("O-") },
               ];
 
-              console.log(`Formatted inventory for ${bankName}:`, formattedInventory);
               const aplusItem = inventory.find(i => i.bloodTypeId === "A+");
-              console.log(`A+ quantity check:`, aplusItem);
-              console.log(`A+ quantity value:`, aplusItem?.quantity);
 
               return {
                 id: bloodBank.id,
@@ -197,8 +176,6 @@ const BloodRequestForm = () => {
 
       setBloodAdminCenters(centersWithInventory);
       setLastRefresh(new Date());
-      console.log('Blood Admin Centers with inventory loaded:', centersWithInventory);
-      console.log('Sample center:', centersWithInventory[0]);
     } catch (error) {
       console.error('Error fetching blood banks:', error);
       setError(error.message);
@@ -208,7 +185,6 @@ const BloodRequestForm = () => {
   };
 
   const handleManualRefresh = () => {
-    console.log('Manual refresh triggered');
     fetchBloodBanksWithInventory();
   };
 
@@ -422,7 +398,6 @@ const BloodRequestForm = () => {
   };
 
   const handleAdminSelect = (adminId) => {
-    console.log('Selected Admin ID:', adminId);
     setSelectedAdminId(adminId);
     setShowAvailabilityModal(false);
     
@@ -492,6 +467,8 @@ const BloodRequestForm = () => {
       const requestData = {
         hospitalId: hospitalId,
         hospitalName: hospitalName,
+        hospitalAddress: hospitalData?.address || '',
+        contactInformation: hospitalData?.phone || '',
         bloodBankId: selectedAdminId,
         bloodBankName: selectedBank?.name || 'RedSource Blood Center',
         bloodBankAddress: selectedBank?.address || '123 Main St, City',
@@ -504,13 +481,10 @@ const BloodRequestForm = () => {
         notes: notes
       };
 
-      console.log('Submitting request with data:', JSON.stringify(requestData, null, 2));
       const response = await hospitalRequestAPI.create(requestData);
-      console.log('Request submitted successfully:', response);
 
       // Deduct inventory for reserved blood units
       try {
-        console.log('Deducting inventory for reserved blood units...');
         const selectedBank = bloodAdminCenters.find(admin => admin.id === selectedAdminId);
         
         for (const request of validBloodRequests) {
@@ -550,7 +524,6 @@ const BloodRequestForm = () => {
                 });
                 
                 if (updateResponse.ok) {
-                  console.log(`Deducted ${deductAmount} units of ${request.bloodType} from inventory record ${record.id}`);
                   remainingToDeduct -= deductAmount;
                 } else {
                   console.error(`Failed to update inventory record ${record.id}`);
@@ -563,7 +536,6 @@ const BloodRequestForm = () => {
             }
           }
         }
-        console.log('Inventory deduction completed');
       } catch (inventoryError) {
         console.error('Error deducting inventory:', inventoryError);
         // Don't fail the request if inventory deduction fails

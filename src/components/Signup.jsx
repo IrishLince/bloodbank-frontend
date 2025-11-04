@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Upload, Check, X, MessageSquare, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import Background from './Background';
+import { Eye, EyeOff, Upload, Check, X, MessageSquare, Clock, AlertCircle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import flagLogo from '../assets/Logophonenumber.png';
+import { formatDonorPhone } from '../utils/phoneFormatter';
 import LogoSignup from '../assets/LogoSignup.png';
 import RefreshLink from './RefreshLink';
 import { navigateWithRefresh } from '../utils/navigation';
 import { setTokens } from '../utils/auth';
+import Background from './Background';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -604,7 +605,7 @@ export default function Signup() {
               </h2>
               <p className="text-gray-600 text-sm leading-relaxed">
                 We've sent a 6-digit verification code to<br />
-                <span className="font-semibold text-gray-800">+63 {formData.contactInformation}</span>
+                <span className="font-semibold text-gray-800">{formatDonorPhone('63' + formData.contactInformation)}</span>
               </p>
             </div>
 

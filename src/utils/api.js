@@ -352,6 +352,122 @@ export const hospitalRequestAPI = {
   },
 };
 
+// Blood Bank Profile API functions
+export const bloodBankProfileAPI = {
+  // Get current blood bank profile
+  getCurrentProfile: async () => {
+    const response = await fetchWithAuth('/auth/me');
+    if (!response.ok) {
+      throw new Error('Failed to fetch blood bank profile');
+    }
+    return response.json();
+  },
+
+  // Get blood bank profile by ID
+  getProfileById: async (bloodBankUserId) => {
+    const response = await fetchWithAuth(`/bloodbank-users/${bloodBankUserId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch blood bank profile');
+    }
+    return response.json();
+  },
+
+  // Update blood bank password
+  updatePassword: async (bloodBankId, passwordData) => {
+    const response = await fetchWithAuth(`/bloodbank-users/${bloodBankId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify(passwordData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update password');
+    }
+    return response.json();
+  },
+
+  // Update blood bank profile
+  updateProfile: async (bloodBankId, profileData) => {
+    const response = await fetchWithAuth(`/bloodbank-users/${bloodBankId}`, {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update profile');
+    }
+    return response.json();
+  }
+};
+
+// Blood Bank profile photo upload function
+export const uploadBloodBankProfilePhoto = async (bloodBankId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const response = await fetchWithAuth(`/bloodbank-users/${bloodBankId}/upload-profile-photo`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Update localStorage with new photo URL
+      const bloodBankData = JSON.parse(localStorage.getItem('bloodBankData') || '{}');
+      const photoUrl = data?.data?.profilePhotoUrl || data?.profilePhotoUrl;
+      bloodBankData.profilePhotoUrl = photoUrl;
+      localStorage.setItem('bloodBankData', JSON.stringify(bloodBankData));
+      
+      // Dispatch event to update header
+      window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+        detail: { profilePhotoUrl: photoUrl }
+      }));
+      
+      return {
+        success: true,
+        photoUrl: photoUrl,
+        bloodBank: data?.data?.bloodBank || data?.bloodBank || null
+      };
+    } else {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData?.message || 'Failed to upload photo'
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to upload photo: ' + error.message
+    };
+  }
+};
+
+// Remove blood bank profile photo function
+export const removeBloodBankProfilePhoto = async (bloodBankId) => {
+  const response = await fetchWithAuth(`/bloodbank-users/${bloodBankId}/photo`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to remove profile photo');
+  }
+  
+  // Update localStorage
+  const bloodBankData = JSON.parse(localStorage.getItem('bloodBankData') || '{}');
+  bloodBankData.profilePhotoUrl = null;
+  localStorage.setItem('bloodBankData', JSON.stringify(bloodBankData));
+  
+  // Dispatch event to update header
+  window.dispatchEvent(new CustomEvent('profilePhotoUpdated', {
+    detail: { profilePhotoUrl: null }
+  }));
+  
+  return true;
+};
+
 // Blood Bank API functions
 export const bloodBankAPI = {
   // Get all blood banks (from users_bloodbank collection)

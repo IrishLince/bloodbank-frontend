@@ -175,6 +175,21 @@ export default function SuccessfulRequest() {
               </div>
             </div>
 
+            {/* Notes Section */}
+            {requestData?.notes && (
+              <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg shadow-sm">
+                <div className="flex items-start">
+                  <div className="w-8 h-8 bg-amber-200 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                    <Info className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-gray-800 mb-1">Additional Notes</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">{requestData.notes}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="border-t border-gray-200 pt-4">
               <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center">
                 <div className="w-1 h-6 bg-gradient-to-b from-[#C91C1C] to-[#A81A1A] rounded-full mr-2"></div>

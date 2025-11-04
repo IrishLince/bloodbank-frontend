@@ -457,19 +457,19 @@ export default function Schedule() {
         >
           <div className="backdrop-blur-xl bg-white/70 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-red-400 hover:shadow-xl transition-all duration-300">
             <div className="flex items-start gap-3 sm:gap-4">
-              <motion.div whileHover={{ scale: 1.1 }} className="p-2 sm:p-3 bg-red-50 rounded-lg sm:rounded-xl">
+              <motion.div whileHover={{ scale: 1.1 }} className="p-2 sm:p-3 bg-red-50 rounded-lg sm:rounded-xl flex-shrink-0">
                 <Building className="w-5 sm:w-6 h-5 sm:h-6 text-red-500" />
               </motion.div>
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1">{selectedHospital.name}</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 mb-1 break-words">{selectedHospital.name}</h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-red-400" />
-                    <span className="text-xs sm:text-sm">{selectedHospital.address || selectedHospital.location}</span>
+                  <div className="flex items-start sm:items-center gap-2 min-w-0">
+                    <MapPin className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                    <span className="text-xs sm:text-sm break-words">{selectedHospital.address || selectedHospital.location}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-red-400" />
-                    <span className="text-xs sm:text-sm">{selectedHospital.hours}</span>
+                  <div className="flex items-start sm:items-center gap-2 min-w-0">
+                    <Clock className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                    <span className="text-xs sm:text-sm break-words">{selectedHospital.hours}</span>
                   </div>
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function Schedule() {
               </motion.div>
               <div className="bg-red-50/50 rounded-xl sm:rounded-2xl p-3 sm:p-6 shadow-inner">
                 {availableTimeSlots.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
                     <AnimatePresence>
                       {availableTimeSlots.map((slot) => (
                         <motion.label
@@ -534,7 +534,7 @@ export default function Schedule() {
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           className={`
-                            relative flex items-center justify-center p-3 sm:p-4 
+                            relative flex items-center justify-center p-2 sm:p-3 lg:p-4 
                             rounded-lg sm:rounded-xl cursor-pointer
                             transition-all duration-300 
                             ${
@@ -552,13 +552,13 @@ export default function Schedule() {
                             onChange={(e) => setSelectedTime(e.target.value)}
                             className="hidden"
                           />
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2">
                             {selectedTime === slot.time ? (
-                              <Check className="w-4 h-4" />
+                              <Check className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                             ) : (
-                              <Clock className="w-4 h-4 text-red-400" />
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-red-400 flex-shrink-0" />
                             )}
-                            <span className="text-sm sm:text-base font-medium">{slot.time}</span>
+                            <span className="text-xs sm:text-sm lg:text-base font-medium truncate">{slot.time}</span>
                           </div>
                         </motion.label>
                       ))}
@@ -568,14 +568,14 @@ export default function Schedule() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-center py-8"
+                    className="text-center py-6 sm:py-8"
                   >
-                    <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-2">No time slots available</p>
-                    <p className="text-sm text-gray-400">
+                    <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-sm sm:text-base text-gray-500 mb-2">No time slots available</p>
+                    <p className="text-xs sm:text-sm text-gray-400 break-words px-4">
                       Please contact the blood center directly or try a different date
                     </p>
-                    <div className="mt-4 text-xs text-gray-400">
+                    <div className="mt-3 sm:mt-4 text-xs text-gray-400 break-words px-4">
                       Operating Hours: {selectedHospital?.hours}
                     </div>
                   </motion.div>
@@ -630,21 +630,21 @@ export default function Schedule() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full relative"
+                className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 max-w-md w-full relative mx-2 sm:mx-0"
               >
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setShowConfirmModal(false)}
-                  className="absolute top-3 sm:top-4 right-3 sm:right-4 hover:bg-red-50 p-2 rounded-full transition-colors"
+                  className="absolute top-2 sm:top-3 lg:top-4 right-2 sm:right-3 lg:right-4 hover:bg-red-50 p-1.5 sm:p-2 rounded-full transition-colors"
                 >
-                  <X className="w-5 sm:w-6 h-5 sm:h-6 text-gray-500" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-gray-500" />
                 </motion.button>
 
                 <div className="text-center">
@@ -652,15 +652,15 @@ export default function Schedule() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="w-14 sm:w-16 h-14 sm:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                    className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4"
                   >
-                    <Calendar className="w-7 sm:w-8 h-7 sm:h-8 text-red-600" />
+                    <Calendar className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-red-600" />
                   </motion.div>
 
                   <motion.h2
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="text-xl sm:text-2xl font-bold text-gray-800 mb-4"
+                    className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 mb-3 sm:mb-4 break-words px-2"
                   >
                     Confirm Your Schedule
                   </motion.h2>
@@ -669,19 +669,19 @@ export default function Schedule() {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-red-50 rounded-lg sm:rounded-xl p-4 sm:p-6 mb-6"
+                    className="bg-red-50 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6"
                   >
-                    <div className="flex items-center gap-2 mb-3">
-                      <Building className="w-4 sm:w-5 h-4 sm:h-5 text-red-500" />
-                      <span className="text-sm sm:text-base font-medium text-gray-700">{selectedHospital.name}</span>
+                    <div className="flex items-start gap-2 mb-2 sm:mb-3">
+                      <Building className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm sm:text-base font-medium text-gray-700 break-words">{selectedHospital.name}</span>
                     </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="w-4 sm:w-5 h-4 sm:h-5 text-red-500" />
-                      <span className="text-xs sm:text-sm text-gray-600">{selectedHospital.address || selectedHospital.location}</span>
+                    <div className="flex items-start gap-2 mb-2 sm:mb-3">
+                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-gray-600 break-words">{selectedHospital.address || selectedHospital.location}</span>
                     </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <CalendarIcon className="w-4 sm:w-5 h-4 sm:h-5 text-red-500" />
-                      <span className="text-xs sm:text-sm text-gray-600">
+                    <div className="flex items-start gap-2 mb-2 sm:mb-3">
+                      <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-gray-600 break-words">
                         {date.toLocaleDateString("en-US", {
                           weekday: "long",
                           year: "numeric",
@@ -690,9 +690,9 @@ export default function Schedule() {
                         })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 sm:w-5 h-4 sm:h-5 text-red-500" />
-                      <span className="text-xs sm:text-sm text-gray-600">{selectedTime}</span>
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-gray-600 break-words">{selectedTime}</span>
                     </div>
                   </motion.div>
 
@@ -700,7 +700,7 @@ export default function Schedule() {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="text-sm sm:text-base text-gray-600 mb-6"
+                    className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 break-words px-2"
                   >
                     Are you sure you want to proceed with this schedule?
                   </motion.p>
@@ -741,28 +741,28 @@ export default function Schedule() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full relative"
+                className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 max-w-md w-full relative mx-2 sm:mx-0"
               >
                 <div className="text-center">
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="w-14 sm:w-16 h-14 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                    className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4"
                   >
-                    <AlertCircle className="w-7 sm:w-8 h-7 sm:h-8 text-yellow-600" />
+                    <AlertCircle className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-yellow-600" />
                   </motion.div>
 
                   <motion.h2
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="text-xl sm:text-2xl font-bold text-gray-800 mb-4"
+                    className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 mb-3 sm:mb-4 break-words px-2"
                   >
                     Too Soon to Donate
                   </motion.h2>
@@ -771,18 +771,18 @@ export default function Schedule() {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="space-y-4 mb-6"
+                    className="space-y-3 sm:space-y-4 mb-4 sm:mb-6"
                   >
-                    <p className="text-gray-600">
+                    <p className="text-sm sm:text-base text-gray-600 break-words px-2">
                       For your health and safety, blood donations must be spaced at least <strong>3 months apart</strong>.
                     </p>
 
                     {lastAppointment && (
-                      <div className="bg-yellow-50 rounded-lg p-4 text-left">
-                        <p className="text-sm text-gray-600 mb-2">
+                      <div className="bg-yellow-50 rounded-lg p-3 sm:p-4 text-left">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 break-words">
                           <strong>Last Appointment:</strong>
                         </p>
-                        <p className="text-sm text-gray-800">
+                        <p className="text-xs sm:text-sm text-gray-800 break-words">
                           {new Date(lastAppointment.appointmentDate || lastAppointment.dateToday || lastAppointment.createdAt).toLocaleDateString('en-US', {
                             weekday: 'long',
                             year: 'numeric',
@@ -793,11 +793,11 @@ export default function Schedule() {
                       </div>
                     )}
 
-                    <div className="bg-green-50 rounded-lg p-4 text-left border-2 border-green-200">
-                      <p className="text-sm text-gray-600 mb-2">
+                    <div className="bg-green-50 rounded-lg p-3 sm:p-4 text-left border-2 border-green-200">
+                      <p className="text-xs sm:text-sm text-gray-600 mb-2 break-words">
                         <strong>Next Eligible Donation Date:</strong>
                       </p>
-                      <p className="text-lg font-semibold text-green-700">
+                      <p className="text-base sm:text-lg font-semibold text-green-700 break-words">
                         {nextEligibleDate.toLocaleDateString('en-US', {
                           weekday: 'long',
                           year: 'numeric',
@@ -807,7 +807,7 @@ export default function Schedule() {
                       </p>
                     </div>
 
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500 break-words px-2">
                       Thank you for your continued dedication to saving lives through blood donation!
                     </p>
                   </motion.div>
@@ -816,7 +816,7 @@ export default function Schedule() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate("/donation-center")}
-                    className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-3 rounded-full hover:shadow-lg transition-all duration-300 font-medium"
+                    className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full hover:shadow-lg transition-all duration-300 font-medium text-sm sm:text-base"
                   >
                     Return to Donation Centers
                   </motion.button>

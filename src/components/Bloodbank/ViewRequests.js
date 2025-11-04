@@ -91,8 +91,50 @@ export default function ViewRequests({ hospital, onClose }) {
             notes: request.notes || 'No notes provided'
           }));
           
-          console.log('Transformed requests:', transformedRequests);
-          setRequests(transformedRequests);
+          // Fetch complete hospital details for each unique hospital ID
+          const uniqueHospitalIds = [...new Set(transformedRequests.map(req => req.hospitalId))];
+          const hospitalDetailsPromises = uniqueHospitalIds.map(async (hospitalId) => {
+            try {
+              const hospitalResponse = await fetchWithAuth(`/hospital/${hospitalId}`);
+              if (hospitalResponse.ok) {
+                const hospitalData = await hospitalResponse.json();
+                const hospitalDTO = hospitalData.data || hospitalData;
+                return {
+                  id: hospitalId,
+                  address: hospitalDTO.address,
+                  phone: hospitalDTO.phone
+                };
+              }
+            } catch (error) {
+              console.error(`Error fetching hospital ${hospitalId} details:`, error);
+            }
+            return { id: hospitalId, address: null, phone: null };
+          });
+          
+          // Wait for all hospital details to be fetched
+          const hospitalDetails = await Promise.all(hospitalDetailsPromises);
+          
+          // Create a map of hospital details for easy lookup
+          const hospitalDetailsMap = {};
+          hospitalDetails.forEach(detail => {
+            hospitalDetailsMap[detail.id] = detail;
+          });
+          
+          // Merge hospital details with transformed requests
+          const requestsWithDetails = transformedRequests.map(request => {
+            const details = hospitalDetailsMap[request.hospitalId];
+            if (details) {
+              return {
+                ...request,
+                hospitalAddress: details.address || request.hospitalAddress,
+                contactNumber: details.phone || request.contactNumber
+              };
+            }
+            return request;
+          });
+          
+          console.log('Transformed requests with details:', requestsWithDetails);
+          setRequests(requestsWithDetails);
         } else {
           const errorData = await response.json();
           setError(errorData.message || 'Failed to fetch hospital requests');
@@ -349,6 +391,11 @@ export default function ViewRequests({ hospital, onClose }) {
             <p className="text-sm text-gray-600 flex items-center mt-1">
               <Phone className="w-4 h-4 mr-1.5 text-gray-400" /> {hospital.phone}
             </p>
+            {hospital.location && hospital.location !== 'N/A' && (
+              <p className="text-sm text-gray-600 flex items-center mt-1">
+                <Building className="w-4 h-4 mr-1.5 text-gray-400" /> {hospital.location}
+              </p>
+            )}
           </div>
         </div>
         

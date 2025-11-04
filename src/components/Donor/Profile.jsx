@@ -10,6 +10,7 @@ import { fetchWithAuth } from "../../utils/api"
 import { uploadProfilePhoto } from "../../utils/profileImage"
 import ProfileAvatar from "../ProfileAvatar"
 import flagLogo from "../../assets/Logophonenumber.png"
+import { formatDonorPhone, stripCountryCode, formatPhoneForBackend as formatPhoneForAPI } from "../../utils/phoneFormatter"
 
 // Import API base URL from environment variables or use default
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
@@ -281,7 +282,7 @@ const ProfileManagement = () => {
           name: data.name || "",
           email: data.email || "",
           username: data.username || "",
-          phone: data.contactInformation || "",
+          phone: formatDonorPhone(data.contactInformation) || "",
           address: data.address || "",
           birthDate: formatDateForDisplay(data.dateOfBirth), // For display
           age: calculateAge(data.dateOfBirth) || (data.age ? `${data.age} years` : "Age not set"),
@@ -340,7 +341,7 @@ const ProfileManagement = () => {
           lastName: lastName,
           email: data.email || "",
           username: data.username || "",
-          phone: data.contactInformation || "",
+          phone: formatDonorPhone(data.contactInformation) || "",
           address: data.address || "",
           birthDate: formatDateForInput(data.dateOfBirth), // For form input (YYYY-MM-DD)
           age: calculateAge(data.dateOfBirth).replace(' years', '') || (data.age ? data.age.toString() : ""),
@@ -1175,19 +1176,19 @@ const ProfileManagement = () => {
   );
 
   const renderEditProfileModal = () => (
-    <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-gray-900/70 to-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mx-auto animate-fadeIn border border-gray-100 relative overflow-hidden">
-        {/* Enhanced Modal Header with subtle pattern */}
-        <div className="bg-gradient-to-r from-[#C91C1C] via-[#E53E3E] to-[#C91C1C] text-white relative">
+    <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-gray-900/70 to-black/80 backdrop-blur-md flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl mx-auto animate-fadeIn border border-gray-100 relative overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col">
+        {/* Enhanced Modal Header with responsive design */}
+        <div className="bg-gradient-to-r from-[#C91C1C] via-[#E53E3E] to-[#C91C1C] text-white relative flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-          <div className="relative p-6 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <User className="w-5 h-5 text-white" />
+          <div className="relative p-4 sm:p-6 flex items-center justify-between">
+            <div className="flex items-center space-x-3 min-w-0 flex-1 pr-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div>
-                <h1 className="font-bold text-xl tracking-wide">Edit Profile</h1>
-                <p className="text-white/90 text-sm font-medium">Update your personal information</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="font-bold text-lg sm:text-xl lg:text-2xl tracking-wide truncate">Edit Profile</h1>
+                <p className="text-white/90 text-xs sm:text-sm font-medium truncate">Update your personal information</p>
               </div>
             </div>
             <button 
@@ -1203,107 +1204,126 @@ const ProfileManagement = () => {
                 setIsChangingPhone(false);
                 setShowEditModal(false);
               }}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
+              aria-label="Close modal"
             >
-              <X className="w-6 h-6 text-white" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </button>
           </div>
         </div>
 
-        {/* Enhanced Form with better styling */}
-        <div className="max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-          <form className="p-8 space-y-8">
-            {/* Personal Details Section with enhanced styling */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-              <div className="flex items-center mb-6">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                  <User className="w-4 h-4 text-blue-600" />
+        {/* Enhanced Form with better responsive styling and scrolling */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+          <form className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-5">
+            {/* Personal Details Section - Optimized */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-blue-100">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800">Personal Details</h2>
-                  <p className="text-sm text-gray-600">Update your basic information</p>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">Personal Details</h2>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">Update your basic information</p>
                 </div>
               </div>
 
-              <div className="grid gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-3 sm:space-y-4">
+                {/* Name fields - responsive grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                      First Name
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></span>
+                      <span>First Name</span>
                     </label>
-                  <input
-                    type="text"
+                    <input
+                      type="text"
                       value={formData.firstName || ""}
                       onChange={(e) => handleInputChange('firstName', e.target.value)}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
                       placeholder="Enter your first name"
-                  />
-                </div>
+                    />
+                  </div>
 
                   <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                      Middle Initial
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 flex-shrink-0"></span>
+                      <span>Middle Initial</span>
                     </label>
-                  <input
-                    type="text"
+                    <input
+                      type="text"
                       value={formData.middleInitial || ""}
                       onChange={(e) => {
                         // Allow any letter characters without forcing uppercase
                         const value = e.target.value.replace(/[^A-Za-z]/g, '');
                         handleInputChange('middleInitial', value);
                       }}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
                       placeholder="Middle Initial"
-                  />
-                </div>
+                      maxLength={2}
+                    />
+                  </div>
 
-                  <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
-                      Last Name
+                  <div className="group sm:col-span-2 lg:col-span-1">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2 flex-shrink-0"></span>
+                      <span>Last Name</span>
                     </label>
-                  <input
-                    type="text"
+                    <input
+                      type="text"
                       value={formData.lastName || ""}
                       onChange={(e) => handleInputChange('lastName', e.target.value)}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
                       placeholder="Enter your last name"
                     />
                   </div>
                 </div>
 
+                {/* Username field */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    Username
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></span>
+                    <span>Username</span>
                   </label>
                   <input
                     type="text"
                     value={formData.username || ""}
                     onChange={(e) => handleInputChange('username', e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
+                    className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 text-sm bg-white hover:border-gray-300 transition-all duration-200 shadow-sm"
                     placeholder="Choose a unique username"
                   />
                 </div>
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Contact Information Section */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-green-100">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">Contact Information</h2>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">Update your contact details</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                   <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex flex-wrap items-center gap-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 flex flex-wrap items-center gap-2">
                       <span className="flex items-center">
-                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                        Contact Number
+                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2 flex-shrink-0"></span>
+                        <span>Contact Number</span>
                       </span>
                       {phoneVerificationStep === 'verify' && (
-                        <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full whitespace-nowrap">Verifying</span>
+                        <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full whitespace-nowrap font-medium">Verifying</span>
                       )}
                     </label>
                     
                     {phoneVerificationStep === 'edit' ? (
                       <div className="relative w-full">
                         <div className="flex flex-col sm:flex-row w-full">
-                          <div className="bg-gray-50 px-3 py-3 sm:py-4 rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none border-2 sm:border-r-0 border-gray-200 flex items-center justify-start shadow-sm flex-shrink-0">
+                          <div className="bg-gray-50 px-3 py-3 sm:py-4 rounded-t-lg sm:rounded-l-lg sm:rounded-tr-none border-2 sm:border-r-0 border-gray-200 flex items-center justify-start shadow-sm flex-shrink-0">
                             <img src={flagLogo} alt="Philippines flag" className="w-5 h-4 mr-2 flex-shrink-0" />
                             <span className="text-gray-800 text-sm font-medium whitespace-nowrap">+63</span>
                           </div>
@@ -1357,7 +1377,7 @@ const ProfileManagement = () => {
                                   setOriginalPhone(stripCountryCode(formData.phone));
                                 }
                               }}
-                              className={`w-full p-3 sm:p-4 rounded-b-xl sm:rounded-r-xl sm:rounded-bl-none border-2 sm:border-l-2 border-t-0 sm:border-t-2 transition-all duration-300 ${
+                              className={`w-full p-3 sm:p-4 rounded-b-lg sm:rounded-r-lg sm:rounded-bl-none border-2 sm:border-l-2 border-t-0 sm:border-t-2 transition-all duration-300 ${
                                 phoneError 
                                   ? 'border-red-500 bg-red-50 focus:border-red-600' 
                                   : isCheckingPhone
@@ -1643,7 +1663,7 @@ const ProfileManagement = () => {
             </div>
 
             {/* Enhanced Separator */}
-            <div className="relative my-8">
+            <div className="relative my-4 sm:my-5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200"></div>
               </div>
@@ -1653,8 +1673,8 @@ const ProfileManagement = () => {
             </div>
 
             {/* Enhanced Password Section */}
-            <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-100">
-              <div className="flex items-center mb-6">
+            <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-4 sm:p-5 border border-red-100">
+              <div className="flex items-center mb-4 sm:mb-5">
                 <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
                   <Shield className="w-4 h-4 text-red-600" />
                 </div>
@@ -1668,7 +1688,7 @@ const ProfileManagement = () => {
               </div>
 
               {/* Enhanced Info message */}
-              <div className="bg-white/60 backdrop-blur-sm border border-white/40 rounded-xl p-4 mb-6 space-y-2">
+              <div className="bg-white/60 backdrop-blur-sm border border-white/40 rounded-xl p-3 sm:p-4 mb-4 sm:mb-5 space-y-2">
                 <div className="flex items-start space-x-2">
                   <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -1695,7 +1715,7 @@ const ProfileManagement = () => {
                 </div>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div className="relative">
                   <label className="block text-sm text-gray-600 mb-1.5 font-medium">Old password</label>
                   <input
@@ -1985,7 +2005,7 @@ const ProfileManagement = () => {
             </div>
 
             {/* Enhanced Help text */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 sm:p-4 mb-4 sm:mb-5">
               <div className="flex items-center justify-center space-x-2">
                 <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -1997,7 +2017,7 @@ const ProfileManagement = () => {
             </div>
 
             {/* Enhanced Buttons */}
-            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 mt-4 sm:mt-5">
               <button
                 type="button"
                 onClick={() => {
@@ -2040,7 +2060,7 @@ const ProfileManagement = () => {
             </div>
 
             {/* Enhanced Archive/Activate Account */}
-            <div className="text-center mt-8 pt-6">
+            <div className="text-center mt-6 pt-4">
               {userData.accountStatus === "ARCHIVED" ? (
                 <div className="inline-block bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
                   <div className="flex items-center justify-center space-x-2 mb-2">
@@ -2157,11 +2177,11 @@ const ProfileManagement = () => {
   )
 
   const renderDetailsContent = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
       {/* Username */}
-      <div className="bg-white p-4 rounded-lg">
+      <div className="bg-white p-3 sm:p-4 rounded-lg">
         <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">USERNAME</p>
         <div className="flex items-center gap-3">
           <User className="w-5 h-5 text-[#C91C1C]" />
@@ -2170,7 +2190,7 @@ const ProfileManagement = () => {
       </div>
 
       {/* Email */}
-      <div className="bg-white p-4 rounded-lg">
+      <div className="bg-white p-3 sm:p-4 rounded-lg">
         <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">EMAIL ADDRESS</p>
         <div className="flex items-center gap-3">
           <Mail className="w-5 h-5 text-[#C91C1C]" />
@@ -2179,7 +2199,7 @@ const ProfileManagement = () => {
       </div>
 
       {/* Address */}
-      <div className="bg-white p-4 rounded-lg">
+      <div className="bg-white p-3 sm:p-4 rounded-lg">
         <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">ADDRESS</p>
         <div className="flex items-start gap-3">
           <MapPin className="w-5 h-5 text-[#C91C1C] mt-0.5" />
@@ -2194,16 +2214,16 @@ const ProfileManagement = () => {
       </div>
 
       {/* Phone */}
-      <div className="bg-white p-4 rounded-lg">
+      <div className="bg-white p-3 sm:p-4 rounded-lg">
         <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">PHONE NUMBER</p>
         <div className="flex items-center gap-3">
           <Phone className="w-5 h-5 text-[#C91C1C]" />
-          <span className="text-gray-900 font-medium">{userData.phone}</span>
+          <span className="text-gray-900 font-medium">{formatDonorPhone(userData.phone)}</span>
         </div>
       </div>
 
       {/* Blood Type */}
-      <div className="bg-white p-4 rounded-lg">
+      <div className="bg-white p-3 sm:p-4 rounded-lg">
         <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">BLOOD TYPE</p>
         <div className="flex items-center gap-3">
           {userData.bloodType === "Unknown" ? (
@@ -2230,7 +2250,7 @@ const ProfileManagement = () => {
       </div>
 
       {/* Birth Date */}
-      <div className="bg-white p-4 rounded-lg">
+      <div className="bg-white p-3 sm:p-4 rounded-lg">
         <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">DATE OF BIRTH</p>
         <div className="flex items-center gap-3">
           <Calendar className="w-5 h-5 text-[#C91C1C]" />
@@ -2246,7 +2266,7 @@ const ProfileManagement = () => {
 
   // Update the card header and container
   const renderDetailsCard = () => (
-    <div className="max-w-5xl mx-auto">
+    <div className="w-full max-w-full mx-auto">
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
@@ -2277,11 +2297,11 @@ const ProfileManagement = () => {
           </button>
         </div>
         
-        <div className="p-6 bg-gray-50">
+        <div className="p-4 sm:p-6 bg-gray-50">
           {renderDetailsContent()}
           
           {/* Security Notice */}
-          <div className="mt-6 flex items-start gap-3 bg-blue-50 p-4 rounded-lg">
+          <div className="mt-4 sm:mt-6 flex items-start gap-3 bg-blue-50 p-3 sm:p-4 rounded-lg">
             <Shield className="w-5 h-5 text-blue-600 flex-shrink-0" />
             <p className="text-sm text-blue-900">
               Your personal information is protected and only used for donation purposes. For security, we recommend updating your password regularly.
@@ -2335,17 +2355,17 @@ const ProfileManagement = () => {
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
       
       <Header />
-      <div className="flex-1 container px-4 sm:px-6 mx-auto max-w-6xl">
-        {/* Profile Header - Fully Responsive */}
-        <div className="relative z-10 mt-2 sm:mt-4 md:mt-6 lg:mt-8">
+      <div className="flex-1 w-full px-2 sm:px-4 max-w-full overflow-x-hidden">
+        {/* Profile Header - Optimized Spacing */}
+        <div className="relative z-10 mt-1 sm:mt-2 md:mt-3 lg:mt-4">
           <div className="bg-gradient-to-r from-[#C91C1C] to-[#FF5757] rounded-xl md:rounded-[2rem] shadow-lg overflow-hidden">
             {/* Background patterns */}
             <div className="absolute top-0 right-0 w-32 h-32 sm:w-40 sm:h-40 md:w-60 md:h-60 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3" />
             <div className="absolute bottom-0 left-0 w-16 h-16 sm:w-20 sm:h-20 md:w-40 md:h-40 bg-white/10 rounded-full translate-y-1/3 -translate-x-1/4" />
             <div className="absolute top-1/2 right-1/4 w-8 h-8 sm:w-12 sm:h-12 md:w-20 md:h-20 bg-white/10 rounded-full" />
             
-            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 z-10">
-              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8">
+            <div className="relative p-3 sm:p-4 md:p-6 lg:p-8 z-10">
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 md:gap-4 lg:gap-6">
                 <div className="relative group">
                   {/* Profile Image with Size Adjustments */}
                   <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 bg-white rounded-full border-4 border-white shadow-xl overflow-hidden transition-transform group-hover:scale-105">
@@ -2421,8 +2441,8 @@ const ProfileManagement = () => {
             </div>
           </div>
           
-          {/* Mobile Edit Button - Positioned for Better Mobile Experience */}
-          <div className="sm:hidden -mt-4 mb-4 text-center">
+          {/* Mobile Edit Button - Optimized Spacing */}
+          <div className="sm:hidden -mt-3 mb-2 text-center">
             <button 
               onClick={() => {
                 setFormData(prepareFormData(userData));
@@ -2443,8 +2463,8 @@ const ProfileManagement = () => {
           </div>
         </div>
 
-        {/* Responsive Tabs with Sizing Adjustments */}
-        <div className="mt-4 sm:mt-6 md:mt-8 max-w-3xl mx-auto">
+        {/* Responsive Tabs - Optimized Spacing */}
+        <div className="mt-2 sm:mt-3 md:mt-4 w-full max-w-4xl mx-auto px-2">
           <div className="overflow-x-auto no-scrollbar pb-0.5">
             <div className="grid grid-cols-3 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-w-[350px]">
               <button
@@ -2484,8 +2504,8 @@ const ProfileManagement = () => {
           </div>
         </div>
 
-        {/* Content Area with Responsive Spacing */}
-        <div className="py-4 sm:py-6 md:py-8 px-0 sm:px-4">
+        {/* Content Area - Optimized Spacing */}
+        <div className="py-2 sm:py-3 md:py-4 w-full max-w-5xl mx-auto px-1 sm:px-2">
           {/* Error Message */}
           {error && (
             <div className="max-w-5xl mx-auto mb-4">

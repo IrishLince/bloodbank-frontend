@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { IoArrowBack } from "react-icons/io5";
 import { Eye, EyeOff } from 'lucide-react';
+import { formatDonorPhone, stripCountryCode } from '../utils/phoneFormatter';
 import flagLogo from '../assets/Logophonenumber.png';
 import cover from '../assets/cover.png';
 import LogoSignup from '../assets/LogoSignup.png';
@@ -47,11 +48,8 @@ const ForgotPassword = () => {
     return cleaned; // Return whatever we have
   };
 
-  // Helper function to format phone for display with +63 prefix
-  const formatPhoneForDisplay = (phone) => {
-    const stripped = stripCountryCode(phone);
-    return stripped.length === 10 ? `+63 ${stripped}` : phone;
-  };
+  // Use imported phone formatting utility
+  const formatPhoneForDisplay = formatDonorPhone;
 
   useEffect(() => {
     let timer;

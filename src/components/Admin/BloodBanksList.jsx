@@ -15,7 +15,7 @@ const BloodBanksList = () => {
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
 
   useEffect(() => {
     fetchBloodBanks();
@@ -298,8 +298,16 @@ const BloodBanksList = () => {
                 <div className="bg-gradient-to-r from-red-500 to-red-600 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="bg-white/20 p-2 rounded-lg">
-                        <Building2 className="w-6 h-6 text-white" />
+                      <div className="bg-white/20 rounded-full w-12 h-12 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {bloodBank.profilePhotoUrl ? (
+                          <img 
+                            src={bloodBank.profilePhotoUrl} 
+                            alt={`${bloodBank.bloodBankName || 'Blood Bank'} profile`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Building2 className="w-8 h-8 text-white" />
+                        )}
                       </div>
                       <h3 className="text-lg font-bold text-white truncate">
                         {bloodBank.bloodBankName || 'Unnamed Blood Bank'}

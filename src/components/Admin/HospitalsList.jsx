@@ -189,8 +189,16 @@ const HospitalsList = () => {
                 <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="bg-white/20 p-2 rounded-lg">
-                        <Hospital className="w-6 h-6 text-white" />
+                      <div className="bg-white/20 rounded-full w-12 h-12 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {hospital.profilePhotoUrl ? (
+                          <img 
+                            src={hospital.profilePhotoUrl} 
+                            alt={`${hospital.hospitalName || 'Hospital'} profile`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Hospital className="w-8 h-8 text-white" />
+                        )}
                       </div>
                       <h3 className="text-lg font-bold text-white truncate">
                         {hospital.hospitalName || 'Unnamed Hospital'}
