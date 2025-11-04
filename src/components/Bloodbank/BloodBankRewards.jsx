@@ -335,11 +335,11 @@ const BloodBankRewards = () => {
               <Star className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl font-bold text-gray-900">
-              Reward Vouchers
+              Incentive Vouchers
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Validate and accept donor reward vouchers
+            Validate and accept donor incentive vouchers
           </p>
         </motion.div>
 
@@ -420,7 +420,7 @@ const BloodBankRewards = () => {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-600 font-bold mt-1">4.</span>
-              <span>Accept the voucher if valid and process the reward</span>
+              <span>Accept the voucher if valid and process the incentive</span>
             </li>
           </ul>
         </motion.div>
@@ -464,7 +464,7 @@ const BloodBankRewards = () => {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Voucher Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Reward</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Incentive</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Donor</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
                       <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Status</th>
@@ -590,51 +590,53 @@ const BloodBankRewards = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
           >
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                   {validationResult.isValid ? (
-                    <FiCheckCircle className="w-6 h-6 text-green-600" />
+                    <FiCheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                   ) : (
-                    <FiXCircle className="w-6 h-6 text-red-600" />
+                    <FiXCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                   )}
                   Voucher Details
                 </h3>
                 <button
                   onClick={() => setShowValidationModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
                 >
-                  <FiXCircle className="w-6 h-6" />
+                  <FiXCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
 
               {/* Voucher Info */}
               <div className="space-y-4 mb-6">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Voucher Code</p>
-                      <p className="text-lg font-semibold text-gray-900">{validationResult.voucher.voucherCode}</p>
+                      <p className="text-base sm:text-lg font-semibold text-gray-900 break-all">{validationResult.voucher.voucherCode}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Status</p>
-                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(validationResult.voucher.status)}`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getStatusColor(validationResult.voucher.status)}`}>
                         {validationResult.voucher.status}
                       </span>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Reward Type</p>
-                      <p className="text-lg font-semibold text-gray-900">{validationResult.voucher.rewardType}</p>
+                    <div className="sm:col-span-2">
+                      <p className="text-sm text-gray-600 mb-1">Incentive Type</p>
+                      <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
+                        {validationResult.voucher.rewardType.replace(/_/g, ' ')}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Points Cost</p>
-                      <p className="text-lg font-semibold text-gray-900">{validationResult.voucher.pointsCost} points</p>
+                      <p className="text-base sm:text-lg font-semibold text-gray-900">{validationResult.voucher.pointsCost} points</p>
                     </div>
                     {validationResult.voucher.redeemableAt && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <p className="text-sm text-gray-600 mb-1">Redeemable At</p>
-                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                           validationResult.voucher.redeemableAt === 'HOSPITAL' ? 'bg-red-100 text-red-800' :
                           validationResult.voucher.redeemableAt === 'BLOODBANK' ? 'bg-green-100 text-green-800' :
                           'bg-purple-100 text-purple-800'
@@ -650,38 +652,38 @@ const BloodBankRewards = () => {
 
                 {/* Donor Information */}
                 <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <FiUser className="w-5 h-5 text-blue-600" />
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FiUser className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                     Donor Information
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Name</p>
-                      <p className="text-base font-medium text-gray-900">{validationResult.donorName}</p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-words">{validationResult.donorName}</p>
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <p className="text-sm text-gray-600 mb-1">Email</p>
-                      <p className="text-base font-medium text-gray-900">{validationResult.donorEmail}</p>
+                      <p className="text-sm sm:text-base font-medium text-gray-900 break-all">{validationResult.donorEmail}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Dates */}
                 <div className="bg-green-50 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <FiCalendar className="w-5 h-5 text-green-600" />
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FiCalendar className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     Important Dates
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Redeemed Date</p>
-                      <p className="text-base font-medium text-gray-900">
+                      <p className="text-sm sm:text-base font-medium text-gray-900">
                         {new Date(validationResult.voucher.redeemedDate).toLocaleDateString()}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Expiry Date</p>
-                      <p className="text-base font-medium text-gray-900">
+                      <p className="text-sm sm:text-base font-medium text-gray-900">
                         {validationResult.voucher.expiryDate 
                           ? new Date(validationResult.voucher.expiryDate).toLocaleDateString()
                           : 'N/A'}
@@ -693,7 +695,7 @@ const BloodBankRewards = () => {
 
               {/* Actions */}
               {validationResult.isValid && (
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => {
                       setVoucherToCancel({
@@ -932,7 +934,7 @@ const BloodBankRewards = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-sm text-gray-600">Reward:</span>
+                      <span className="text-sm text-gray-600">Incentive:</span>
                       <span className="ml-2 text-sm text-gray-900">
                         {voucherToCancel.rewardTitle}
                       </span>

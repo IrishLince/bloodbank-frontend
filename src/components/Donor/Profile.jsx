@@ -2239,9 +2239,6 @@ const ProfileManagement = () => {
             <span className="text-gray-900 font-medium">
               {userData.bloodType === "Unknown" ? "Unknown Blood Type" : `Type ${userData.bloodType}`}
             </span>
-            {userData.bloodType !== "Unknown" && (
-              <p className="text-xs text-gray-500">Compatible with: {userData.bloodType}, AB+</p>
-            )}
             {userData.bloodType === "Unknown" && (
               <p className="text-xs text-red-500">Click Edit to update your blood type</p>
             )}

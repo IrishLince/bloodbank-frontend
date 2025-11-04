@@ -354,44 +354,44 @@ const DonationList = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-red-600 mb-6">List of Donations</h1>
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold text-red-600 mb-4 sm:mb-6">List of Donations</h1>
 
       {/* Donation Summary - Moved to top */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Donation Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Total Donations</p>
-            <p className="text-2xl font-bold text-gray-600">{filteredDonations.length}</p>
+      <div className="mb-4 sm:mb-6 bg-white p-4 rounded-lg shadow">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Donation Summary</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600">Total Donations</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-600">{filteredDonations.length}</p>
           </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Scheduled Donations</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600">Scheduled Donations</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600">
               {filteredDonations
                 .filter((donation) => donation.status === "Scheduled" || donation.status === "Pending")
                 .length}
             </p>
           </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Complete Donations</p>
-            <p className="text-2xl font-bold text-green-600">
+          <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600">Complete Donations</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-600">
               {filteredDonations
                 .filter((donation) => donation.status === "Complete" || donation.status === "Completed")
                 .length}
             </p>
           </div>
-          <div className="bg-orange-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Deferred Donations</p>
-            <p className="text-2xl font-bold text-orange-600">
+          <div className="bg-orange-50 p-3 sm:p-4 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600">Deferred Donations</p>
+            <p className="text-xl sm:text-2xl font-bold text-orange-600">
               {filteredDonations
                 .filter((donation) => donation.status === "Deferred")
                 .length}
             </p>
           </div>
-          <div className="bg-red-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Missed Donations</p>
-            <p className="text-2xl font-bold text-red-600">
+          <div className="bg-red-50 p-3 sm:p-4 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600">Missed Donations</p>
+            <p className="text-xl sm:text-2xl font-bold text-red-600">
               {filteredDonations
                 .filter((donation) => donation.status === "Missed")
                 .length}
@@ -401,23 +401,23 @@ const DonationList = () => {
       </div>
 
       {/* Search and Filter Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
         <div className="relative w-full md:w-1/3">
           <input
             type="text"
             placeholder="Search by donor name, ID or blood type..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <FaSearch className="absolute left-3 top-3 text-gray-400" />
         </div>
 
-        <div className="flex items-center gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full md:w-auto">
           <div className="flex items-center">
-            <FaFilter className="mr-2 text-red-600" />
+            <FaFilter className="mr-2 text-red-600 flex-shrink-0" />
             <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               value={filterBloodType}
               onChange={(e) => setFilterBloodType(e.target.value)}
             >
@@ -435,7 +435,7 @@ const DonationList = () => {
 
           <div className="flex items-center">
             <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -448,11 +448,11 @@ const DonationList = () => {
           </div>
 
           <button
-            className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="flex items-center justify-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
             onClick={toggleSortOrder}
           >
             {sortOrder === "asc" ? <FaSortAmountUp className="mr-2" /> : <FaSortAmountDown className="mr-2" />}
-            {sortOrder === "asc" ? "Oldest First" : "Newest First"}
+            <span className="whitespace-nowrap">{sortOrder === "asc" ? "Oldest First" : "Newest First"}</span>
           </button>
         </div>
       </div>
@@ -467,8 +467,8 @@ const DonationList = () => {
         </div>
       ) : (
         <>
-          {/* Donations Table */}
-          <div className="overflow-x-auto bg-white rounded-lg shadow">
+          {/* Donations Table - Desktop */}
+          <div className="hidden md:block overflow-x-auto bg-white rounded-lg shadow">
             <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -547,7 +547,13 @@ const DonationList = () => {
                           <option value="Deferred">Mark Deferred</option>
                         </select>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-500 text-xs font-semibold rounded">
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded ${
+                          donation.status === "Missed"
+                            ? "bg-red-100 text-red-700"
+                            : donation.status === "Deferred"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-green-100 text-green-700"
+                        }`}>
                           {donation.status === "Missed" ? (
                             <>
                               <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -587,6 +593,121 @@ const DonationList = () => {
         </table>
       </div>
 
+          {/* Donations Cards - Mobile */}
+          <div className="md:hidden space-y-4">
+            {filteredDonations.length > 0 ? (
+              filteredDonations.map((donation) => (
+                <div key={donation.id} className="bg-white rounded-lg shadow-md p-4 space-y-3">
+                  {/* Donor Info Header */}
+                  <div className="flex items-start justify-between border-b pb-3">
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold text-gray-900">{donation.donorName}</h3>
+                      <p className="text-xs text-gray-500 mt-1">ID: {donation.donorId}</p>
+                    </div>
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
+                        donation.status === "Complete" || donation.status === "Completed"
+                          ? "bg-green-100 text-green-800"
+                          : donation.status === "Missed"
+                            ? "bg-red-100 text-red-800"
+                            : donation.status === "Deferred"
+                              ? "bg-orange-100 text-orange-800"
+                            : donation.status === "Pending" || donation.status === "Scheduled"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {donation.status}
+                    </span>
+                  </div>
+
+                  {/* Donation Details */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-500 text-xs">Blood Type</p>
+                      <span className="inline-block mt-1 px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                        {donation.bloodType}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs">Units</p>
+                      <p className="font-medium text-gray-900 mt-1">{donation.units}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-gray-500 text-xs">Appointment Date</p>
+                      <p className="font-medium text-gray-900 mt-1">{donation.donationDate}</p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-3 border-t space-y-2">
+                    {/* View Medical History Button */}
+                    <button
+                      onClick={() => handleViewMedicalHistory(donation)}
+                      className="w-full inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                      <FaEye className="w-4 h-4 mr-2" />
+                      View Medical History
+                    </button>
+                    
+                    {/* Status Change Dropdown or Status Display */}
+                    {(donation.status !== "Complete" && donation.status !== "Completed" && donation.status !== "Missed" && donation.status !== "Deferred") ? (
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleStatusChange(donation.id, e.target.value)
+                            e.target.value = '' // Reset dropdown
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-gray-600 text-white text-sm font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-sm border-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      >
+                        <option value="">Change Status</option>
+                        <option value="Complete">Mark Complete</option>
+                        <option value="Missed">Mark Missed</option>
+                        <option value="Deferred">Mark Deferred</option>
+                      </select>
+                    ) : (
+                      <div className={`w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold rounded-lg ${
+                        donation.status === "Missed" 
+                          ? "bg-red-100 text-red-700"
+                          : donation.status === "Deferred"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-green-100 text-green-700"
+                      }`}>
+                        {donation.status === "Missed" ? (
+                          <>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Missed
+                          </>
+                        ) : donation.status === "Deferred" ? (
+                          <>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            Deferred
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Completed
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                <p className="text-gray-500">No donations found matching your criteria.</p>
+              </div>
+            )}
+          </div>
+
         </>
       )}
 
@@ -603,57 +724,58 @@ const DonationList = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-auto"
+              className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto"
             >
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-red-500" />
-                  Answer Review
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-3 sm:p-4 flex items-center justify-between z-10">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                  <span className="hidden sm:inline">Answer Review</span>
+                  <span className="sm:hidden">Review</span>
                 </h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <button
                     onClick={handlePrint}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     title="Print Review"
                   >
-                    <Printer className="w-5 h-5 text-gray-600" />
+                    <Printer className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                   </button>
                   <button
                     onClick={closeMedicalModal}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <X className="w-5 h-5 text-gray-600" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                   </button>
                 </div>
               </div>
 
               <div ref={printRef} id="printable-content">
                 {selectedMedicalHistory && Object.keys(selectedMedicalHistory).length > 0 ? (
-                  <div className="p-8">
-                    <div className="text-center mb-8">
-                      <h2 className="text-2xl font-bold text-gray-800">Medical History Review</h2>
-                      <p className="text-gray-600 mt-2">Blood Donation Eligibility Check</p>
-                      <p className="text-sm text-gray-500 mt-1">Date: {new Date().toLocaleDateString()}</p>
-                      <p className="text-sm text-gray-500">Donor: {selectedDonorName}</p>
+                  <div className="p-4 sm:p-8">
+                    <div className="text-center mb-6 sm:mb-8">
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Medical History Review</h2>
+                      <p className="text-sm sm:text-base text-gray-600 mt-2">Blood Donation Eligibility Check</p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1">Date: {new Date().toLocaleDateString()}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">Donor: {selectedDonorName}</p>
                     </div>
 
                     {/* Donor Information */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
-                      <h3 className="font-semibold text-gray-800 mb-4">Donor Information</h3>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-800 mb-3 sm:mb-4">Donor Information</h3>
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex justify-between text-xs sm:text-sm flex-wrap gap-1">
                           <span className="text-gray-600">Name:</span>
                           <span className="font-medium">{selectedDonorName}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs sm:text-sm flex-wrap gap-1">
                           <span className="text-gray-600">Blood Type:</span>
                           <span className="font-medium">{selectedMedicalHistory.bloodType || 'N/A'}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs sm:text-sm flex-wrap gap-1">
                           <span className="text-gray-600">Age:</span>
                           <span className="font-medium">{selectedMedicalHistory.age || 'N/A'}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs sm:text-sm flex-wrap gap-1">
                           <span className="text-gray-600">Appointment Date:</span>
                           <span className="font-medium">
                             {selectedMedicalHistory.appointmentDate ? 
@@ -662,7 +784,7 @@ const DonationList = () => {
                             }
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs sm:text-sm flex-wrap gap-1">
                           <span className="text-gray-600">Appointment Time:</span>
                           <span className="font-medium">
                             {selectedMedicalHistory.appointmentTime || 'N/A'}

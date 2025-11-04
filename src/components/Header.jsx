@@ -538,7 +538,7 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
           { to: "/hospital", label: "Hospital", icon: <Building2 className="w-5 h-5" /> },
           { to: "/list-of-donation", label: "List of Donation", icon: <List className="w-5 h-5" /> },
           { to: "/inventory", label: "Inventory", icon: <Package className="w-5 h-5" /> },
-          { to: "/bloodbank/rewards", label: "Rewards", icon: <Star className="w-5 h-5" /> },
+          { to: "/bloodbank/rewards", label: "Incentives", icon: <Star className="w-5 h-5" /> },
           { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
         ]
       }
