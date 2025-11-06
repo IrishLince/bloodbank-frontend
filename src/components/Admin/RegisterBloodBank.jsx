@@ -24,6 +24,8 @@ const RegisterBloodBank = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
+  const [previewCoverImage, setPreviewCoverImage] = useState(null);
+  const [coverImageFile, setCoverImageFile] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,6 +73,32 @@ const RegisterBloodBank = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, coverImage: 'Please select an image file' }));
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, coverImage: 'Image size must be less than 5MB' }));
+        return;
+      }
+      
+      setCoverImageFile(file);
+      setErrors(prev => ({ ...prev, coverImage: '' }));
+
+      // Create a preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewCoverImage(reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -151,6 +179,10 @@ const RegisterBloodBank = () => {
       if (photoFile) {
         formDataToSend.append('photo', photoFile);
       }
+      
+      if (coverImageFile) {
+        formDataToSend.append('coverImage', coverImageFile);
+      }
 
       const response = await fetchWithAuth('/admin/register-bloodbank', {
         method: 'POST',
@@ -210,6 +242,145 @@ const RegisterBloodBank = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              {/* Enhanced Blood Bank Profile Picture Upload */}
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Blood Bank Profile Image</h2>
+                <div className="flex flex-col items-center">
+                  {/* Enhanced preview with better aspect ratio for donation centers */}
+                  <div className="w-48 h-36 rounded-xl overflow-hidden border-4 border-gray-200 shadow-lg mb-4 hover:border-red-300 transition-all duration-300 hover:shadow-xl bg-white">
+                    {previewImage ? (
+                      <img 
+                        src={previewImage} 
+                        alt="Blood Bank preview" 
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-red-50 to-pink-100 flex flex-col items-center justify-center">
+                        <Upload className="text-red-400 w-10 h-10 mb-2" />
+                        <span className="text-xs text-red-600 font-medium">Blood Bank Image</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Enhanced upload button */}
+                  <label className="cursor-pointer flex items-center justify-center px-8 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-full text-sm font-semibold hover:from-red-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                    <Upload size={16} className="mr-2" />
+                    {previewImage ? 'Change Image' : 'Choose Image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureChange}
+                      className="hidden"
+                    />
+                  </label>
+                  
+                  {/* Error display */}
+                  {errors.photo && (
+                    <motion.p 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"
+                    >
+                      {errors.photo}
+                    </motion.p>
+                  )}
+                  
+                  {/* Enhanced help text */}
+                  <div className="text-center mt-3">
+                    <p className="text-xs text-gray-600 font-medium">
+                      {previewImage ? 'Image ready for upload!' : 'Upload a professional image for your blood bank'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This image will be displayed in the donation centers directory
+                    </p>
+                    <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Max 5MB
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        JPG, PNG, WebP
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                        Auto-optimized
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cover Image Upload Section */}
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Blood Bank Cover Image</h2>
+                <div className="flex flex-col items-center">
+                  {/* Cover image preview with landscape aspect ratio */}
+                  <div className="w-full max-w-2xl h-48 rounded-xl overflow-hidden border-4 border-gray-200 shadow-lg mb-4 hover:border-red-300 transition-all duration-300 hover:shadow-xl bg-white">
+                    {previewCoverImage ? (
+                      <img 
+                        src={previewCoverImage} 
+                        alt="Blood Bank Cover preview" 
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center">
+                        <Upload className="text-blue-400 w-12 h-12 mb-2" />
+                        <span className="text-sm text-blue-600 font-medium">Cover Image (Optional)</span>
+                        <span className="text-xs text-blue-500 mt-1">Landscape format recommended</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Enhanced upload button */}
+                  <label className="cursor-pointer flex items-center justify-center px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                    <Upload size={16} className="mr-2" />
+                    {previewCoverImage ? 'Change Cover Image' : 'Choose Cover Image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                  
+                  {/* Error display */}
+                  {errors.coverImage && (
+                    <motion.p 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"
+                    >
+                      {errors.coverImage}
+                    </motion.p>
+                  )}
+                  
+                  {/* Enhanced help text */}
+                  <div className="text-center mt-3">
+                    <p className="text-xs text-gray-600 font-medium">
+                      {previewCoverImage ? 'Cover image ready for upload!' : 'Upload a cover image for your blood bank (optional)'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This image will be displayed as a header on your blood bank profile and donation centers listing
+                    </p>
+                    <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Max 5MB
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        JPG, PNG, WebP
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                        16:9 Recommended
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Account Information */}
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Account Information</h2>
@@ -289,38 +460,6 @@ const RegisterBloodBank = () => {
                       <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
                     )}
                   </div>
-                </div>
-              </div>
-
-              {/* Profile Picture Upload */}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Profile Picture</h2>
-                <div className="flex flex-col items-center">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg mb-4 hover:border-red-300 transition-colors duration-300">
-                    {previewImage ? (
-                      <img src={previewImage} alt="Profile preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <Upload className="text-gray-400 w-8 h-8" />
-                      </div>
-                    )}
-                  </div>
-                  <label className="cursor-pointer flex items-center justify-center px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-full text-sm font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:scale-105 shadow-sm">
-                    <Upload size={16} className="mr-2" />
-                    Choose Photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureChange}
-                      className="hidden"
-                    />
-                  </label>
-                  {errors.photo && (
-                    <p className="mt-2 text-sm text-red-600">{errors.photo}</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-2">
-                    Optional - Upload a profile picture for this blood bank
-                  </p>
                 </div>
               </div>
 

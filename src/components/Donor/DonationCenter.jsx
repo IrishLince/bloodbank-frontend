@@ -210,8 +210,19 @@ export default function DonationCenter() {
       setBloodBanksLoading(true)
       setBloodBanksError(null)
       
+      console.log(`🔄 FETCHING BLOOD BANKS - User Location:`, userLocation ? 'Available' : 'Not Available');
+      console.log(`🔄 Permission Status:`, permissionStatus);
+      
       // Fetch ALL blood banks with distance calculation (we'll filter on frontend for accuracy)
       const allData = await hospitalService.getHospitalsForLocation(userLocation, 999) // 999km limit = gets ALL blood banks
+      
+      console.log(`📊 API RESPONSE: Received ${allData.length} blood banks from hospitalService.getHospitalsForLocation`);
+      console.log(`🏥 Blood Banks:`, allData.map(bb => ({ 
+        id: bb.id, 
+        name: bb.name || bb.bloodBankName, 
+        hasCoords: !!(bb.coordinates?.lat && bb.coordinates?.lng),
+        calculatedDistance: bb.calculatedDistance 
+      })));
       
       // Use geocoding for accurate pin placement based on addresses
       console.log("🎯 Starting geocoding for accurate pin placement...");
@@ -221,7 +232,13 @@ export default function DonationCenter() {
       // Calculate distances for all blood banks if user location is available AND permission is granted
       if (userLocation && permissionStatus === 'granted' && geocodedData.length > 0) {
         console.log('🔍 LOCATION PERMISSION GRANTED - Calculating distances for', geocodedData.length, 'blood banks');
+        
+        let calculatedCount = 0;
+        let missingCoordsCount = 0;
+        
         geocodedData.forEach(bloodBank => {
+          const bankName = bloodBank.name || bloodBank.bloodBankName || 'Unknown Bank';
+          
           // Use geocoded coordinates (lat/lng) or fallback to coordinates object
           const bankLat = bloodBank.lat || (bloodBank.coordinates && bloodBank.coordinates.lat);
           const bankLng = bloodBank.lng || (bloodBank.coordinates && bloodBank.coordinates.lng);
@@ -236,23 +253,79 @@ export default function DonationCenter() {
               const distanceInMeters = calculateStraightLineDistance(finalUserLat, finalUserLng, bankLat, bankLng);
               bloodBank.calculatedDistance = distanceInMeters;
               bloodBank.distanceText = formatDistanceMeters(distanceInMeters);
+              calculatedCount++;
+              
+              console.log(`📏 DISTANCE CALCULATED: ${bankName} - ${bloodBank.distanceText} (${distanceInMeters}m)`);
+            } else {
+              console.log(`❌ INVALID USER LOCATION: Cannot calculate distance for ${bankName}`);
+              bloodBank.calculatedDistance = null;
+              bloodBank.distanceText = 'Enable location to see distance';
             }
-      } else {
-            // Set default values for blood banks without coordinates (999km in meters)
-            bloodBank.calculatedDistance = 999000;
-            bloodBank.distanceText = 'Distance unavailable';
+          } else {
+              console.log(`❌ NO COORDINATES: ${bankName} - Address: "${bloodBank.address}" - Cannot calculate distance`);
+              console.log(`🔍 COORDINATE CHECK for ${bankName}:`, {
+                'bloodBank.lat': bloodBank.lat,
+                'bloodBank.lng': bloodBank.lng,
+                'bloodBank.coordinates': bloodBank.coordinates,
+                'bloodBank.latitude': bloodBank.latitude,
+                'bloodBank.longitude': bloodBank.longitude,
+                'geocoded': bloodBank.geocoded
+              });
+              missingCoordsCount++;
+              // Set values for blood banks without coordinates
+              bloodBank.calculatedDistance = null;
+              bloodBank.distanceText = 'Location not available';
           }
         });
         
-        // Sort by distance for better performance (999km in meters for fallback)
-        geocodedData.sort((a, b) => (a.calculatedDistance || 999000) - (b.calculatedDistance || 999000));
+        console.log(`📊 DISTANCE CALCULATION SUMMARY:`);
+        console.log(`  ✅ Successfully calculated: ${calculatedCount}`);
+        console.log(`  ❌ Missing coordinates: ${missingCoordsCount}`);
+        
+        // Sort by distance for better performance (put null distances at end)
+        geocodedData.sort((a, b) => {
+          const distA = a.calculatedDistance || 999000;
+          const distB = b.calculatedDistance || 999000;
+          return distA - distB;
+        });
       } else if (!userLocation || permissionStatus !== 'granted') {
         console.log('❌ LOCATION NOT AVAILABLE - Permission:', permissionStatus, '| Location:', !!userLocation);
-        // Clear any existing distance data when location is not available
+        // Set appropriate messages when location is not available
         geocodedData.forEach(bloodBank => {
+          const bankName = bloodBank.name || bloodBank.bloodBankName || 'Unknown Bank';
+          const hasCoords = !!(bloodBank.lat || (bloodBank.coordinates && bloodBank.coordinates.lat));
+          
           bloodBank.calculatedDistance = null;
-          bloodBank.distanceText = null;
+          if (hasCoords) {
+            bloodBank.distanceText = 'Enable location to see distance';
+            console.log(`📍 ${bankName}: Has coordinates, waiting for location permission`);
+          } else {
+            bloodBank.distanceText = 'Location not available';
+            console.log(`❌ ${bankName}: No coordinates available`);
+          }
         });
+      }
+      
+      console.log(`🗄️ SETTING BLOOD BANKS STATE: ${geocodedData.length} blood banks`);
+      
+      // Better coordinate tracking - check both database coordinates and geocoded coordinates
+      const withDatabaseCoords = geocodedData.filter(bb => bb.coordinates?.lat && bb.coordinates?.lng);
+      const withGeocodedCoords = geocodedData.filter(bb => bb.lat && bb.lng);
+      const totalWithCoords = geocodedData.filter(bb => (bb.lat && bb.lng) || (bb.coordinates?.lat && bb.coordinates?.lng));
+      const withoutAnyCoords = geocodedData.filter(bb => !(bb.lat && bb.lng) && !(bb.coordinates?.lat && bb.coordinates?.lng));
+      
+      console.log(`📊 COORDINATE STATUS BREAKDOWN:`);
+      console.log(`  🏦 Database coordinates: ${withDatabaseCoords.length}`);
+      console.log(`  🌍 Geocoded coordinates: ${withGeocodedCoords.length}`);
+      console.log(`  ✅ Total with coordinates: ${totalWithCoords.length}`);
+      console.log(`  ❌ Still without coordinates: ${withoutAnyCoords.length}`);
+      
+      if (withoutAnyCoords.length > 0) {
+        console.log(`⚠️ BANKS STILL WITHOUT COORDINATES:`, withoutAnyCoords.map(bb => ({
+          name: bb.name || bb.bloodBankName,
+          address: bb.address,
+          hasAddress: !!bb.address
+        })));
       }
       
       setAllBloodBanks(geocodedData)
@@ -794,7 +867,7 @@ export default function DonationCenter() {
       // Apply precise geolocation filtering with STRICT enforcement
       filteredData = filteredData.filter((bloodBank) => {
         // Use the already calculated distance from the force calculation above
-        if (!bloodBank.calculatedDistance) {
+        if (!bloodBank.calculatedDistance || bloodBank.calculatedDistance === null) {
           console.log(`❌ STRICT FILTER: ${bloodBank.name} - No calculated distance, EXCLUDED`);
           return false;
         }
@@ -855,26 +928,42 @@ export default function DonationCenter() {
     } else if (activeTab === "nearby" && (!userLocation || permissionStatus !== 'granted')) {
       // For nearby tab without location permission: show all blood banks (fallback behavior)
       console.log(`📍 NEARBY TAB: Location not available - showing all ${filteredData.length} blood banks as fallback`);
-    } else if (userLocation && permissionStatus === 'granted') {
-      // For all tab: calculate distances for display but don't filter by distance
-      let calculatedCount = 0;
-      filteredData.forEach((bloodBank) => {
-        if (bloodBank.coordinates) {
-          const { lat: userLat, lng: userLng, latitude: userLatitude, longitude: userLongitude } = userLocation;
-          const { lat: bankLat, lng: bankLng } = bloodBank.coordinates;
-          
-          const finalUserLat = userLat || userLatitude;
-          const finalUserLng = userLng || userLongitude;
-          
-          if (finalUserLat && finalUserLng && bankLat && bankLng) {
-            const distanceInMeters = calculateStraightLineDistance(finalUserLat, finalUserLng, bankLat, bankLng);
-            bloodBank.calculatedDistance = distanceInMeters;
-            bloodBank.distanceText = formatDistanceMeters(distanceInMeters);
-            calculatedCount++;
+    } else {
+      // For "all" tab: show ALL blood banks regardless of location or coordinates
+      console.log(`🌍 ALL TAB: Showing ALL ${filteredData.length} blood banks (no location filtering)`);
+      
+      // Calculate distances for display if location is available, but don't filter
+      if (userLocation && permissionStatus === 'granted') {
+        let calculatedCount = 0;
+        filteredData.forEach((bloodBank) => {
+          if (bloodBank.coordinates && bloodBank.coordinates.lat && bloodBank.coordinates.lng) {
+            const { lat: userLat, lng: userLng, latitude: userLatitude, longitude: userLongitude } = userLocation;
+            const { lat: bankLat, lng: bankLng } = bloodBank.coordinates;
+            
+            const finalUserLat = userLat || userLatitude;
+            const finalUserLng = userLng || userLongitude;
+            
+            if (finalUserLat && finalUserLng && bankLat && bankLng) {
+              const distanceInMeters = calculateStraightLineDistance(finalUserLat, finalUserLng, bankLat, bankLng);
+              bloodBank.calculatedDistance = distanceInMeters;
+              bloodBank.distanceText = formatDistanceMeters(distanceInMeters);
+              calculatedCount++;
+            }
+          } else {
+            // Ensure blood banks without coordinates still have distance indicators
+            bloodBank.calculatedDistance = null;
+            bloodBank.distanceText = 'Location not available';
           }
-        }
-      });
-      console.log(`📏 ALL TAB: Calculated distances for ${calculatedCount}/${filteredData.length} centers`);
+        });
+        console.log(`📏 ALL TAB: Calculated distances for ${calculatedCount}/${filteredData.length} centers with coordinates`);
+      } else {
+        // No location available: ensure all blood banks show without distance
+        filteredData.forEach((bloodBank) => {
+          bloodBank.calculatedDistance = null;
+          bloodBank.distanceText = 'Enable location to see distance';
+        });
+        console.log(`📍 ALL TAB: No location permission - showing all ${filteredData.length} centers without distance`);
+      }
     }
 
     // Add operating status to each blood bank for UI rendering
@@ -885,43 +974,64 @@ export default function DonationCenter() {
 
     // Apply filters
     if (filters.name) {
+      const beforeNameFilter = filteredData.length;
       filteredData = filteredData.filter((item) => 
         item.name && item.name.toLowerCase().includes(filters.name.toLowerCase())
       )
+      console.log(`🔽 NAME FILTER: "${filters.name}" reduced from ${beforeNameFilter} to ${filteredData.length} blood banks`);
     }
 
     if (filters.location) {
+      const beforeLocationFilter = filteredData.length;
       filteredData = filteredData.filter((item) => 
         item.location && item.location.toLowerCase().includes(filters.location.toLowerCase())
       )
+      console.log(`📍 LOCATION FILTER: "${filters.location}" reduced from ${beforeLocationFilter} to ${filteredData.length} blood banks`);
     }
 
     if (filters.bloodTypes) {
+      const beforeBloodTypeFilter = filteredData.length;
       filteredData = filteredData.filter((item) => {
         const bloodTypesStr = getBloodTypesString(item.bloodTypes || item.bloodTypesAvailable)
         return bloodTypesStr.toLowerCase().includes(filters.bloodTypes.toLowerCase())
       })
+      console.log(`🩸 BLOOD TYPE FILTER: "${filters.bloodTypes}" reduced from ${beforeBloodTypeFilter} to ${filteredData.length} blood banks`);
     }
 
     if (filters.availability !== "all") {
+      const beforeAvailabilityFilter = filteredData.length;
       filteredData = filteredData.filter(
         (item) => item.availability && item.availability.toLowerCase() === filters.availability.toLowerCase(),
       )
+      console.log(`✅ AVAILABILITY FILTER: "${filters.availability}" reduced from ${beforeAvailabilityFilter} to ${filteredData.length} blood banks`);
     }
 
     // Apply search
     if (searchTerm) {
+      const beforeSearch = filteredData.length;
       const searchLower = searchTerm.toLowerCase()
       filteredData = filteredData.filter(
         (bloodBank) => {
           const bloodTypesStr = getBloodTypesString(bloodBank.bloodTypes || bloodBank.bloodTypesAvailable)
-          return (
+          const matches = (
             (bloodBank.name && bloodBank.name.toLowerCase().includes(searchLower)) ||
             (bloodBank.address || bloodBank.location || '').toLowerCase().includes(searchLower) ||
             bloodTypesStr.toLowerCase().includes(searchLower)
-          )
+          );
+          
+          if (!matches) {
+            console.log(`🔍 SEARCH EXCLUDED: "${bloodBank.name || bloodBank.bloodBankName}" - doesn't match "${searchTerm}"`);
+          }
+          
+          return matches;
         }
       )
+      
+      console.log(`🔍 SEARCH FILTER: "${searchTerm}" reduced from ${beforeSearch} to ${filteredData.length} blood banks`);
+      
+      if (filteredData.length === 0) {
+        console.warn(`🚨 SEARCH FILTER: No blood banks match search term "${searchTerm}"`);
+      }
     }
 
     // Apply sorting
@@ -983,6 +1093,28 @@ export default function DonationCenter() {
       filteredData.forEach(bank => {
         console.log(`  ✅ ${bank.name}: ${(bank.calculatedDistance/1000).toFixed(1)}km`);
       });
+    }
+
+    // 📊 FINAL RESULTS SUMMARY
+    console.log(`📊 FINAL RESULTS SUMMARY:`)
+    console.log(`  🏥 Total Blood Banks Displaying: ${filteredData.length}`)
+    console.log(`  🗄️ Total Blood Banks in State: ${bloodBanks.length}`)
+    console.log(`  🔍 Search Term: "${searchTerm}"`)
+    console.log(`  📍 Active Tab: ${activeTab}`)
+    console.log(`  📡 User Location: ${userLocation ? 'Available' : 'Not Available'}`)
+    console.log(`  🔐 Permission: ${permissionStatus}`)
+    console.log(`  📋 Blood Bank Names: ${filteredData.map(bb => bb.name || bb.bloodBankName).join(', ')}`)
+    
+    // CRITICAL: Warn if showing fewer than expected
+    if (filteredData.length < bloodBanks.length) {
+      console.warn(`⚠️ WARNING: Showing ${filteredData.length} out of ${bloodBanks.length} total blood banks!`);
+      const missing = bloodBanks.filter(bb => !filteredData.find(f => f.id === bb.id));
+      console.warn(`❌ Missing Blood Banks:`, missing.map(bb => ({ 
+        name: bb.name || bb.bloodBankName, 
+        id: bb.id, 
+        hasCoords: !!(bb.coordinates?.lat && bb.coordinates?.lng),
+        calculatedDistance: bb.calculatedDistance
+      })));
     }
 
     return filteredData
@@ -2315,19 +2447,38 @@ export default function DonationCenter() {
               </div>
           </div>
           </div>
-          {(distanceInfo || bloodBank.calculatedDistance || bloodBank.distanceText) && permissionStatus === 'granted' && userLocation ? (
-            <div className="flex items-center gap-1 text-red-600 bg-red-100 px-3 py-1.5 rounded-full">
-              <Navigation className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                {distanceInfo?.distance?.text || bloodBank.distanceText || (bloodBank.calculatedDistance ? formatDistanceMeters(bloodBank.calculatedDistance) : 'N/A')}
-              </span>
-            </div>
-          ) : (!userLocation || permissionStatus !== 'granted') && (
-            <div className="flex items-center gap-1 text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">
-              <MapPinOff className="w-4 h-4" />
-              <span className="text-sm">Enable location</span>
-            </div>
-          )}
+          {(() => {
+            // Always show distance information when user location is available
+            if (permissionStatus === 'granted' && userLocation) {
+              const distanceText = distanceInfo?.distance?.text || bloodBank.distanceText || 
+                (bloodBank.calculatedDistance ? formatDistanceMeters(bloodBank.calculatedDistance) : null);
+              
+              if (distanceText && distanceText !== 'Location not available') {
+                return (
+                  <div className="flex items-center gap-1 text-red-600 bg-red-100 px-3 py-1.5 rounded-full">
+                    <Navigation className="w-4 h-4" />
+                    <span className="text-sm font-semibold">{distanceText}</span>
+                  </div>
+                );
+              } else {
+                // Blood bank has no coordinates - show "Location not available"
+                return (
+                  <div className="flex items-center gap-1 text-amber-600 bg-amber-100 px-3 py-1.5 rounded-full">
+                    <MapPinOff className="w-4 h-4" />
+                    <span className="text-sm">Location not available</span>
+                  </div>
+                );
+              }
+            } else {
+              // No user location permission
+              return (
+                <div className="flex items-center gap-1 text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full">
+                  <MapPinOff className="w-4 h-4" />
+                  <span className="text-sm">Enable location to see distance</span>
+                </div>
+              );
+            }
+          })()}
         </div>
 
         {/* Details */}
@@ -2467,7 +2618,7 @@ export default function DonationCenter() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-red-50/30 via-pink-50/20 to-blue-50/30">
       <Header />
 
       {/* Mobile/Desktop Layout */}
@@ -2516,9 +2667,9 @@ export default function DonationCenter() {
         {!isMobile ? (
           <div className="flex h-full">
             {/* Left Sidebar - Blood Bank List */}
-            <div className={`${isTablet ? 'w-80 min-w-80 max-w-80' : 'w-96 min-w-96 max-w-96'} bg-white shadow-xl border-r border-gray-200 overflow-hidden flex flex-col`}>
+            <div className={`${isTablet ? 'w-80 min-w-80 max-w-80' : 'w-96 min-w-96 max-w-96'} bg-transparent overflow-hidden flex flex-col`}>
               {/* Enhanced Sidebar Header */}
-              <div className={`${isTablet ? 'p-4' : 'p-6'} border-b border-gray-200 bg-gradient-to-r from-red-50 via-pink-50 to-red-50`}>
+              <div className={`${isTablet ? 'p-4' : 'p-6'} bg-transparent`}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center shadow-lg">
                     <Droplet className="w-5 h-5 text-white" />
@@ -2563,7 +2714,7 @@ export default function DonationCenter() {
 
         {/* Enhanced Tab Navigation */}
               <div className={`${isTablet ? 'p-4 pb-3' : 'p-6 pb-4'}`}>
-                <div className="bg-gray-50 p-1.5 rounded-2xl inline-flex w-full border border-gray-200 shadow-sm">
+                <div className="bg-white/70 backdrop-blur-sm p-1.5 rounded-2xl inline-flex w-full border border-gray-200/50 shadow-lg">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -2624,9 +2775,9 @@ export default function DonationCenter() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="
-                      w-full h-12 pl-12 pr-10 bg-gray-50 hover:bg-white focus:bg-white text-sm 
-                      rounded-xl border border-gray-200 shadow-sm
-                focus:outline-none focus:ring-2 focus:ring-red-500 focus:shadow-lg
+                      w-full h-12 pl-12 pr-10 bg-white/70 backdrop-blur-sm hover:bg-white/90 focus:bg-white text-sm 
+                      rounded-xl border border-gray-200/50 shadow-lg
+                focus:outline-none focus:ring-2 focus:ring-red-500 focus:shadow-xl
                 focus:border-transparent placeholder-gray-500
                 transition-all duration-300
               "
@@ -2645,7 +2796,7 @@ export default function DonationCenter() {
       </div>
 
               {/* Enhanced Blood Bank List */}
-              <div ref={bloodBankListRef} className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-gradient-to-b from-transparent to-gray-50/30`}>
+              <div ref={bloodBankListRef} className={`flex-1 overflow-y-auto ${isTablet ? 'px-4 pb-4' : 'px-6 pb-6'} scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 bg-transparent`}>
         {isLoading || bloodBanksLoading ? (
           <div className="flex justify-center items-center py-12">
             <motion.div
@@ -2769,9 +2920,9 @@ export default function DonationCenter() {
                 )}
 
                 {/* Horizontal Scrollable Cards - ZUS Coffee Style */}
-                <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 z-40 shadow-2xl safe-area-inset-bottom">
+                <div className="absolute bottom-0 left-0 right-0 bg-transparent z-40 safe-area-inset-bottom">
                   {/* Enhanced Header */}
-                  <div className="px-4 py-3 border-b border-gray-100/50">
+                  <div className="px-4 py-3 bg-transparent">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
@@ -2857,7 +3008,7 @@ export default function DonationCenter() {
                             {/* Enhanced Blood Bank Image */}
                             <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative">
                               <img 
-                                src={bloodBank.image || '/api/placeholder/400/200'} 
+                                src={bloodBank.coverImageUrl || bloodBank.image || '/api/placeholder/400/200'} 
                                 alt={bloodBank.name}
                                 className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
                                 onError={(e) => {
@@ -2962,7 +3113,7 @@ export default function DonationCenter() {
                                       </div>
             ) : (
               /* List View */
-              <div ref={bloodBankListRef} className="h-full bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div ref={bloodBankListRef} className="h-full bg-transparent overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pt-20">
 
         {/* Location Status Indicator */}
@@ -3007,7 +3158,7 @@ export default function DonationCenter() {
         {/* Tab Navigation */}
         <div className="mb-6">
           <div className="flex justify-center">
-            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+            <div className="bg-white/80 backdrop-blur-sm p-1 rounded-lg inline-flex shadow-lg border border-gray-200/50">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -3018,7 +3169,7 @@ export default function DonationCenter() {
                   ${!userLocation || permissionStatus !== 'granted' 
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
                     : activeTab === "nearby" 
-                    ? "bg-white text-red-600 shadow-sm" 
+                    ? "bg-white/90 backdrop-blur-sm text-red-600 shadow-sm" 
                     : "text-gray-600 hover:text-gray-900"
                   }
                 `}
@@ -3043,7 +3194,7 @@ export default function DonationCenter() {
                 className={`
                   px-6 py-2 rounded-md text-sm font-medium transition-all duration-200
                   ${activeTab === "all" 
-                    ? "bg-white text-red-600 shadow-sm" 
+                    ? "bg-white/90 backdrop-blur-sm text-red-600 shadow-sm" 
                     : "text-gray-600 hover:text-gray-900"
                   }
                 `}
@@ -3069,8 +3220,8 @@ export default function DonationCenter() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="
-                w-full h-12 pl-12 pr-12 bg-white text-base 
-                rounded-xl shadow-lg border border-gray-200
+                w-full h-12 pl-12 pr-12 bg-white/90 backdrop-blur-sm text-base 
+                rounded-xl shadow-lg border border-gray-200/50
                 focus:outline-none focus:ring-2 focus:ring-red-500 focus:shadow-xl
                 focus:border-transparent placeholder-gray-500
                 transition-all duration-300
@@ -3080,7 +3231,7 @@ export default function DonationCenter() {
             {searchTerm && (
                                         <button 
                 onClick={() => setSearchTerm("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors text-xs"
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-200/70 backdrop-blur-sm hover:bg-gray-300/80 rounded-full flex items-center justify-center transition-colors text-xs"
                                         >
                 ✕
                                         </button>

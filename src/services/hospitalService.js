@@ -294,21 +294,58 @@ class HospitalService {
       });
 
       // Filter hospitals within radius and sort by distance
+      // For maxDistanceKm >= 999 (get all), return all hospitals regardless of coordinates
+      if (maxDistanceKm >= 999) {
+        console.log(`🌍 GET ALL MODE (${maxDistanceKm}km) - Returning ALL ${hospitalsWithDistance.length} blood banks`);
+        
+        // Sort: valid coordinates first (by distance), then invalid coordinates
+        const sortedHospitals = hospitalsWithDistance.sort((a, b) => {
+          // Both have valid coordinates: sort by distance
+          if (a.hasValidCoordinates && b.hasValidCoordinates) {
+            return a.calculatedDistance - b.calculatedDistance;
+          }
+          // Only a has valid coordinates: a comes first
+          if (a.hasValidCoordinates && !b.hasValidCoordinates) {
+            return -1;
+          }
+          // Only b has valid coordinates: b comes first
+          if (!a.hasValidCoordinates && b.hasValidCoordinates) {
+            return 1;
+          }
+          // Neither has valid coordinates: maintain original order
+          return 0;
+        });
+        
+        return sortedHospitals;
+      }
+      
+      // For specific radius filtering, only include hospitals with valid coordinates
       const nearbyHospitals = hospitalsWithDistance
         .filter(h => h.hasValidCoordinates && h.calculatedDistance <= maxDistanceKm)
         .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
       
+      console.log(`🎯 RADIUS FILTER (${maxDistanceKm}km) - Returning ${nearbyHospitals.length} blood banks within radius`);
       return nearbyHospitals;
       
     } catch (error) {
+      console.error('🚨 Error in getHospitalsForLocation:', error);
+      
       // Fallback: Return all hospitals without distance
-      const allHospitals = await this.getAllHospitals();
-      return allHospitals.map(h => ({
-        ...h,
-        calculatedDistance: null,
-        distanceText: 'Error calculating distance',
-        hasValidCoordinates: false
-      }));
+      try {
+        const allHospitals = await this.getAllHospitals();
+        const fallbackHospitals = allHospitals.map(h => ({
+          ...h,
+          calculatedDistance: null,
+          distanceText: 'Error calculating distance',
+          hasValidCoordinates: false
+        }));
+        
+        console.log(`🔄 FALLBACK MODE - Returning ALL ${fallbackHospitals.length} blood banks without distance`);
+        return fallbackHospitals;
+      } catch (fallbackError) {
+        console.error('🚨 Fallback failed:', fallbackError);
+        return [];
+      }
     }
   }
 

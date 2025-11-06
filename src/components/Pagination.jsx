@@ -76,43 +76,63 @@ const Pagination = ({
   }
 
   return (
-    <div className={`flex justify-center items-center px-4 py-3 ${className}`}>
-      {/* Traditional Pagination - Centered */}
-      <div className="flex items-center space-x-2">
-        {/* Page info text */}
-        <span className="text-sm text-gray-600 mr-4">
-          Page {currentPage} of {totalPages}
-        </span>
-
-        {/* Page numbers */}
-        {getPageNumbers().map((page, index) => (
-          <button
-            key={index}
-            onClick={() => handlePageClick(page)}
-            disabled={page === '...'}
-            className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium transition-colors ${
-              page === currentPage
-                ? 'bg-blue-600 text-white shadow-sm'
-                : page === '...'
-                ? 'text-gray-400 cursor-default'
-                : 'text-gray-700 hover:bg-gray-100 border border-gray-300'
-            }`}
-          >
-            {page}
-          </button>
-        ))}
-
-        {/* Next arrow */}
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-3 ${className}`}>
+      {/* Page Info */}
+      <div className="text-sm text-gray-600 order-2 sm:order-1">
+        Showing {startItem} to {endItem} of {totalItems} results
+      </div>
+      
+      {/* Pagination Buttons */}
+      <div className="flex items-center gap-2 order-1 sm:order-2">
+        {/* Previous Button */}
+        <button
+          onClick={handlePrevious}
+          disabled={currentPage === 1}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+            currentPage === 1
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+          }`}
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Previous</span>
+        </button>
+        
+        {/* Page Numbers */}
+        <div className="flex items-center gap-1">
+          {getPageNumbers().map((page, index) => {
+            if (page === '...') {
+              return <span key={index} className="px-2 text-gray-400">...</span>
+            }
+            
+            return (
+              <button
+                key={index}
+                onClick={() => handlePageClick(page)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  currentPage === page
+                    ? 'bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white shadow-md'
+                    : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                {page}
+              </button>
+            )
+          })}
+        </div>
+        
+        {/* Next Button */}
         <button
           onClick={handleNext}
           disabled={currentPage === totalPages}
-          className={`flex items-center justify-center w-8 h-8 rounded border border-gray-300 text-sm transition-colors ${
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
             currentPage === totalPages
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-gray-700 hover:bg-gray-100'
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
           }`}
         >
-          »
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     </div>

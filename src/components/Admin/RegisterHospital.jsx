@@ -190,6 +190,75 @@ const RegisterHospital = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              {/* Enhanced Hospital Profile Picture Upload */}
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Hospital Profile Image</h2>
+                <div className="flex flex-col items-center">
+                  {/* Enhanced preview with better aspect ratio for hospitals */}
+                  <div className="w-48 h-36 rounded-xl overflow-hidden border-4 border-gray-200 shadow-lg mb-4 hover:border-blue-300 transition-all duration-300 hover:shadow-xl bg-white">
+                    {previewImage ? (
+                      <img 
+                        src={previewImage} 
+                        alt="Hospital preview" 
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center">
+                        <Upload className="text-blue-400 w-10 h-10 mb-2" />
+                        <span className="text-xs text-blue-600 font-medium">Hospital Image</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Enhanced upload button */}
+                  <label className="cursor-pointer flex items-center justify-center px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                    <Upload size={16} className="mr-2" />
+                    {previewImage ? 'Change Image' : 'Choose Image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureChange}
+                      className="hidden"
+                    />
+                  </label>
+                  
+                  {/* Error display */}
+                  {errors.photo && (
+                    <motion.p 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"
+                    >
+                      {errors.photo}
+                    </motion.p>
+                  )}
+                  
+                  {/* Enhanced help text */}
+                  <div className="text-center mt-3">
+                    <p className="text-xs text-gray-600 font-medium">
+                      {previewImage ? 'Image ready for upload!' : 'Upload a professional image for your hospital'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This image will be displayed in the hospital directory
+                    </p>
+                    <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Max 5MB
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        JPG, PNG, WebP
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                        Auto-optimized
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Account Information */}
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Account Information</h2>
@@ -272,38 +341,6 @@ const RegisterHospital = () => {
                 </div>
               </div>
 
-              {/* Profile Picture Upload */}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Profile Picture</h2>
-                <div className="flex flex-col items-center">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg mb-4 hover:border-blue-300 transition-colors duration-300">
-                    {previewImage ? (
-                      <img src={previewImage} alt="Profile preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <Upload className="text-gray-400 w-8 h-8" />
-                      </div>
-                    )}
-                  </div>
-                  <label className="cursor-pointer flex items-center justify-center px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-full text-sm font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:scale-105 shadow-sm">
-                    <Upload size={16} className="mr-2" />
-                    Choose Photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureChange}
-                      className="hidden"
-                    />
-                  </label>
-                  {errors.photo && (
-                    <p className="mt-2 text-sm text-red-600">{errors.photo}</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-2">
-                    Optional - Upload a profile picture for this hospital
-                  </p>
-                </div>
-              </div>
-
               {/* Hospital Information */}
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Hospital Information</h2>
@@ -378,7 +415,7 @@ const RegisterHospital = () => {
                           value={formData.openingTime}
                           onChange={handleChange}
                           required
-                          className="w-full px-4 py-3 rounded-lg border border-green-300 bg-green-50 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                          className="w-full px-4 py-3 rounded-lg border border-blue-300 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         />
                       </div>
                       <div>
@@ -389,7 +426,7 @@ const RegisterHospital = () => {
                           value={formData.closingTime}
                           onChange={handleChange}
                           required
-                          className="w-full px-4 py-3 rounded-lg border border-green-300 bg-green-50 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                          className="w-full px-4 py-3 rounded-lg border border-blue-300 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         />
                       </div>
                     </div>

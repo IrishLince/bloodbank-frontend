@@ -17,6 +17,7 @@ import {
   FiFilter,
   FiInfo
 } from 'react-icons/fi';
+import { ChevronRight } from 'lucide-react';
 
 // Status card component
 const StatusCard = ({ title, count, icon, bgColor, textColor }) => (
@@ -154,6 +155,10 @@ const BloodBagRequests = ({
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [currentRequest, setCurrentRequest] = useState(null);
   const [acceptingVouchers, setAcceptingVouchers] = useState(new Set());
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
   // Handle sorting for requests
   const requestSort = useCallback((key) => {
@@ -476,7 +481,9 @@ const BloodBagRequests = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sortedRequests.map((request) => (
+              {sortedRequests
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map((request) => (
                 <tr key={request.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {request.id}
@@ -542,15 +549,92 @@ const BloodBagRequests = ({
           )}
         </div>
         
-        {/* Informational footer */}
-        {sortedRequests.length > 0 && (
-          <div className="flex items-center justify-between py-3 border-t border-gray-200 mt-4">
-            <div className="flex items-center text-sm text-gray-500">
-              <FiInfo className="mr-1" aria-hidden="true" />
-              <span>Showing {sortedRequests.length} of {pendingRequests.length} total requests</span>
+        {/* Pagination */}
+        {(() => {
+          const totalPages = Math.ceil(sortedRequests.length / itemsPerPage);
+          const startIndex = (currentPage - 1) * itemsPerPage;
+          const endIndex = Math.min(startIndex + itemsPerPage, sortedRequests.length);
+          
+          return sortedRequests.length > 0 && totalPages > 1 ? (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3 border-t border-gray-200 mt-4">
+              {/* Page Info */}
+              <div className="text-sm text-gray-600 order-2 sm:order-1">
+                Showing {startIndex + 1} to {endIndex} of {sortedRequests.length} results
+              </div>
+              
+              {/* Pagination Buttons */}
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                {/* Previous Button */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                    currentPage === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  }`}
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+                
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    const showPage = 
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    
+                    if (!showPage) {
+                      // Show ellipsis
+                      if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-gray-400">...</span>
+                      }
+                      return null
+                    }
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          currentPage === page
+                            ? 'bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white shadow-md'
+                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                {/* Next Button */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                    currentPage === totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          ) : sortedRequests.length > 0 ? (
+            <div className="flex items-center justify-between py-3 border-t border-gray-200 mt-4">
+              <div className="flex items-center text-sm text-gray-500">
+                <FiInfo className="mr-1" aria-hidden="true" />
+                <span>Showing {sortedRequests.length} of {pendingRequests.length} total requests</span>
+              </div>
+            </div>
+          ) : null
+        })()}
       </div>
 
       {/* Modals */}

@@ -15,6 +15,7 @@ const ProfileManagement = () => {
   const [error, setError] = useState(null)
   const [isUpdating, setIsUpdating] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showCoverImageModal, setShowCoverImageModal] = useState(false)
   const [userData, setUserData] = useState({
     fullName: "",
     email: "",
@@ -24,6 +25,7 @@ const ProfileManagement = () => {
     bloodBankId: "",
     licenseNumber: "",
     profilePhotoUrl: "",
+    coverImageUrl: "",
     status: "Active"
   })
 
@@ -70,6 +72,7 @@ const ProfileManagement = () => {
           bloodBankId: bloodBankData.id || bloodBankData.bloodBankId || bloodBankUserId || "",
           licenseNumber: bloodBankData.licenseNumber || "",
           profilePhotoUrl: bloodBankData.profilePhotoUrl || authData.profilePhotoUrl || "",
+          coverImageUrl: bloodBankData.coverImageUrl || authData.coverImageUrl || "",
           status: "Active"
         };
         
@@ -161,6 +164,70 @@ const ProfileManagement = () => {
     }
   };
 
+  // Handle cover image upload
+  const handleCoverImageUpload = async (file) => {
+    setIsUpdating(true);
+    try {
+      setError(null);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('coverImage', file);
+      
+      const response = await fetch(`/api/bloodbank-users/${userData.bloodBankId}/upload-cover-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        // Update local state
+        setUserData(prev => ({
+          ...prev,
+          coverImageUrl: result.data.coverImageUrl
+        }));
+        
+        setShowCoverImageModal(false);
+      } else {
+        setError(result.message || 'Failed to upload cover image');
+      }
+    } catch (error) {
+      setError('Failed to upload cover image: ' + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Handle remove cover image
+  const handleRemoveCoverImage = async () => {
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/bloodbank-users/${userData.bloodBankId}/cover-image`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        setUserData(prev => ({ ...prev, coverImageUrl: null }));
+        setShowCoverImageModal(false);
+        setError(null);
+      } else {
+        const result = await response.json();
+        setError(result.message || 'Failed to remove cover image');
+      }
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   // Handle input changes in the edit form
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -213,9 +280,32 @@ const ProfileManagement = () => {
   const renderProfile = () => (
     <div className="relative bg-gray-50 min-h-screen w-full max-w-full overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
-        {/* Hero Banner with Profile Image */}
-        <div className="bg-gradient-to-r from-red-600 to-red-500 rounded-xl shadow-lg overflow-hidden mb-6">
-          <div className="relative p-5 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8">
+        {/* Hero Banner with Cover Image and Profile Image */}
+        <div className="relative rounded-xl shadow-lg overflow-hidden mb-6">
+          {/* Cover Image Background */}
+          {userData.coverImageUrl ? (
+            <div className="absolute inset-0 z-0">
+              <img 
+                src={userData.coverImageUrl} 
+                alt="Blood Bank Cover" 
+                className="w-full h-full object-cover" 
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+            </div>
+          ) : (
+            <div className="absolute inset-0 z-0 bg-gradient-to-r from-red-600 to-red-500"></div>
+          )}
+          
+          {/* Cover Image Upload Button */}
+          <button
+            onClick={() => setShowCoverImageModal(true)}
+            className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full transition-all"
+            title="Change Cover Image"
+          >
+            <Camera className="w-4 h-4" />
+          </button>
+          
+          <div className="relative z-10 p-5 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8">
             {/* Profile Image */}
             <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-full border-4 border-white flex items-center justify-center relative -mt-4 sm:mt-0 overflow-hidden">
               {userData.profilePhotoUrl ? (
@@ -636,7 +726,46 @@ const ProfileManagement = () => {
         </div>
       )}
       
-      {/* Hidden File Input */}
+      {/* Cover Image Modal */}
+      {showCoverImageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Cover Image</h3>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => document.getElementById('bloodbank-cover-image-input').click()}
+                className="w-full flex items-center justify-center gap-3 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                disabled={isUpdating}
+              >
+                <Camera className="w-5 h-5" />
+                Change Cover Image
+              </button>
+              
+              {userData.coverImageUrl && (
+                <button
+                  onClick={handleRemoveCoverImage}
+                  className="w-full flex items-center justify-center gap-3 p-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  disabled={isUpdating}
+                >
+                  <AlertTriangle className="w-5 h-5" />
+                  Remove Cover Image
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowCoverImageModal(false)}
+                className="w-full p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                disabled={isUpdating}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Hidden File Inputs */}
       <input
         id="bloodbank-profile-photo-input"
         type="file"
@@ -645,6 +774,20 @@ const ProfileManagement = () => {
           const file = e.target.files[0];
           if (file) {
             handleProfilePhotoUpload(file);
+            e.target.value = ''; // Reset input
+          }
+        }}
+        className="hidden"
+      />
+      
+      <input
+        id="bloodbank-cover-image-input"
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (file) {
+            handleCoverImageUpload(file);
             e.target.value = ''; // Reset input
           }
         }}

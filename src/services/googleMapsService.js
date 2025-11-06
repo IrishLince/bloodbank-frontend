@@ -111,19 +111,89 @@ class GoogleMapsService {
             place_id: results[0].place_id
           });
         } else {
-          reject(new Error(`Geocoding failed: ${status}`));
+          // Try fallback geocoding for common Philippine locations
+          const fallbackCoords = this.getFallbackCoordinates(address);
+          if (fallbackCoords) {
+            console.log(`🔄 FALLBACK GEOCODING: Using estimated coordinates for "${address}"`);
+            resolve(fallbackCoords);
+          } else {
+            reject(new Error(`Geocoding failed: ${status}`));
+          }
         }
       });
     });
+  }
+
+  // Fallback coordinates for common Philippine locations
+  getFallbackCoordinates(address) {
+    const addressLower = address.toLowerCase();
+    
+    // Manila area fallbacks
+    if (addressLower.includes('manila') && !addressLower.includes('davao')) {
+      return { lat: 14.5995, lng: 120.9842, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('makati')) {
+      return { lat: 14.5547, lng: 121.0244, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('quezon city') || addressLower.includes('qc')) {
+      return { lat: 14.6760, lng: 121.0437, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('pasay')) {
+      return { lat: 14.5378, lng: 121.0014, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('las piñas') || addressLower.includes('las pinas')) {
+      return { lat: 14.4642, lng: 120.9823, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('guadalupe') && addressLower.includes('makati')) {
+      return { lat: 14.5651, lng: 121.0448, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('antipolo')) {
+      return { lat: 14.5873, lng: 121.1759, formatted_address: address + ' (estimated)' };
+    }
+    
+    // Other major cities
+    if (addressLower.includes('davao')) {
+      return { lat: 7.0731, lng: 125.6128, formatted_address: address + ' (estimated)' };
+    }
+    if (addressLower.includes('cebu')) {
+      return { lat: 10.3157, lng: 123.8854, formatted_address: address + ' (estimated)' };
+    }
+    
+    return null; // No fallback available
   }
 
   // Batch geocode multiple addresses for accurate pin placement
   async batchGeocodeAddresses(bloodBanks) {
     const geocodedBanks = [];
     
+    console.log(`🌍 BATCH GEOCODING: Processing ${bloodBanks.length} blood banks`);
+    
     for (const bank of bloodBanks) {
       try {
-        // Skip if coordinates already exist and seem valid
+        const bankName = bank.name || bank.bloodBankName || 'Unknown Bank';
+        
+        // First check if coordinates already exist in the coordinates object (from database)
+        if (bank.coordinates && bank.coordinates.lat && bank.coordinates.lng && 
+            !isNaN(parseFloat(bank.coordinates.lat)) && !isNaN(parseFloat(bank.coordinates.lng))) {
+          const lat = parseFloat(bank.coordinates.lat);
+          const lng = parseFloat(bank.coordinates.lng);
+          
+          // Check if coordinates are reasonable (not 0,0 or obviously wrong)
+          if (lat !== 0 && lng !== 0 && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+            console.log(`✅ EXISTING COORDS: ${bankName} - Using database coordinates: ${lat}, ${lng}`);
+            geocodedBanks.push({
+              ...bank,
+              lat: lat,
+              lng: lng,
+              latitude: lat,
+              longitude: lng,
+              geocoded: false
+            });
+            continue;
+          }
+        }
+        
+        // Second, check if coordinates exist as separate latitude/longitude fields
         if (bank.latitude && bank.longitude && 
             !isNaN(parseFloat(bank.latitude)) && !isNaN(parseFloat(bank.longitude))) {
           const lat = parseFloat(bank.latitude);
@@ -131,6 +201,7 @@ class GoogleMapsService {
           
           // Check if coordinates are reasonable (not 0,0 or obviously wrong)
           if (lat !== 0 && lng !== 0 && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+            console.log(`✅ EXISTING LAT/LNG: ${bankName} - Using lat/lng fields: ${lat}, ${lng}`);
             geocodedBanks.push({
               ...bank,
               lat: lat,
@@ -143,29 +214,75 @@ class GoogleMapsService {
 
         // Try to geocode using address for accurate pin placement
         if (bank.address) {
-          console.log(`Geocoding address for ${bank.name}: ${bank.address}`);
-          const geocoded = await this.geocodeAddress(bank.address);
+          console.log(`🔍 GEOCODING: ${bankName} - Address: "${bank.address}"`);
+          try {
+            const geocoded = await this.geocodeAddress(bank.address);
+            console.log(`✅ GEOCODED SUCCESS: ${bankName} - Got coordinates: ${geocoded.lat}, ${geocoded.lng}`);
+            
+            geocodedBanks.push({
+              ...bank,
+              lat: geocoded.lat,
+              lng: geocoded.lng,
+              latitude: geocoded.lat,
+              longitude: geocoded.lng,
+              // Update coordinates object to match database structure
+              coordinates: {
+                lat: geocoded.lat,
+                lng: geocoded.lng
+              },
+              formatted_address: geocoded.formatted_address,
+              geocoded: true
+            });
+            
+            // Add small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (geocodeError) {
+            console.error(`❌ GEOCODING FAILED: ${bankName} - ${geocodeError.message}`);
+            console.log(`⚠️ KEEPING ORIGINAL: ${bankName} - Will show "Location not available"`);
+            
+            // Keep original bank data without coordinates
+            geocodedBanks.push({
+              ...bank,
+              lat: null,
+              lng: null,
+              coordinates: bank.coordinates || null,
+              geocoded: false
+            });
+          }
+        } else {
+          console.warn(`⚠️ NO ADDRESS: ${bankName} - Cannot geocode without address`);
           geocodedBanks.push({
             ...bank,
-            lat: geocoded.lat,
-            lng: geocoded.lng,
-            latitude: geocoded.lat,
-            longitude: geocoded.lng,
-            formatted_address: geocoded.formatted_address,
-            geocoded: true
+            lat: null,
+            lng: null,
+            coordinates: bank.coordinates || null,
+            geocoded: false
           });
-          
-          // Add small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 200));
-        } else {
-          console.warn(`No address found for blood bank: ${bank.name}`);
-          geocodedBanks.push(bank);
         }
       } catch (error) {
-        console.error(`Failed to geocode ${bank.name}:`, error);
+        console.error(`❌ GEOCODING ERROR: ${bank.name || bank.bloodBankName}:`, error);
         // Keep original coordinates if geocoding fails
         geocodedBanks.push(bank);
       }
+    }
+    
+    // Summary logging
+    const withCoords = geocodedBanks.filter(bank => bank.lat && bank.lng);
+    const withoutCoords = geocodedBanks.filter(bank => !bank.lat || !bank.lng);
+    const newlyGeocoded = geocodedBanks.filter(bank => bank.geocoded === true);
+    
+    console.log(`📊 GEOCODING SUMMARY:`);
+    console.log(`  🏥 Total blood banks: ${geocodedBanks.length}`);
+    console.log(`  ✅ With coordinates: ${withCoords.length}`);
+    console.log(`  ❌ Without coordinates: ${withoutCoords.length}`);
+    console.log(`  🆕 Newly geocoded: ${newlyGeocoded.length}`);
+    
+    if (withoutCoords.length > 0) {
+      console.log(`⚠️ BANKS WITHOUT COORDINATES:`, withoutCoords.map(bank => ({
+        name: bank.name || bank.bloodBankName,
+        address: bank.address,
+        reason: !bank.address ? 'No address' : 'Geocoding failed'
+      })));
     }
     
     return geocodedBanks;
