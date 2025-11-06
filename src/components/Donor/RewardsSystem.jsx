@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Gift, Award, Clock, ChevronRight, Check, AlertCircle, X, Download, TrendingUp, Star, Medal, Trophy, Heart, Stethoscope, Activity, Zap, Building2 } from "lucide-react"
-import { FiX, FiCornerUpRight, FiGift, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward, FiCheck } from "react-icons/fi"
+import { FiX, FiCornerUpRight, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward, FiCheck } from "react-icons/fi"
 import { toast } from "react-toastify"
 import { fetchWithAuth } from "../../utils/api"
 
