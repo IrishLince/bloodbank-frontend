@@ -23,6 +23,8 @@ import BloodRequestForm from './components/Hospital/BloodRequestForm'
 import SuccessfulRequest from './components/Hospital/SuccessfulRequest';
 import HospitalProfile from './components/Hospital/Profile';
 import HospitalRewards from './components/Hospital/HospitalRewards';
+import HospitalDemo from './components/Hospital/HospitalDemo';
+import HospitalListWithCover from './components/Hospital/HospitalListWithCover';
 
 import { Layout } from './components/Layout';
 import DonorProfile from './components/Donor/Profile';
@@ -219,6 +221,10 @@ function App() {
               element={isLoggedIn ? <Navigate to="/" /> : <ForgotPassword />} 
             />
             <Route path="/about-us" element={<AboutUs />} />
+            
+            {/* Demo Routes - Hospital Cover Components */}
+            <Route path="/hospital-demo" element={<HospitalDemo />} />
+            <Route path="/hospital-list-demo" element={<HospitalListWithCover />} />
             
 
             {/* Protected routes */}
