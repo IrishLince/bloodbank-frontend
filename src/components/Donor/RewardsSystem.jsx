@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Gift, Award, Clock, ChevronRight, Check, AlertCircle, X, Download, TrendingUp, Star, Medal, Trophy, Heart, Stethoscope, Activity, Zap, Building2 } from "lucide-react"
-import { FiX, FiCornerUpRight, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward, FiCheck } from "react-icons/fi"
+import { FiX, FiCornerUpRight, FiGift, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward, FiCheck } from "react-icons/fi"
 import { toast } from "react-toastify"
 import { fetchWithAuth } from "../../utils/api"
 
@@ -23,6 +23,14 @@ const RewardsSystem = () => {
   // Pagination state for Points History
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  
+  // Pagination state for Rewards & Achievements (per location)
+  const [rewardsPagination, setRewardsPagination] = useState({
+    HOSPITAL: 1,
+    BLOODBANK: 1,
+    BOTH: 1
+  })
+  const rewardsPerPage = 3
 
   // Real data from backend
   const [donorName, setDonorName] = useState("")
@@ -45,6 +53,25 @@ const RewardsSystem = () => {
       setCurrentPage(1)
     }
   }, [activeTab])
+  
+  // Reset rewards pagination when switching to available tab
+  useEffect(() => {
+    if (activeTab === 'available') {
+      setRewardsPagination({
+        HOSPITAL: 1,
+        BLOODBANK: 1,
+        BOTH: 1
+      })
+    }
+  }, [activeTab])
+  
+  // Handler for rewards pagination
+  const handleRewardPageChange = (location, newPage) => {
+    setRewardsPagination(prev => ({
+      ...prev,
+      [location]: newPage
+    }))
+  }
 
   const fetchRewardPointsData = async () => {
     try {
@@ -1279,7 +1306,7 @@ const RewardsSystem = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your rewards...</p>
+          <p className="text-gray-600">Loading your incentives...</p>
         </div>
       </div>
     )
@@ -1291,13 +1318,15 @@ const RewardsSystem = () => {
       <div className="absolute top-0 right-0 w-full h-32 bg-[#C91C1C] rounded-b-[30%] opacity-5" />
       <div className="absolute top-0 left-0 w-48 h-48 bg-[#C91C1C] rounded-full blur-3xl opacity-10 -translate-x-1/2 -translate-y-1/2" />
       
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 md:p-6 lg:p-8 w-full max-w-full relative z-10">
+      {/* Constrained container for desktop responsiveness */}
+      <div className="max-w-7xl mx-auto px-2 sm:px-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-3 sm:p-4 md:p-6 lg:p-8 w-full relative z-10">
         <div className="flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
           <div className="flex items-center">
             <div className="bg-red-50 p-2 rounded-full mr-2 sm:mr-3">
               <Gift className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-[#C91C1C]" />
             </div>
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Rewards Center</h2>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Incentives Center</h2>
           </div>
           
           <div className="bg-gradient-to-r from-[#C91C1C] to-[#FF5757] w-full sm:w-auto px-3 sm:px-4 md:px-6 py-2 md:py-3 rounded-lg sm:rounded-xl flex items-center justify-between sm:justify-start shadow-sm sm:shadow-md">
@@ -1387,7 +1416,7 @@ const RewardsSystem = () => {
             }`}
             onClick={() => setActiveTab("available")}
           >
-            Rewards & Achievements
+            Incentives & Achievements
           </button>
           <button
             className={`px-4 py-2 md:px-5 md:py-3 font-medium text-sm whitespace-nowrap rounded-t-lg transition-colors ${
@@ -1397,7 +1426,7 @@ const RewardsSystem = () => {
             }`}
             onClick={() => setActiveTab("redeemed")}
           >
-            Redeemed Rewards
+            Redeemed Incentives
           </button>
           <button
             className={`px-4 py-2 md:px-5 md:py-3 font-medium text-sm whitespace-nowrap rounded-t-lg transition-colors ${
@@ -1422,38 +1451,54 @@ const RewardsSystem = () => {
         </div>
 
         {activeTab === "available" && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Rewards grouped by location */}
-            {Object.keys(rewardsByLocation).map((location) => (
-              <div key={location}>
-                {/* Location Header */}
-                <div className={`mb-4 p-4 rounded-xl ${
-                  location === 'HOSPITAL' ? 'bg-blue-50 border-2 border-blue-200' :
-                  location === 'BLOODBANK' ? 'bg-red-50 border-2 border-red-200' :
-                  'bg-purple-50 border-2 border-purple-200'
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      location === 'HOSPITAL' ? 'bg-blue-100' :
-                      location === 'BLOODBANK' ? 'bg-red-100' :
-                      'bg-purple-100'
-                    }`}>
-                      {getRedeemableAtIcon(location)}
+            {Object.keys(rewardsByLocation).map((location, index) => {
+              // Pagination calculations for current location
+              const currentLocationPage = rewardsPagination[location] || 1
+              const totalRewards = rewardsByLocation[location].length
+              const totalPages = Math.ceil(totalRewards / rewardsPerPage)
+              const startIndex = (currentLocationPage - 1) * rewardsPerPage
+              const endIndex = startIndex + rewardsPerPage
+              const currentRewards = rewardsByLocation[location].slice(startIndex, endIndex)
+              
+              return (
+                <div key={location} className="relative">
+                  {/* Add subtle separator between sections except for first one */}
+                  {index > 0 && (
+                    <div className="mb-6 border-t-2 border-gray-100"></div>
+                  )}
+                  
+                  {/* Location Header - Section Style */}
+                  <div className="mb-5">
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className={`p-2.5 rounded-lg ${
+                        location === 'HOSPITAL' ? 'bg-blue-100' :
+                        location === 'BLOODBANK' ? 'bg-red-100' :
+                        'bg-purple-100'
+                      }`}>
+                        {getRedeemableAtIcon(location)}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {getRedeemableAtLabel(location)}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {totalRewards} reward{totalRewards !== 1 ? 's' : ''} available
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {getRedeemableAtLabel(location)}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {rewardsByLocation[location].length} reward{rewardsByLocation[location].length !== 1 ? 's' : ''} available
-                      </p>
-                    </div>
+                    {/* Decorative underline matching location color */}
+                    <div className={`h-1 w-24 rounded-full mt-2 ${
+                      location === 'HOSPITAL' ? 'bg-blue-200' :
+                      location === 'BLOODBANK' ? 'bg-red-200' :
+                      'bg-purple-200'
+                    }`}></div>
                   </div>
-                </div>
 
-                {/* Rewards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {rewardsByLocation[location].map((reward) => {
+                  {/* Rewards Grid - Better Desktop Layout */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {currentRewards.map((reward) => {
                     const unlocked = isRewardUnlocked(reward)
                     const earned = isRewardAlreadyEarned(reward)
                     const isMedicalService = reward.rewardType === "MEDICAL_SERVICE"
@@ -1463,77 +1508,173 @@ const RewardsSystem = () => {
                     return (
                       <div
                         key={reward.id}
-                        className={`border-2 rounded-xl p-4 transition-all ${
-                          earned ? 'border-green-200 bg-green-50' :
-                          unlocked && isAutoUnlock ? 'border-blue-200 bg-blue-50' :
-                          unlocked ? 'border-gray-200 bg-white shadow-sm hover:shadow-md' :
-                          'border-gray-200 bg-gray-50 opacity-60'
+                        className={`relative overflow-hidden rounded-xl transition-all duration-300 ${
+                          earned ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 shadow-sm' :
+                          unlocked && isAutoUnlock ? 'bg-gradient-to-br from-blue-50 to-sky-50 border-2 border-blue-300 shadow-sm' :
+                          unlocked ? 'bg-white border-2 border-gray-200 shadow-sm hover:shadow-lg hover:border-red-200' :
+                          'bg-gray-50 border-2 border-gray-200 opacity-60'
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <div className={`p-3 rounded-xl ${
-                            earned ? 'bg-green-100' :
-                            unlocked && isAutoUnlock ? 'bg-blue-100' :
-                            unlocked ? 'bg-red-50' :
-                            'bg-gray-100'
-                          }`}>
-                            {getRewardIcon(reward.image)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-semibold text-gray-800">{reward.title}</h4>
-                              {earned && <Check className="w-4 h-4 text-green-600" />}
-                              {unlocked && !earned && isAutoUnlock && <Star className="w-4 h-4 text-blue-600" />}
+                        {/* Status indicator stripe */}
+                        {earned && (
+                          <div className="absolute top-0 right-0 w-16 h-16 bg-green-500 transform translate-x-8 -translate-y-8 rotate-45"></div>
+                        )}
+                        {unlocked && !earned && isAutoUnlock && (
+                          <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500 transform translate-x-8 -translate-y-8 rotate-45"></div>
+                        )}
+                        
+                        <div className="p-4">
+                          {/* Icon and Title Row */}
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className={`p-3 rounded-xl shadow-sm ${
+                              earned ? 'bg-green-100 border border-green-200' :
+                              unlocked && isAutoUnlock ? 'bg-blue-100 border border-blue-200' :
+                              unlocked ? 'bg-red-50 border border-red-100' :
+                              'bg-gray-100 border border-gray-200'
+                            }`}>
+                              {getRewardIcon(reward.image)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start gap-2 mb-1 flex-wrap">
+                                <h4 className="font-bold text-gray-900 text-base leading-tight">{reward.title}</h4>
+                                {earned && <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />}
+                                {unlocked && !earned && isAutoUnlock && <Star className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />}
+                              </div>
                               {reward.tier && !isAutoUnlock && (
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  reward.tier.toLowerCase() === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                                  reward.tier.toLowerCase() === 'silver' ? 'bg-gray-100 text-gray-800' :
-                                  reward.tier.toLowerCase() === 'bronze' ? 'bg-orange-100 text-orange-800' :
-                                  'bg-blue-100 text-blue-800'
+                                <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  reward.tier.toLowerCase() === 'gold' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                  reward.tier.toLowerCase() === 'silver' ? 'bg-gray-100 text-gray-800 border border-gray-200' :
+                                  reward.tier.toLowerCase() === 'bronze' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                                  'bg-blue-100 text-blue-800 border border-blue-200'
                                 }`}>
                                   {reward.tier.charAt(0).toUpperCase() + reward.tier.slice(1).toLowerCase()} Tier
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600 mb-2">{reward.description}</p>
-                            
-                            <div className="flex items-center justify-between">
-                              {isAutoUnlock ? (
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  earned ? 'bg-green-100 text-green-800' :
-                                  unlocked ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>
-                                  {earned ? 'Earned' : unlocked ? 'Unlocked' : reward.unlockCondition}
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm">
+                          </div>
+                          
+                          {/* Description */}
+                          <p className="text-sm text-gray-600 mb-4 leading-relaxed">{reward.description}</p>
+                          
+                          {/* Action Row */}
+                          <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100">
+                            {isAutoUnlock ? (
+                              <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${
+                                earned ? 'bg-green-100 text-green-800 border border-green-200' :
+                                unlocked ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                'bg-gray-100 text-gray-600 border border-gray-200'
+                              }`}>
+                                {earned ? '✓ Earned' : unlocked ? '★ Unlocked' : reward.unlockCondition}
+                              </span>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                  <span className="text-red-600 font-bold text-sm">
                                     {reward.pointsCost} points
                                   </span>
-                                  <button
-                                    onClick={() => handleRedeemClick(reward)}
-                                    disabled={userPoints < reward.pointsCost || !unlocked}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                      userPoints >= reward.pointsCost && unlocked
-                                        ? "bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white hover:shadow-md"
-                                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                    }`}
-                                  >
-                                    {!unlocked ? `Requires ${reward.tier?.toLowerCase()} Tier` :
-                                     userPoints >= reward.pointsCost ? "Redeem" : "Not Enough Points"}
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                                </div>
+                                <button
+                                  onClick={() => handleRedeemClick(reward)}
+                                  disabled={userPoints < reward.pointsCost || !unlocked}
+                                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                    userPoints >= reward.pointsCost && unlocked
+                                      ? "bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white hover:shadow-lg hover:scale-105 active:scale-95"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {!unlocked ? `🔒 ${reward.tier?.toLowerCase()} Tier` :
+                                   userPoints >= reward.pointsCost ? "Redeem Now" : "Insufficient Points"}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
                     )
                   })}
                 </div>
+                
+                {/* Pagination Controls - Only show if more than 3 rewards */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+                    {/* Page Info */}
+                    <div className="text-sm text-gray-600 order-2 sm:order-1">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalRewards)} of {totalRewards} rewards
+                    </div>
+                    
+                    {/* Pagination Buttons */}
+                    <div className="flex items-center gap-2 order-1 sm:order-2">
+                      {/* Previous Button */}
+                      <button
+                        onClick={() => handleRewardPageChange(location, currentLocationPage - 1)}
+                        disabled={currentLocationPage === 1}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                          currentLocationPage === 1
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                        }`}
+                      >
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                        <span className="hidden sm:inline">Previous</span>
+                      </button>
+                      
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                          // Show first page, last page, current page, and pages around current
+                          const showPage = 
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentLocationPage - 1 && page <= currentLocationPage + 1)
+                          
+                          if (!showPage) {
+                            // Show ellipsis
+                            if (page === currentLocationPage - 2 || page === currentLocationPage + 2) {
+                              return <span key={page} className="px-2 text-gray-400">...</span>
+                            }
+                            return null
+                          }
+                          
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => handleRewardPageChange(location, page)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                currentLocationPage === page
+                                  ? location === 'HOSPITAL' 
+                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                                    : location === 'BLOODBANK'
+                                    ? 'bg-gradient-to-r from-[#C91C1C] to-[#FF5757] text-white shadow-md'
+                                    : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                                  : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      
+                      {/* Next Button */}
+                      <button
+                        onClick={() => handleRewardPageChange(location, currentLocationPage + 1)}
+                        disabled={currentLocationPage === totalPages}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                          currentLocationPage === totalPages
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                        }`}
+                      >
+                        <span className="hidden sm:inline">Next</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+            )
+          })}
           </div>
         )}
 
@@ -2040,6 +2181,7 @@ const RewardsSystem = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

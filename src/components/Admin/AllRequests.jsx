@@ -28,12 +28,12 @@ const AllRequests = () => {
     return firstOccurrence;
   };
 
-  useEffect(() => {
-    fetchAllRequests();
-  }, []);
-
-  const fetchAllRequests = async () => {
+  // Fetch requests function (extracted for reuse)
+  const fetchAllRequests = async (isInitialLoad = false) => {
     try {
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       const response = await fetchWithAuth('/hospital-requests');
       if (response.ok) {
         const data = await response.json();
@@ -42,9 +42,25 @@ const AllRequests = () => {
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchAllRequests(true);
+  }, []);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAllRequests(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const getStatusColor = (status) => {
     const colors = {

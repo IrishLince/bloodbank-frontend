@@ -27,12 +27,8 @@ const AllDonations = () => {
   const itemsPerPage = 10;
   const modalItemsPerPage = 10;
 
-  useEffect(() => {
-    fetchBloodBanks();
-    fetchAllDonations();
-  }, []);
-
-  const fetchBloodBanks = async () => {
+  // Fetch blood banks function (extracted for reuse)
+  const fetchBloodBanks = async (isInitialLoad = false) => {
     try {
       const response = await fetchWithAuth('/bloodbanks');
       if (response.ok) {
@@ -41,12 +37,17 @@ const AllDonations = () => {
       }
     } catch (error) {
       console.error('Error fetching blood banks:', error);
-      toast.error('Failed to fetch blood banks');
+      if (isInitialLoad) {
+        toast.error('Failed to fetch blood banks');
+      }
     }
   };
 
-  const fetchAllDonations = async () => {
-    setLoading(true);
+  // Fetch donations function (extracted for reuse)
+  const fetchAllDonations = async (isInitialLoad = false) => {
+    if (isInitialLoad) {
+      setLoading(true);
+    }
     try {
       const response = await fetchWithAuth('/appointment');
       if (response.ok) {
@@ -55,7 +56,7 @@ const AllDonations = () => {
         setDonations(donationsData);
         
         // 🚨 DEBUG: Log donation data structure to see available fields
-        if (donationsData.length > 0) {
+        if (donationsData.length > 0 && isInitialLoad) {
           console.log('🔍 DONATION DATA STRUCTURE DEBUG:');
           console.log('🔍 Sample donation object:', donationsData[0]);
           console.log('🔍 Available date fields:', {
@@ -70,11 +71,39 @@ const AllDonations = () => {
       }
     } catch (error) {
       console.error('Error fetching donations:', error);
-      toast.error('Failed to fetch donations');
+      if (isInitialLoad) {
+        toast.error('Failed to fetch donations');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchBloodBanks(true);
+    fetchAllDonations(true);
+  }, []);
+
+  // Auto-refresh blood banks every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchBloodBanks(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Auto-refresh donations every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAllDonations(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const getBloodBankStats = (bloodBankId) => {
     const bloodBankDonations = donations.filter(donation => donation.bloodBankId === bloodBankId);

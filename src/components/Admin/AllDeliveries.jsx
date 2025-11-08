@@ -28,12 +28,12 @@ const AllDeliveries = () => {
     return firstOccurrence;
   };
 
-  useEffect(() => {
-    fetchAllDeliveries();
-  }, []);
-
-  const fetchAllDeliveries = async () => {
+  // Fetch deliveries function (extracted for reuse)
+  const fetchAllDeliveries = async (isInitialLoad = false) => {
     try {
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       const response = await fetchWithAuth('/deliveries');
       if (response.ok) {
         const data = await response.json();
@@ -42,9 +42,25 @@ const AllDeliveries = () => {
     } catch (error) {
       console.error('Error fetching deliveries:', error);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchAllDeliveries(true);
+  }, []);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAllDeliveries(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const getStatusColor = (status) => {
     const colors = {

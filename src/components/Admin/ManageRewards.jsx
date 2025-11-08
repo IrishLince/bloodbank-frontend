@@ -262,7 +262,7 @@ const ManageRewards = () => {
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-gray-900">
-                  Manage Rewards
+                  Manage Incentives
                 </h1>
                 <p className="text-gray-600 text-lg">
                   
@@ -274,7 +274,7 @@ const ManageRewards = () => {
               className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors flex items-center space-x-2 shadow-lg"
             >
               <Plus className="w-5 h-5" />
-              <span>Add Reward</span>
+              <span>Add Incentive</span>
             </button>
           </div>
         </motion.div>
@@ -315,7 +315,7 @@ const ManageRewards = () => {
           </div>
         </motion.div>
 
-        {/* Separate Tables for Hospital and Blood Bank Rewards */}
+        {/* Separate Tables for Hospital and Blood Bank Incentives */}
         <div className="space-y-8">
           {loading ? (
             <motion.div
@@ -325,11 +325,11 @@ const ManageRewards = () => {
               className="text-center py-12"
             >
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading rewards...</p>
+              <p className="mt-4 text-gray-600">Loading incentives...</p>
             </motion.div>
           ) : (
             <>
-              {/* Hospital Rewards Table */}
+              {/* Hospital Incentives Table */}
               {sortedGroups.includes('HOSPITAL') && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -344,7 +344,7 @@ const ManageRewards = () => {
                           <Building2 className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
-                          <h2 className="text-xl font-bold text-gray-900">Hospital Rewards</h2>
+                          <h2 className="text-xl font-bold text-gray-900">Hospital Incentives</h2>
                           <p className="text-sm text-gray-600">
                             {groupedRewards['HOSPITAL'].length} reward{groupedRewards['HOSPITAL'].length !== 1 ? 's' : ''}
                           </p>
@@ -466,7 +466,7 @@ const ManageRewards = () => {
                 </motion.div>
               )}
 
-              {/* Blood Bank Rewards Table */}
+              {/* Blood Bank Incentives Table */}
               {sortedGroups.includes('BLOODBANK') && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -481,7 +481,7 @@ const ManageRewards = () => {
                           <Heart className="w-6 h-6 text-red-600" />
                         </div>
                         <div>
-                          <h2 className="text-xl font-bold text-gray-900">Blood Bank Rewards</h2>
+                          <h2 className="text-xl font-bold text-gray-900">Blood Bank Incentives</h2>
                           <p className="text-sm text-gray-600">
                             {groupedRewards['BLOODBANK'].length} reward{groupedRewards['BLOODBANK'].length !== 1 ? 's' : ''}
                           </p>
@@ -603,7 +603,7 @@ const ManageRewards = () => {
                 </motion.div>
               )}
 
-              {/* Both Hospitals and Blood Banks Rewards Table */}
+              {/* Both Hospitals and Blood Banks Incentives Table */}
               {sortedGroups.includes('BOTH') && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -749,7 +749,7 @@ const ManageRewards = () => {
                   className="text-center py-12 bg-white rounded-2xl shadow-lg"
                 >
                   <Gift className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600 text-lg">No rewards found</p>
+                  <p className="text-gray-600 text-lg">No incentives found</p>
                 </motion.div>
               )}
             </>
@@ -776,7 +776,7 @@ const ManageRewards = () => {
             >
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingReward ? 'Edit Reward' : 'Add New Reward'}
+                  {editingReward ? 'Edit Incentive' : 'Add New Incentive'}
                 </h2>
                 <button
                   onClick={handleCloseModal}
@@ -830,7 +830,7 @@ const ManageRewards = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reward Type *
+                      Incentive Type *
                     </label>
                     <select
                       value={formData.rewardType}

@@ -550,7 +550,7 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
           { to: "/hospital", label: "Requests", icon: <FileText className="w-5 h-5" /> },
           { to: "/request-status", label: "Request Status", icon: <List className="w-5 h-5" /> },
           { to: "/delivery-status", label: "Delivery Status", icon: <Package className="w-5 h-5" /> },
-          { to: "/hospital-rewards", label: "Rewards", icon: <Star className="w-5 h-5" /> },
+          { to: "/hospital-rewards", label: "Incentives", icon: <Star className="w-5 h-5" /> },
           { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
         ]
       }
@@ -561,7 +561,7 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
           ...baseLinks,
           { to: "/admin/dashboard", label: "Dashboard", icon: <Home className="w-5 h-5" /> },
           { to: "/admin/logging", label: "Logging", icon: <ClipboardList className="w-5 h-5" /> },
-          { to: "/admin/rewards", label: "Manage Rewards", icon: <Star className="w-5 h-5" /> },
+          { to: "/admin/rewards", label: "Manage Incentives", icon: <Star className="w-5 h-5" /> },
           { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
         ]
       }
@@ -572,7 +572,7 @@ const getNavigationConfig = (userRole, isAuthenticated) => {
           ...baseLinks,
           { to: "/donation-center", label: "Online Booking", icon: <Calendar className="w-5 h-5" /> },
           { to: "/list-of-appointments", label: "List of Appointments", icon: <List className="w-5 h-5" /> },
-          { to: "/rewards", label: "Reward Points", icon: <Star className="w-5 h-5" /> },
+          { to: "/rewards", label: "Incentive Points", icon: <Star className="w-5 h-5" /> },
           { to: "/about-us", label: "About Us", icon: <Info className="w-5 h-5" /> }
         ]
       }

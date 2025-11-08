@@ -22,12 +22,12 @@ const AllRewardRedemptions = () => {
   const itemsPerPage = 10;
   const modalItemsPerPage = 10;
 
-  useEffect(() => {
-    fetchGroupedRedemptions();
-  }, []);
-
-  const fetchGroupedRedemptions = async () => {
+  // Fetch grouped redemptions function (extracted for reuse)
+  const fetchGroupedRedemptions = async (isInitialLoad = false) => {
     try {
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       const response = await fetchWithAuth('/reward-points/admin/redemptions');
       if (response.ok) {
         const data = await response.json();
@@ -43,9 +43,25 @@ const AllRewardRedemptions = () => {
     } catch (error) {
       console.error('Error fetching grouped redemptions:', error);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchGroupedRedemptions(true);
+  }, []);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchGroupedRedemptions(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {

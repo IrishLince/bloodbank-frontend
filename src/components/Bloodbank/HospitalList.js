@@ -62,157 +62,175 @@ export default function HospitalList() {
   // Get current blood bank ID from localStorage
   const bloodBankId = localStorage.getItem('userId');
 
-  // Fetch hospital requests from backend
-  useEffect(() => {
-    const fetchHospitalRequests = async () => {
-      if (!bloodBankId) {
-        setError('Blood bank ID not found');
+  // Fetch hospital requests function (extracted for reuse)
+  const fetchHospitalRequests = async (isInitialLoad = false) => {
+    if (!bloodBankId) {
+      setError('Blood bank ID not found');
+      if (isInitialLoad) {
         setLoading(false);
-        return;
       }
+      return;
+    }
 
-      try {
+    try {
+      if (isInitialLoad) {
         setLoading(true);
-        console.log(`Fetching requests for blood bank: ${bloodBankId}`);
+      }
+      console.log(`Fetching requests for blood bank: ${bloodBankId}`);
+      
+      const response = await fetchWithAuth(`/hospital-requests/bloodbank/${bloodBankId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Hospital requests response:', data);
         
-        const response = await fetchWithAuth(`/hospital-requests/bloodbank/${bloodBankId}`);
+        const hospitalRequests = data.data || [];
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Hospital requests response:', data);
+        // Group requests by hospital
+        const hospitalMap = {};
+        hospitalRequests.forEach(request => {
+          console.log('📋 Processing request:', {
+            hospitalName: request.hospital_name || request.hospitalName,
+            hospitalAddress: request.hospital_address || request.hospitalAddress,
+            contactInformation: request.contact_information || request.contactInformation,
+            allFields: Object.keys(request)
+          });
           
-          const hospitalRequests = data.data || [];
+          const hospitalId = request.hospital_id || request.hospitalId;
+          const hospitalAddress = request.hospitalAddress || request.hospital_address || '';
+          const contactInfo = request.contactInformation || request.contact_information || '';
           
-          // Group requests by hospital
-          const hospitalMap = {};
-          hospitalRequests.forEach(request => {
-            console.log('📋 Processing request:', {
-              hospitalName: request.hospital_name || request.hospitalName,
-              hospitalAddress: request.hospital_address || request.hospitalAddress,
-              contactInformation: request.contact_information || request.contactInformation,
-              allFields: Object.keys(request)
+          if (!hospitalMap[hospitalId]) {
+            console.log(`🔍 Hospital ${hospitalId} initial data:`, {
+              hospitalAddress,
+              contactInfo
             });
             
-            const hospitalId = request.hospital_id || request.hospitalId;
-            const hospitalAddress = request.hospitalAddress || request.hospital_address || '';
-            const contactInfo = request.contactInformation || request.contact_information || '';
+            hospitalMap[hospitalId] = {
+              id: hospitalId,
+              name: request.hospital_name || request.hospitalName,
+              location: hospitalAddress || 'N/A',
+              phone: contactInfo || 'N/A',
+              bloodTypes: [],
+              requests: 0,
+              deliveryStatus: request.status || 'PENDING',
+              dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleString(),
+              dateRequest: new Date(request.request_date || request.requestDate).toLocaleString()
+            };
+          } else {
+            // Update location and phone if current request has valid data and existing data is N/A
+            if (hospitalAddress && hospitalMap[hospitalId].location === 'N/A') {
+              console.log(`🔄 Updating location for hospital ${hospitalId}: ${hospitalAddress}`);
+              hospitalMap[hospitalId].location = hospitalAddress;
+            }
+            if (contactInfo && hospitalMap[hospitalId].phone === 'N/A') {
+              console.log(`🔄 Updating phone for hospital ${hospitalId}: ${contactInfo}`);
+              hospitalMap[hospitalId].phone = contactInfo;
+            }
+          }
+          
+          // Add blood types from this request
+          const bloodItems = request.blood_items || request.bloodItems || [];
+          bloodItems.forEach(item => {
+            const bloodType = item.blood_type || item.bloodType;
+            if (!hospitalMap[hospitalId].bloodTypes.includes(bloodType)) {
+              hospitalMap[hospitalId].bloodTypes.push(bloodType);
+            }
             
-            if (!hospitalMap[hospitalId]) {
-              console.log(`🔍 Hospital ${hospitalId} initial data:`, {
-                hospitalAddress,
-                contactInfo
-              });
-              
-              hospitalMap[hospitalId] = {
+            // Sum up the actual units from each blood item
+            const units = item.units || 0;
+            hospitalMap[hospitalId].requests += units;
+          });
+        });
+        
+        // Fetch complete hospital details for each unique hospital ID
+        const hospitalIds = Object.keys(hospitalMap);
+        console.log('🏥 Fetching details for hospital IDs:', hospitalIds);
+        
+        const hospitalDetailsPromises = hospitalIds.map(async (hospitalId) => {
+          try {
+            console.log(`📞 Calling API: /hospital/${hospitalId}`);
+            const hospitalResponse = await fetchWithAuth(`/hospital/${hospitalId}`);
+            if (hospitalResponse.ok) {
+              const hospitalData = await hospitalResponse.json();
+              console.log(`✅ Hospital ${hospitalId} response:`, hospitalData);
+              const hospitalDTO = hospitalData.data || hospitalData;
+              return {
                 id: hospitalId,
-                name: request.hospital_name || request.hospitalName,
-                location: hospitalAddress || 'N/A',
-                phone: contactInfo || 'N/A',
-                bloodTypes: [],
-                requests: 0,
-                deliveryStatus: request.status || 'PENDING',
-                dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleString(),
-                dateRequest: new Date(request.request_date || request.requestDate).toLocaleString()
+                address: hospitalDTO.address,
+                phone: hospitalDTO.phone
               };
             } else {
-              // Update location and phone if current request has valid data and existing data is N/A
-              if (hospitalAddress && hospitalMap[hospitalId].location === 'N/A') {
-                console.log(`🔄 Updating location for hospital ${hospitalId}: ${hospitalAddress}`);
-                hospitalMap[hospitalId].location = hospitalAddress;
-              }
-              if (contactInfo && hospitalMap[hospitalId].phone === 'N/A') {
-                console.log(`🔄 Updating phone for hospital ${hospitalId}: ${contactInfo}`);
-                hospitalMap[hospitalId].phone = contactInfo;
-              }
+              console.error(`❌ Failed to fetch hospital ${hospitalId}: ${hospitalResponse.status}`);
             }
-            
-            // Add blood types from this request
-            const bloodItems = request.blood_items || request.bloodItems || [];
-            bloodItems.forEach(item => {
-              const bloodType = item.blood_type || item.bloodType;
-              if (!hospitalMap[hospitalId].bloodTypes.includes(bloodType)) {
-                hospitalMap[hospitalId].bloodTypes.push(bloodType);
-              }
-              
-              // Sum up the actual units from each blood item
-              const units = item.units || 0;
-              hospitalMap[hospitalId].requests += units;
+          } catch (error) {
+            console.error(`❌ Error fetching hospital ${hospitalId} details:`, error);
+          }
+          return { id: hospitalId, address: null, phone: null };
+        });
+        
+        // Wait for all hospital details to be fetched
+        const hospitalDetails = await Promise.all(hospitalDetailsPromises);
+        console.log('📋 All hospital details fetched:', hospitalDetails);
+        
+        // Merge hospital details with the hospitalMap
+        hospitalDetails.forEach(detail => {
+          if (hospitalMap[detail.id]) {
+            console.log(`🔄 Merging details for hospital ${detail.id}:`, { 
+              before: { location: hospitalMap[detail.id].location, phone: hospitalMap[detail.id].phone },
+              after: { location: detail.address, phone: detail.phone }
             });
-          });
-          
-          // Fetch complete hospital details for each unique hospital ID
-          const hospitalIds = Object.keys(hospitalMap);
-          console.log('🏥 Fetching details for hospital IDs:', hospitalIds);
-          
-          const hospitalDetailsPromises = hospitalIds.map(async (hospitalId) => {
-            try {
-              console.log(`📞 Calling API: /hospital/${hospitalId}`);
-              const hospitalResponse = await fetchWithAuth(`/hospital/${hospitalId}`);
-              if (hospitalResponse.ok) {
-                const hospitalData = await hospitalResponse.json();
-                console.log(`✅ Hospital ${hospitalId} response:`, hospitalData);
-                const hospitalDTO = hospitalData.data || hospitalData;
-                return {
-                  id: hospitalId,
-                  address: hospitalDTO.address,
-                  phone: hospitalDTO.phone
-                };
-              } else {
-                console.error(`❌ Failed to fetch hospital ${hospitalId}: ${hospitalResponse.status}`);
-              }
-            } catch (error) {
-              console.error(`❌ Error fetching hospital ${hospitalId} details:`, error);
+            if (detail.address) {
+              hospitalMap[detail.id].location = detail.address;
             }
-            return { id: hospitalId, address: null, phone: null };
-          });
-          
-          // Wait for all hospital details to be fetched
-          const hospitalDetails = await Promise.all(hospitalDetailsPromises);
-          console.log('📋 All hospital details fetched:', hospitalDetails);
-          
-          // Merge hospital details with the hospitalMap
-          hospitalDetails.forEach(detail => {
-            if (hospitalMap[detail.id]) {
-              console.log(`🔄 Merging details for hospital ${detail.id}:`, { 
-                before: { location: hospitalMap[detail.id].location, phone: hospitalMap[detail.id].phone },
-                after: { location: detail.address, phone: detail.phone }
-              });
-              if (detail.address) {
-                hospitalMap[detail.id].location = detail.address;
-              }
-              if (detail.phone) {
-                hospitalMap[detail.id].phone = detail.phone;
-              }
+            if (detail.phone) {
+              hospitalMap[detail.id].phone = detail.phone;
             }
-          });
-          
-          // Convert map to array and format blood types
-          const hospitalsArray = Object.values(hospitalMap).map(hospital => ({
-            ...hospital,
-            bloodTypes: hospital.bloodTypes.join(', ')
-          }));
-          
-          console.log('Transformed hospitals with details:', hospitalsArray);
-          setHospitals(hospitalsArray);
-        } else {
-          const errorData = await response.json();
-          setError(errorData.message || 'Failed to fetch hospital requests');
-        }
-      } catch (err) {
-        console.error('Error fetching hospital requests:', err);
-        setError('Failed to load hospital requests');
-      } finally {
+          }
+        });
+        
+        // Convert map to array and format blood types
+        const hospitalsArray = Object.values(hospitalMap).map(hospital => ({
+          ...hospital,
+          bloodTypes: hospital.bloodTypes.join(', ')
+        }));
+        
+        console.log('Transformed hospitals with details:', hospitalsArray);
+        setHospitals(hospitalsArray);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to fetch hospital requests');
+      }
+    } catch (err) {
+      console.error('Error fetching hospital requests:', err);
+      setError('Failed to load hospital requests');
+    } finally {
+      if (isInitialLoad) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchHospitalRequests();
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchHospitalRequests(true);
   }, [bloodBankId]);
 
-  // Fetch deliveries function
-  const fetchDeliveries = async () => {
+  // Auto-refresh hospital requests every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchHospitalRequests(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [bloodBankId]);
+
+  // Fetch deliveries function (extracted for reuse)
+  const fetchDeliveries = async (isInitialLoad = false) => {
     try {
-      setLoadingDeliveries(true);
+      if (isInitialLoad) {
+        setLoadingDeliveries(true);
+      }
       console.log('Fetching all deliveries');
       
       const response = await fetchWithAuth('/deliveries');
@@ -275,13 +293,24 @@ export default function HospitalList() {
       console.error('Error fetching deliveries:', err);
       setDeliveryError('Failed to load deliveries: ' + err.message);
     } finally {
-      setLoadingDeliveries(false);
+      if (isInitialLoad) {
+        setLoadingDeliveries(false);
+      }
     }
   };
 
-  // Fetch deliveries from backend on component mount
+  // Initial fetch on component mount
   useEffect(() => {
-    fetchDeliveries();
+    fetchDeliveries(true);
+  }, []);
+
+  // Auto-refresh deliveries every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchDeliveries(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleViewRequests = (hospital) => {

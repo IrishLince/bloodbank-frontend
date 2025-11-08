@@ -27,78 +27,93 @@ export default function DeliveryStatus() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    const fetchDeliveries = async () => {
+  // Fetch deliveries function (extracted for reuse)
+  const fetchDeliveries = async (isInitialLoad = false) => {
+    if (isInitialLoad) {
       setIsLoading(true);
-      try {
-        const hospitalId = localStorage.getItem('userId');
-        console.log('Fetching deliveries for hospital:', hospitalId);
-        
-        if (hospitalId) {
-          // Fetch all deliveries and filter for this hospital
-          const response = await fetchWithAuth('/deliveries');
+    }
+    try {
+      const hospitalId = localStorage.getItem('userId');
+      console.log('Fetching deliveries for hospital:', hospitalId);
+      
+      if (hospitalId) {
+        // Fetch all deliveries and filter for this hospital
+        const response = await fetchWithAuth('/deliveries');
 
-          console.log('Response status:', response.status);
-          console.log('Response ok:', response.ok);
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
 
-          if (response.ok) {
-            const allDeliveries = await response.json();
-            console.log('All deliveries data:', allDeliveries);
-            
-            // For now, we'll show all deliveries since we don't have proper hospital linking yet
-            // In a real system, this would filter by hospital ID or hospital requests
-            const deliveriesArray = Array.isArray(allDeliveries) ? allDeliveries : [];
-            
-            // Transform the data to match the expected format
-            const transformedDeliveries = deliveriesArray.map(delivery => ({
-              id: delivery.id || delivery._id,
-              requestId: delivery.requestId || delivery.request_id,
-              hospitalName: delivery.hospitalName || delivery.hospital_name,
-              bloodBankName: delivery.bloodBankName || delivery.blood_bank_name,
-              bloodBankAddress: delivery.bloodBankAddress || delivery.blood_bank_address,
-              bloodBankPhone: delivery.bloodBankPhone || delivery.blood_bank_phone,
-              bloodBankEmail: delivery.bloodBankEmail || delivery.blood_bank_email,
-              contactInfo: delivery.contactInfo || delivery.contact_info || delivery.bloodBankPhone || delivery.blood_bank_phone,
-              itemsSummary: delivery.itemsSummary || delivery.items_summary,
-              bloodItems: delivery.bloodItems || delivery.blood_items || [],
-              status: delivery.status === 'PENDING' ? 'SCHEDULED' : (delivery.status || 'SCHEDULED'),
-              scheduledDate: delivery.scheduledDate || delivery.scheduled_date || new Date().toISOString(),
-              estimatedTime: delivery.estimatedTime || delivery.estimated_time || 'TBD',
-              priority: delivery.priority || 'Normal',
-              driverName: delivery.driverName || delivery.driver_name,
-              driverContact: delivery.driverContact || delivery.driver_contact,
-              vehicleId: delivery.vehicleId || delivery.vehicle_id,
-              deliveredDate: delivery.deliveredDate || delivery.delivered_date,
-              deliveredTime: delivery.deliveredTime || delivery.delivered_time,
-              notes: delivery.notes || '',
-              trackingHistory: delivery.trackingHistory || delivery.tracking_history || []
-            }));
-            
-            console.log('Transformed deliveries:', transformedDeliveries);
-            setDeliveries(transformedDeliveries);
-            setFilteredDeliveries(transformedDeliveries);
-          } else {
-            console.error('Failed to fetch deliveries. Status:', response.status);
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
-            setDeliveries([]);
-            setFilteredDeliveries([]);
-          }
+        if (response.ok) {
+          const allDeliveries = await response.json();
+          console.log('All deliveries data:', allDeliveries);
+          
+          // For now, we'll show all deliveries since we don't have proper hospital linking yet
+          // In a real system, this would filter by hospital ID or hospital requests
+          const deliveriesArray = Array.isArray(allDeliveries) ? allDeliveries : [];
+          
+          // Transform the data to match the expected format
+          const transformedDeliveries = deliveriesArray.map(delivery => ({
+            id: delivery.id || delivery._id,
+            requestId: delivery.requestId || delivery.request_id,
+            hospitalName: delivery.hospitalName || delivery.hospital_name,
+            bloodBankName: delivery.bloodBankName || delivery.blood_bank_name,
+            bloodBankAddress: delivery.bloodBankAddress || delivery.blood_bank_address,
+            bloodBankPhone: delivery.bloodBankPhone || delivery.blood_bank_phone,
+            bloodBankEmail: delivery.bloodBankEmail || delivery.blood_bank_email,
+            contactInfo: delivery.contactInfo || delivery.contact_info || delivery.bloodBankPhone || delivery.blood_bank_phone,
+            itemsSummary: delivery.itemsSummary || delivery.items_summary,
+            bloodItems: delivery.bloodItems || delivery.blood_items || [],
+            status: delivery.status === 'PENDING' ? 'SCHEDULED' : (delivery.status || 'SCHEDULED'),
+            scheduledDate: delivery.scheduledDate || delivery.scheduled_date || new Date().toISOString(),
+            estimatedTime: delivery.estimatedTime || delivery.estimated_time || 'TBD',
+            priority: delivery.priority || 'Normal',
+            driverName: delivery.driverName || delivery.driver_name,
+            driverContact: delivery.driverContact || delivery.driver_contact,
+            vehicleId: delivery.vehicleId || delivery.vehicle_id,
+            deliveredDate: delivery.deliveredDate || delivery.delivered_date,
+            deliveredTime: delivery.deliveredTime || delivery.delivered_time,
+            notes: delivery.notes || '',
+            trackingHistory: delivery.trackingHistory || delivery.tracking_history || []
+          }));
+          
+          console.log('Transformed deliveries:', transformedDeliveries);
+          setDeliveries(transformedDeliveries);
+          setFilteredDeliveries(transformedDeliveries);
         } else {
-          console.error('No hospital ID found');
+          console.error('Failed to fetch deliveries. Status:', response.status);
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
           setDeliveries([]);
           setFilteredDeliveries([]);
         }
-      } catch (error) {
-        console.error('Failed to fetch deliveries:', error);
+      } else {
+        console.error('No hospital ID found');
         setDeliveries([]);
         setFilteredDeliveries([]);
-      } finally {
+      }
+    } catch (error) {
+      console.error('Failed to fetch deliveries:', error);
+      setDeliveries([]);
+      setFilteredDeliveries([]);
+    } finally {
+      if (isInitialLoad) {
         setIsLoading(false);
       }
-    };
+    }
+  };
 
-    fetchDeliveries();
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchDeliveries(true);
+  }, []);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchDeliveries(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {

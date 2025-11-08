@@ -54,100 +54,116 @@ export default function ViewRequests({ hospital, onClose }) {
   // Get current blood bank ID from localStorage
   const bloodBankId = localStorage.getItem('userId');
   
-  // Fetch hospital requests from backend
-  useEffect(() => {
-    const fetchHospitalRequests = async () => {
-      if (!bloodBankId) {
-        setError('Blood bank ID not found');
+  // Fetch hospital requests function (extracted for reuse)
+  const fetchHospitalRequests = async (isInitialLoad = false) => {
+    if (!bloodBankId) {
+      setError('Blood bank ID not found');
+      if (isInitialLoad) {
         setLoading(false);
-        return;
       }
+      return;
+    }
 
-      try {
+    try {
+      if (isInitialLoad) {
         setLoading(true);
-        console.log(`Fetching requests for blood bank: ${bloodBankId}`);
+      }
+      console.log(`Fetching requests for blood bank: ${bloodBankId}`);
+      
+      const response = await fetchWithAuth(`/hospital-requests/bloodbank/${bloodBankId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Hospital requests response:', data);
         
-        const response = await fetchWithAuth(`/hospital-requests/bloodbank/${bloodBankId}`);
+        const hospitalRequests = data.data || [];
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Hospital requests response:', data);
-          
-          const hospitalRequests = data.data || [];
-          
-          // Transform backend data to match component format
-          const transformedRequests = hospitalRequests.map(request => ({
-            id: request.id || request._id,
-            requestId: request.id || request._id,
-            hospitalId: request.hospital_id || request.hospitalId,
-            hospitalName: request.hospital_name || request.hospitalName,
-            hospitalAddress: request.hospital_address || request.hospitalAddress || 'N/A',
-            bloodItems: request.blood_items || request.bloodItems || [],
-            requestedBy: request.hospital_name || request.hospitalName,
-            contactNumber: request.contact_information || request.contactInformation || request.hospital_phone || request.hospitalPhone || 'N/A',
-            requestDate: new Date(request.request_date || request.requestDate).toLocaleDateString(),
-            dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleDateString(),
-            status: request.status || 'PENDING',
-            notes: request.notes || 'No notes provided'
-          }));
-          
-          // Fetch complete hospital details for each unique hospital ID
-          const uniqueHospitalIds = [...new Set(transformedRequests.map(req => req.hospitalId))];
-          const hospitalDetailsPromises = uniqueHospitalIds.map(async (hospitalId) => {
-            try {
-              const hospitalResponse = await fetchWithAuth(`/hospital/${hospitalId}`);
-              if (hospitalResponse.ok) {
-                const hospitalData = await hospitalResponse.json();
-                const hospitalDTO = hospitalData.data || hospitalData;
-                return {
-                  id: hospitalId,
-                  address: hospitalDTO.address,
-                  phone: hospitalDTO.phone
-                };
-              }
-            } catch (error) {
-              console.error(`Error fetching hospital ${hospitalId} details:`, error);
-            }
-            return { id: hospitalId, address: null, phone: null };
-          });
-          
-          // Wait for all hospital details to be fetched
-          const hospitalDetails = await Promise.all(hospitalDetailsPromises);
-          
-          // Create a map of hospital details for easy lookup
-          const hospitalDetailsMap = {};
-          hospitalDetails.forEach(detail => {
-            hospitalDetailsMap[detail.id] = detail;
-          });
-          
-          // Merge hospital details with transformed requests
-          const requestsWithDetails = transformedRequests.map(request => {
-            const details = hospitalDetailsMap[request.hospitalId];
-            if (details) {
+        // Transform backend data to match component format
+        const transformedRequests = hospitalRequests.map(request => ({
+          id: request.id || request._id,
+          requestId: request.id || request._id,
+          hospitalId: request.hospital_id || request.hospitalId,
+          hospitalName: request.hospital_name || request.hospitalName,
+          hospitalAddress: request.hospital_address || request.hospitalAddress || 'N/A',
+          bloodItems: request.blood_items || request.bloodItems || [],
+          requestedBy: request.hospital_name || request.hospitalName,
+          contactNumber: request.contact_information || request.contactInformation || request.hospital_phone || request.hospitalPhone || 'N/A',
+          requestDate: new Date(request.request_date || request.requestDate).toLocaleDateString(),
+          dateNeeded: new Date(request.date_needed || request.dateNeeded).toLocaleDateString(),
+          status: request.status || 'PENDING',
+          notes: request.notes || 'No notes provided'
+        }));
+        
+        // Fetch complete hospital details for each unique hospital ID
+        const uniqueHospitalIds = [...new Set(transformedRequests.map(req => req.hospitalId))];
+        const hospitalDetailsPromises = uniqueHospitalIds.map(async (hospitalId) => {
+          try {
+            const hospitalResponse = await fetchWithAuth(`/hospital/${hospitalId}`);
+            if (hospitalResponse.ok) {
+              const hospitalData = await hospitalResponse.json();
+              const hospitalDTO = hospitalData.data || hospitalData;
               return {
-                ...request,
-                hospitalAddress: details.address || request.hospitalAddress,
-                contactNumber: details.phone || request.contactNumber
+                id: hospitalId,
+                address: hospitalDTO.address,
+                phone: hospitalDTO.phone
               };
             }
-            return request;
-          });
-          
-          console.log('Transformed requests with details:', requestsWithDetails);
-          setRequests(requestsWithDetails);
-        } else {
-          const errorData = await response.json();
-          setError(errorData.message || 'Failed to fetch hospital requests');
-        }
-      } catch (err) {
-        console.error('Error fetching hospital requests:', err);
-        setError('Failed to load hospital requests');
-      } finally {
+          } catch (error) {
+            console.error(`Error fetching hospital ${hospitalId} details:`, error);
+          }
+          return { id: hospitalId, address: null, phone: null };
+        });
+        
+        // Wait for all hospital details to be fetched
+        const hospitalDetails = await Promise.all(hospitalDetailsPromises);
+        
+        // Create a map of hospital details for easy lookup
+        const hospitalDetailsMap = {};
+        hospitalDetails.forEach(detail => {
+          hospitalDetailsMap[detail.id] = detail;
+        });
+        
+        // Merge hospital details with transformed requests
+        const requestsWithDetails = transformedRequests.map(request => {
+          const details = hospitalDetailsMap[request.hospitalId];
+          if (details) {
+            return {
+              ...request,
+              hospitalAddress: details.address || request.hospitalAddress,
+              contactNumber: details.phone || request.contactNumber
+            };
+          }
+          return request;
+        });
+        
+        console.log('Transformed requests with details:', requestsWithDetails);
+        setRequests(requestsWithDetails);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to fetch hospital requests');
+      }
+    } catch (err) {
+      console.error('Error fetching hospital requests:', err);
+      setError('Failed to load hospital requests');
+    } finally {
+      if (isInitialLoad) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchHospitalRequests();
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchHospitalRequests(true);
+  }, [bloodBankId]);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchHospitalRequests(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
   }, [bloodBankId]);
   
   if (!hospital) return null;

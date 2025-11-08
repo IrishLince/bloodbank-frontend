@@ -188,11 +188,6 @@ const Inventory = () => {
   const [bloodInventory, setBloodInventory] = useState([])
   const [isLoadingInventory, setIsLoadingInventory] = useState(true)
 
-  // Fetch blood inventory on component mount
-  useEffect(() => {
-    fetchBloodInventory()
-  }, [])
-
   // Check for navigation state to show requests view
   useEffect(() => {
     if (location.state?.view === 'requests') {
@@ -200,9 +195,12 @@ const Inventory = () => {
     }
   }, [location.state])
 
-  const fetchBloodInventory = async () => {
+  // Fetch blood inventory function (extracted for reuse)
+  const fetchBloodInventory = async (isInitialLoad = false) => {
     try {
-      setIsLoadingInventory(true)
+      if (isInitialLoad) {
+        setIsLoadingInventory(true)
+      }
       
       // First get the logged-in user to get blood bank ID
       const userResponse = await fetchWithAuth('/auth/me')
@@ -255,9 +253,25 @@ const Inventory = () => {
     } catch (error) {
       console.error('Error fetching blood inventory:', error)
     } finally {
-      setIsLoadingInventory(false)
+      if (isInitialLoad) {
+        setIsLoadingInventory(false)
+      }
     }
   }
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchBloodInventory(true)
+  }, [])
+
+  // Auto-refresh inventory every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchBloodInventory(false)
+    }, 5000) // 5 seconds
+
+    return () => clearInterval(intervalId)
+  }, [])
 
   // Fetch blood bank user data to get preferred blood types
   const fetchBloodBankUser = async () => {
@@ -2157,10 +2171,12 @@ Inventory will be deducted only when you accept the request.`);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
-  // Fetch blood bag voucher redemptions
-  const fetchBloodBagRequests = async () => {
+  // Fetch blood bag voucher redemptions function (extracted for reuse)
+  const fetchBloodBagRequests = async (isInitialLoad = false) => {
     try {
-      setIsLoadingRequests(true);
+      if (isInitialLoad) {
+        setIsLoadingRequests(true);
+      }
       
       // Get logged-in blood bank ID
       const userResponse = await fetchWithAuth('/auth/me');
@@ -2331,15 +2347,28 @@ Inventory will be deducted only when you accept the request.`);
     } catch (error) {
       console.error('Error fetching blood bag requests:', error);
     } finally {
-      setIsLoadingRequests(false);
+      if (isInitialLoad) {
+        setIsLoadingRequests(false);
+      }
     }
   };
 
   // Fetch requests when view changes to 'requests'
   useEffect(() => {
     if (view === 'requests') {
-      fetchBloodBagRequests();
+      fetchBloodBagRequests(true);
     }
+  }, [view]);
+
+  // Auto-refresh blood bag requests every 5 seconds when view is 'requests'
+  useEffect(() => {
+    if (view !== 'requests') return;
+
+    const intervalId = setInterval(() => {
+      fetchBloodBagRequests(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
   }, [view]);
 
   // Render main component

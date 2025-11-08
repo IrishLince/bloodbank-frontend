@@ -59,6 +59,7 @@ import AllDeliveries from './components/Admin/AllDeliveries';
 import AllDonations from './components/Admin/AllDonations';
 import AllRewardRedemptions from './components/Admin/AllRewardRedemptions';
 import ManageRewards from './components/Admin/ManageRewards';
+import NotFound from './components/NotFound';
 
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -88,14 +89,14 @@ const TitleUpdater = () => {
       '/eligibility-step3': 'RedSource - Donor Interview',
       '/profile-page': 'RedSource - My Profile',
       '/settings': 'RedSource - Settings',
-      '/rewards': 'RedSource - Reward Points',
+      '/rewards': 'RedSource - Incentive Points',
       '/faqs': 'RedSource - FAQs',
       '/hospital': 'RedSource - Hospital Dashboard',
       '/requests': 'RedSource - Blood Requests',
       '/request-status': 'RedSource - Request Status',
       '/delivery-status': 'RedSource - Delivery Status',
-      '/hospital-rewards': 'RedSource - Hospital Rewards',
-      '/bloodbank/rewards': 'RedSource - Blood Bank Rewards',
+      '/hospital-rewards': 'RedSource - Hospital Incentives',
+      '/bloodbank/rewards': 'RedSource - Blood Bank Incentives',
       
       // Admin routes
       '/admin/dashboard': 'RedSource - Admin Dashboard',
@@ -108,11 +109,12 @@ const TitleUpdater = () => {
       '/admin/logging/deliveries': 'RedSource - All Deliveries',
       '/admin/logging/donations': 'RedSource - All Donations',
       '/admin/logging/redemptions': 'RedSource - All Reward Redemptions',
-      '/admin/rewards': 'RedSource - Manage Rewards',
+      '/admin/rewards': 'RedSource - Manage Incentives',
       '/admin/inventories': 'RedSource - All Inventories'
     };
 
-    document.title = pathToTitleMap[location.pathname] || 'RedSource';
+    // Set title - use 404 title if path not found
+    document.title = pathToTitleMap[location.pathname] || 'RedSource - Page Not Found (404)';
   }, [location]);
 
   return null;
@@ -225,12 +227,9 @@ function App() {
             {isLoggedIn ? (
               <>
                 {/* Common routes for all authenticated users */}
-
-                <Route path="/about-us" element={<AboutUs />} />
                 
-
-                               {/* Donor-specific routes */}
-{userRole?.toLowerCase().includes('donor') && (
+                {/* Donor-specific routes */}
+                {userRole?.toLowerCase().includes('donor') && (
   <>
     {/* STEP -1: Donation Center */}
     <Route
@@ -347,9 +346,37 @@ function App() {
                 )}
               </>
             ) : (
-              // Redirect to login if trying to access protected routes while not logged in
-              <Route path="*" element={<Navigate to="/login" />} />
+              // Protected routes redirect - only for known protected route paths
+              <>
+                <Route path="/donation-center" element={<Navigate to="/login" replace />} />
+                <Route path="/schedule" element={<Navigate to="/login" replace />} />
+                <Route path="/eligibility" element={<Navigate to="/login" replace />} />
+                <Route path="/eligibility-step2" element={<Navigate to="/login" replace />} />
+                <Route path="/eligibility-step3" element={<Navigate to="/login" replace />} />
+                <Route path="/confirm-appointment" element={<Navigate to="/login" replace />} />
+                <Route path="/appointment-details" element={<Navigate to="/login" replace />} />
+                <Route path="/donation-history" element={<Navigate to="/login" replace />} />
+                <Route path="/list-of-appointments" element={<Navigate to="/login" replace />} />
+                <Route path="/rewards" element={<Navigate to="/login" replace />} />
+                <Route path="/profile-page" element={<Navigate to="/login" replace />} />
+                <Route path="/settings" element={<Navigate to="/login" replace />} />
+                <Route path="/hospital" element={<Navigate to="/login" replace />} />
+                <Route path="/successful-request" element={<Navigate to="/login" replace />} />
+                <Route path="/welcome-message" element={<Navigate to="/login" replace />} />
+                <Route path="/request-status" element={<Navigate to="/login" replace />} />
+                <Route path="/delivery-status" element={<Navigate to="/login" replace />} />
+                <Route path="/hospital-rewards" element={<Navigate to="/login" replace />} />
+                <Route path="/requests" element={<Navigate to="/login" replace />} />
+                <Route path="/request-sheet" element={<Navigate to="/login" replace />} />
+                <Route path="/inventory" element={<Navigate to="/login" replace />} />
+                <Route path="/list-of-donation" element={<Navigate to="/login" replace />} />
+                <Route path="/bloodbank/rewards" element={<Navigate to="/login" replace />} />
+                <Route path="/admin/*" element={<Navigate to="/login" replace />} />
+              </>
             )}
+            
+            {/* 404 Page - Catch all unmatched routes */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </Layout>

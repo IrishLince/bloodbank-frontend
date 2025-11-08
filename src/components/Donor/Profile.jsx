@@ -2484,7 +2484,7 @@ const ProfileManagement = () => {
                 }`}
               >
                 <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="whitespace-nowrap text-[10px] sm:text-xs md:text-sm">Rewards</span>
+                <span className="whitespace-nowrap text-[10px] sm:text-xs md:text-sm">Incentives</span>
               </button>
               <button
                 onClick={() => setActiveTab("history")}

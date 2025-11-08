@@ -18,18 +18,6 @@ const DonationList = () => {
   const [selectedDonorName, setSelectedDonorName] = useState("")
   const printRef = useRef(null)
 
-  // Fetch appointments/donations from backend
-  useEffect(() => {
-    fetchDonations()
-    
-    // Set up automatic status checking every 5 minutes
-    const interval = setInterval(() => {
-      checkAndUpdateMissedAppointments()
-    }, 5 * 60 * 1000) // Check every 5 minutes
-
-    return () => clearInterval(interval)
-  }, [])
-
   // Check and update missed appointments
   const checkAndUpdateMissedAppointments = async () => {
     const now = new Date()
@@ -60,7 +48,7 @@ const DonationList = () => {
             if (response.ok) {
               console.log(`Successfully marked as missed: ${donation.donorName}`)
               // Refresh the donations list
-              fetchDonations()
+              fetchDonations(false)
             }
           }
         } catch (error) {
@@ -70,9 +58,12 @@ const DonationList = () => {
     }
   }
 
-  const fetchDonations = async () => {
+  // Fetch appointments/donations function (extracted for reuse)
+  const fetchDonations = async (isInitialLoad = false) => {
     try {
-      setIsLoading(true)
+      if (isInitialLoad) {
+        setIsLoading(true)
+      }
       
       // Get logged-in blood bank ID
       const userResponse = await fetchWithAuth('/auth/me')
@@ -135,9 +126,32 @@ const DonationList = () => {
     } catch (error) {
       console.error('Error fetching donations:', error)
     } finally {
-      setIsLoading(false)
+      if (isInitialLoad) {
+        setIsLoading(false)
+      }
     }
   }
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchDonations(true)
+    
+    // Set up automatic status checking every 5 minutes
+    const interval = setInterval(() => {
+      checkAndUpdateMissedAppointments()
+    }, 5 * 60 * 1000) // Check every 5 minutes
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchDonations(false)
+    }, 5000) // 5 seconds
+
+    return () => clearInterval(intervalId)
+  }, [])
 
   // Filter and sort donations
   const filteredDonations = donations

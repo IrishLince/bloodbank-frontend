@@ -15,49 +15,51 @@ const ListOfAppointments = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const appointmentsPerPage = 5
 
-  useEffect(() => {
-    const load = async () => {
-      const userId = localStorage.getItem('userId')
-      // Try backend first
-      if (userId) {
-        try {
-          const res = await fetchWithAuth(`/appointment/user/${userId}`)
-          if (res.ok) {
-            const body = await res.json()
-            // Expecting a wrapper with data, but gracefully handle raw arrays
-            const list = Array.isArray(body) ? body : (body?.data ?? [])
-            console.log('📅 Appointments received:', list)
-            if (list.length > 0) {
-              console.log('📋 First appointment structure:', list[0])
-              console.log('📅 Date fields available:', {
-                appointmentDate: list[0].appointmentDate,
-                visitationDate: list[0].visitationDate,
-                dateToday: list[0].dateToday,
-                date: list[0].date,
-                createdAt: list[0].createdAt
-              })
-            }
-            setAppointments(Array.isArray(list) ? list : [])
-          } else {
-            // Fallback to localStorage
-            const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
-            console.log('📂 Using localStorage appointments:', stored)
-            setAppointments(stored)
+  // Fetch appointments function (extracted for reuse)
+  const fetchAppointments = async (isInitialLoad = false) => {
+    const userId = localStorage.getItem('userId')
+    // Try backend first
+    if (userId) {
+      try {
+        const res = await fetchWithAuth(`/appointment/user/${userId}`)
+        if (res.ok) {
+          const body = await res.json()
+          // Expecting a wrapper with data, but gracefully handle raw arrays
+          const list = Array.isArray(body) ? body : (body?.data ?? [])
+          console.log('📅 Appointments received:', list)
+          if (list.length > 0) {
+            console.log('📋 First appointment structure:', list[0])
+            console.log('📅 Date fields available:', {
+              appointmentDate: list[0].appointmentDate,
+              visitationDate: list[0].visitationDate,
+              dateToday: list[0].dateToday,
+              date: list[0].date,
+              createdAt: list[0].createdAt
+            })
           }
-        } catch (e) {
-          console.error('❌ Error fetching appointments:', e)
-          // Fallback to localStorage on error
+          setAppointments(Array.isArray(list) ? list : [])
+        } else {
+          // Fallback to localStorage
           const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
+          console.log('📂 Using localStorage appointments:', stored)
           setAppointments(stored)
         }
-      } else {
-        // No user, fallback to localStorage
+      } catch (e) {
+        console.error('❌ Error fetching appointments:', e)
+        // Fallback to localStorage on error
         const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
         setAppointments(stored)
       }
+    } else {
+      // No user, fallback to localStorage
+      const stored = JSON.parse(localStorage.getItem('userAppointments') || '[]')
+      setAppointments(stored)
     }
+  }
 
-    load()
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchAppointments(true)
 
     // Show success message if navigated from confirmation
     if (location.state?.message) {
@@ -69,6 +71,15 @@ const ListOfAppointments = () => {
       return () => clearTimeout(timer)
     }
   }, [location.state])
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAppointments(false)
+    }, 5000) // 5 seconds
+
+    return () => clearInterval(intervalId)
+  }, [])
 
   const handleShowDetails = (appointment) => {
     setSelectedAppointment(appointment)

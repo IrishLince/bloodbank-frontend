@@ -24,77 +24,92 @@ export default function RequestStatus() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    const fetchRequests = async () => {
-      try {
+  // Fetch requests function (extracted for reuse)
+  const fetchRequests = async (isInitialLoad = false) => {
+    try {
+      if (isInitialLoad) {
         setIsLoading(true);
-        const hospitalId = localStorage.getItem('userId');
-        console.log('Fetching requests for hospitalId:', hospitalId);
-        console.log('Local storage contents:', JSON.stringify(localStorage, null, 2));
-        
-        if (!hospitalId) {
-          console.error('No hospital ID found in localStorage');
-          setRequests([]);
-          setFilteredRequests([]);
-          return;
-        }
-
-        console.log('Calling getHospitalRequests with hospitalId:', hospitalId);
-        const response = await hospitalRequestAPI.getHospitalRequests(hospitalId);
-        console.log('Raw response from getHospitalRequests:', JSON.stringify(response, null, 2));
-        
-        if (!response || !Array.isArray(response)) {
-          console.error('Invalid response format - expected an array:', response);
-          setRequests([]);
-          setFilteredRequests([]);
-          return;
-        }
-        
-        if (response.length === 0) {
-          console.log('No requests found for this hospital');
-          setRequests([]);
-          setFilteredRequests([]);
-          return;
-        }
-          // Transform the data from the API response
-          const transformedRequests = response.map(req => {
-            // Ensure bloodItems is an array and map the items
-            const bloodItems = Array.isArray(req.bloodItems) ? req.bloodItems : [];
-            
-            // Map blood items with proper structure
-            const mappedBloodItems = bloodItems.map(item => ({
-              id: item.id || Math.random().toString(36).substr(2, 9),
-              bloodType: item.bloodType || 'Unknown',
-              units: parseInt(item.units) || 0,
-              unitsRequested: parseInt(item.units) || 0,
-              unitsFulfilled: (req.status === REQUEST_STATUS.FULFILLED || req.status === 'COMPLETE') ? (parseInt(item.units) || 0) : 
-                            (req.status === REQUEST_STATUS.PROCESSING || req.status === 'SCHEDULED' ? Math.floor((parseInt(item.units) || 0) / 2) : 0)
-            }));
-            
-            return { 
-              ...req, 
-              bloodItems: mappedBloodItems,
-              bloodBankName: req.bloodBankName || 'RedSource Blood Center',
-              bloodBankAddress: req.bloodBankAddress || '123 Main St, City',
-              hospitalName: req.hospitalName || 'Unknown Hospital',
-              requestDate: req.requestDate || new Date().toISOString(),
-              status: req.status || 'PENDING',
-              // For backward compatibility
-              bloodRequests: mappedBloodItems
-            };
-          });
-          setRequests(transformedRequests || []);
-          setFilteredRequests(transformedRequests || []);
-      } catch (error) {
-        console.error('Failed to fetch hospital requests:', error);
+      }
+      const hospitalId = localStorage.getItem('userId');
+      console.log('Fetching requests for hospitalId:', hospitalId);
+      console.log('Local storage contents:', JSON.stringify(localStorage, null, 2));
+      
+      if (!hospitalId) {
+        console.error('No hospital ID found in localStorage');
         setRequests([]);
         setFilteredRequests([]);
-      } finally {
+        return;
+      }
+
+      console.log('Calling getHospitalRequests with hospitalId:', hospitalId);
+      const response = await hospitalRequestAPI.getHospitalRequests(hospitalId);
+      console.log('Raw response from getHospitalRequests:', JSON.stringify(response, null, 2));
+      
+      if (!response || !Array.isArray(response)) {
+        console.error('Invalid response format - expected an array:', response);
+        setRequests([]);
+        setFilteredRequests([]);
+        return;
+      }
+      
+      if (response.length === 0) {
+        console.log('No requests found for this hospital');
+        setRequests([]);
+        setFilteredRequests([]);
+        return;
+      }
+        // Transform the data from the API response
+        const transformedRequests = response.map(req => {
+          // Ensure bloodItems is an array and map the items
+          const bloodItems = Array.isArray(req.bloodItems) ? req.bloodItems : [];
+          
+          // Map blood items with proper structure
+          const mappedBloodItems = bloodItems.map(item => ({
+            id: item.id || Math.random().toString(36).substr(2, 9),
+            bloodType: item.bloodType || 'Unknown',
+            units: parseInt(item.units) || 0,
+            unitsRequested: parseInt(item.units) || 0,
+            unitsFulfilled: (req.status === REQUEST_STATUS.FULFILLED || req.status === 'COMPLETE') ? (parseInt(item.units) || 0) : 
+                          (req.status === REQUEST_STATUS.PROCESSING || req.status === 'SCHEDULED' ? Math.floor((parseInt(item.units) || 0) / 2) : 0)
+          }));
+          
+          return { 
+            ...req, 
+            bloodItems: mappedBloodItems,
+            bloodBankName: req.bloodBankName || 'RedSource Blood Center',
+            bloodBankAddress: req.bloodBankAddress || '123 Main St, City',
+            hospitalName: req.hospitalName || 'Unknown Hospital',
+            requestDate: req.requestDate || new Date().toISOString(),
+            status: req.status || 'PENDING',
+            // For backward compatibility
+            bloodRequests: mappedBloodItems
+          };
+        });
+        setRequests(transformedRequests || []);
+        setFilteredRequests(transformedRequests || []);
+    } catch (error) {
+      console.error('Failed to fetch hospital requests:', error);
+      setRequests([]);
+      setFilteredRequests([]);
+    } finally {
+      if (isInitialLoad) {
         setIsLoading(false);
       }
-    };
+    }
+  };
 
-    fetchRequests();
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchRequests(true);
+  }, []);
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchRequests(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {

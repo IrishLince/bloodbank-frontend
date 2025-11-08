@@ -296,15 +296,6 @@ const ProfileManagement = () => {
             <div className="absolute inset-0 z-0 bg-gradient-to-r from-red-600 to-red-500"></div>
           )}
           
-          {/* Cover Image Upload Button */}
-          <button
-            onClick={() => setShowCoverImageModal(true)}
-            className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full transition-all"
-            title="Change Cover Image"
-          >
-            <Camera className="w-4 h-4" />
-          </button>
-          
           <div className="relative z-10 p-5 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8">
             {/* Profile Image */}
             <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-full border-4 border-white flex items-center justify-center relative -mt-4 sm:mt-0 overflow-hidden">
@@ -317,19 +308,6 @@ const ProfileManagement = () => {
               ) : (
                 <Building2 className="w-14 h-14 sm:w-16 sm:h-16 text-red-600" />
               )}
-              
-              {/* Camera Button for Profile Photo */}
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="absolute bottom-0 right-0 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-105"
-                title="Change Profile Photo"
-              >
-                {isUpdating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4" />
-                )}
-              </button>
             </div>
             
             {/* Blood Bank Info & Tags */}
@@ -344,14 +322,6 @@ const ProfileManagement = () => {
                 </span>
               </div>
             </div>
-            
-            {/* Edit Button */}
-            <button
-              onClick={() => setView("editDetails")}
-              className="bg-white/20 hover:bg-white/30 text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm transition-colors"
-            >
-              <Pencil className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1.5" /> Edit Profile
-            </button>
           </div>
         </div>
         
@@ -453,10 +423,9 @@ const ProfileManagement = () => {
                 <label className="block text-sm font-medium text-gray-700">Blood Bank Name</label>
                 <input
                   type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
+                  defaultValue={userData.fullName}
+                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
+                  disabled
                 />
               </div>
 
@@ -485,10 +454,9 @@ const ProfileManagement = () => {
                 <label className="block text-sm font-medium text-gray-700">Contact Number</label>
                 <input
                   type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
+                  defaultValue={userData.phone}
+                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
+                  disabled
                 />
               </div>
 
@@ -496,10 +464,9 @@ const ProfileManagement = () => {
                 <label className="block text-sm font-medium text-gray-700">Email Address</label>
                 <input
                   type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
+                  defaultValue={userData.email}
+                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
+                  disabled
                 />
               </div>
 
@@ -507,10 +474,9 @@ const ProfileManagement = () => {
                 <label className="block text-sm font-medium text-gray-700">Address</label>
                 <input
                   type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  className="w-full p-2 sm:p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm transition-shadow"
+                  defaultValue={userData.address}
+                  className="w-full p-2 sm:p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed text-sm"
+                  disabled
                 />
               </div>
             </div>

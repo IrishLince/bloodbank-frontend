@@ -26,12 +26,8 @@ const AllInventories = () => {
   const itemsPerPage = 10;
   const modalItemsPerPage = 10;
 
-  useEffect(() => {
-    fetchBloodBanks();
-    fetchAllInventories();
-  }, []);
-
-  const fetchBloodBanks = async () => {
+  // Fetch blood banks function (extracted for reuse)
+  const fetchBloodBanks = async (isInitialLoad = false) => {
     try {
       const response = await fetchWithAuth('/bloodbanks');
       if (response.ok) {
@@ -40,12 +36,17 @@ const AllInventories = () => {
       }
     } catch (error) {
       console.error('Error fetching blood banks:', error);
-      toast.error('Failed to fetch blood banks');
+      if (isInitialLoad) {
+        toast.error('Failed to fetch blood banks');
+      }
     }
   };
 
-  const fetchAllInventories = async () => {
-    setLoading(true);
+  // Fetch inventories function (extracted for reuse)
+  const fetchAllInventories = async (isInitialLoad = false) => {
+    if (isInitialLoad) {
+      setLoading(true);
+    }
     try {
       const response = await fetchWithAuth('/blood-inventory');
       if (response.ok) {
@@ -54,11 +55,39 @@ const AllInventories = () => {
       }
     } catch (error) {
       console.error('Error fetching inventories:', error);
-      toast.error('Failed to fetch inventories');
+      if (isInitialLoad) {
+        toast.error('Failed to fetch inventories');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchBloodBanks(true);
+    fetchAllInventories(true);
+  }, []);
+
+  // Auto-refresh blood banks every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchBloodBanks(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Auto-refresh inventories every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchAllInventories(false);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const getBloodBankStats = (bloodBankId) => {
     const bankInventories = inventories.filter(inv => inv.bloodBankId === bloodBankId);
