@@ -92,24 +92,66 @@ const DonationList = () => {
         console.log('Appointments response:', result)
         
         if (result.data && Array.isArray(result.data)) {
+          // Helper function to get the most appropriate date from appointment
+          const getAppointmentDate = (appt) => {
+            // Try different possible date fields in order of preference
+            const possibleDateFields = [
+              'appointmentDate',
+              'selectedDate',
+              'donationDate',
+              'scheduledDate',
+              'visitationDate',
+              'date',
+              'dateToday',
+              'createdAt'
+            ];
+            
+            for (const field of possibleDateFields) {
+              if (appt[field]) {
+                const val = appt[field];
+                // If it's already in YYYY-MM-DD format, just use it
+                if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                  return val;
+                }
+                // If it's a Date object or ISO string, extract the local date part
+                try {
+                  const dateObj = new Date(val);
+                  if (!isNaN(dateObj.getTime())) {
+                    // Use getFullYear, getMonth, getDate to avoid timezone shift
+                    const year = dateObj.getFullYear();
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                  }
+                } catch (e) {
+                  console.warn(`Error parsing date from field ${field}:`, e);
+                }
+              }
+            }
+            // If no valid date found, return current date as fallback
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          };
+
           // Transform appointments to donation format
           const transformedDonations = result.data.map(appointment => ({
             id: appointment.id,
             donorName: `${appointment.firstName || ''} ${appointment.surname || ''}`.trim() || 'Unknown',
             donorId: appointment.donorId || appointment.userId || 'N/A',
             bloodType: appointment.bloodType || 'Unknown',
-              age: appointment.age || appointment.donorAge || 'Not specified',
+            age: appointment.age || appointment.donorAge || 'Not specified',
             units: 1, // Default to 1 unit per appointment
-            donationDate: appointment.appointmentDate ? 
-              new Date(appointment.appointmentDate).toISOString().split('T')[0] : 
-              appointment.visitationDate ? 
-                new Date(appointment.visitationDate).toISOString().split('T')[0] :
-                appointment.dateToday || new Date().toISOString().split('T')[0],
+            donationDate: getAppointmentDate(appointment),
             status: appointment.status || 'Pending',
             phoneNumber: appointment.phoneNumber,
-              notes: appointment.notes,
-              medicalHistory: appointment.medicalHistory || {},
-              appointmentTime: appointment.appointmentTime || '09:00' // Include appointment time
+            notes: appointment.notes,
+            medicalHistory: appointment.medicalHistory || {},
+            appointmentTime: appointment.appointmentTime || '09:00',
+            // Add the original appointment date for reference
+            originalAppointmentDate: appointment.appointmentDate
           }))
           
           console.log('Transformed donations:', transformedDonations)

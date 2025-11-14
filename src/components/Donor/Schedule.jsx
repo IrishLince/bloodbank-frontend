@@ -228,7 +228,7 @@ export default function Schedule() {
           
           // Filter for scheduled or completed appointments
           const relevantAppointments = appointments.filter(apt => 
-            apt.status === 'Scheduled' || apt.status === 'Completed'
+            apt.status === 'Scheduled' || apt.status === 'Completed' || apt.status === 'Complete'
           )
 
           if (relevantAppointments.length > 0) {

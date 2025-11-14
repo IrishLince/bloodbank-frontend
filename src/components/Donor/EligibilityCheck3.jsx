@@ -140,8 +140,8 @@ const allQuestions = [
       },
       {
         id: 5,
-        en: "Have you within the last twenty four hours (24) had an intake of alcohol? If yes, how much?",
-        tl: "Nakainum ka ba ng alak sa nakaraang beinte-kuatro oras? Kung OO, gaano karami? ",
+        en: "Have you within the last twenty four hours (24) had an intake of alcohol?",
+        tl: "Nakainum ka ba ng alak sa nakaraang beinte-kuatro oras?",
         mustBeNo: true,
         reason: "Recent alcohol consumption may impair judgment and blood quality.",
       },
@@ -667,24 +667,17 @@ const EligibilityCheck3 = () => {
           </div>
         ))}
 
-        {eligible !== null && allAnswered && (
+        {ineligibleItems.length > 0 && (
           <div
-            className={`
-            mt-6 sm:mt-8 rounded-lg p-4 sm:p-6 border-2 transition-all duration-300
-            ${eligible ? "bg-green-50 border-green-500" : "bg-red-50 border-red-500"}
-          `}
+            className="mt-6 sm:mt-8 rounded-lg p-4 sm:p-6 border-2 transition-all duration-300 bg-red-50 border-red-500"
           >
             <div className="flex items-start gap-2 sm:gap-3">
-              {eligible ? (
-                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0 mt-0.5 sm:mt-0" />
-              ) : (
-                <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0 mt-0.5 sm:mt-0" />
-              )}
+              <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0 mt-0.5 sm:mt-0" />
               <div className="min-w-0 flex-1">
-                <p className={`font-semibold text-sm sm:text-base break-words ${eligible ? "text-green-800" : "text-red-800"}`}>
-                  {eligible ? "You are eligible to proceed" : "You are not eligible to proceed"}
+                <p className="font-semibold text-sm sm:text-base break-words text-red-800">
+                  You are not eligible to proceed
                 </p>
-                {!eligible && reasons.length > 0 && (
+                {reasons.length > 0 && (
                   <div className="mt-2 sm:mt-3">
                     <p className="font-medium text-xs sm:text-sm text-red-800">Reason(s):</p>
                     <ul className="mt-1 sm:mt-2 space-y-1 sm:space-y-2">

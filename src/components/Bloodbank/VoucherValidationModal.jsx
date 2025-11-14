@@ -16,8 +16,6 @@ const VoucherValidationModal = ({
   const [validating, setValidating] = useState(false);
   const [requiredBloodType, setRequiredBloodType] = useState('');
   const [validationResult, setValidationResult] = useState(null);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -26,8 +24,6 @@ const VoucherValidationModal = ({
       setValidationCode('');
       setSelectedStorage('');
       setValidationResult(null);
-      setShowRejectModal(false);
-      setRejectReason('');
     }
   }, [isOpen]);
 
@@ -170,56 +166,9 @@ const VoucherValidationModal = ({
     setValidationCode('');
     setSelectedStorage('');
     setValidationResult(null);
-    setShowRejectModal(false);
-    setRejectReason('');
     onClose();
   };
 
-  const handleReject = () => {
-    if (!validationResult) return;
-    setShowRejectModal(true);
-  };
-
-  const handleConfirmReject = async () => {
-    if (!rejectReason.trim()) {
-      alert('Please provide a rejection reason');
-      return;
-    }
-
-    try {
-      const bloodBankId = localStorage.getItem('userId');
-      const voucherId = validationResult.data?.voucher?.id;
-      
-      if (!voucherId) {
-        alert('Error: Could not find voucher ID');
-        return;
-      }
-
-      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${voucherId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          reason: rejectReason,
-          bloodBankId: bloodBankId
-        })
-      });
-
-      if (response.ok) {
-        alert('Voucher rejected successfully!');
-        setShowRejectModal(false);
-        setRejectReason('');
-        onClose(); // Close the main modal
-      } else {
-        const error = await response.json();
-        alert('Failed to reject voucher: ' + (error.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error rejecting voucher:', error);
-      alert('Failed to reject voucher. Please try again.');
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -352,17 +301,6 @@ const VoucherValidationModal = ({
           >
             Cancel
           </button>
-          {validationResult && (
-            <button
-              onClick={handleReject}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Reject
-            </button>
-          )}
           <button
             onClick={handleValidate}
             disabled={validating || !requiredBloodType || !selectedStorage}
@@ -387,86 +325,6 @@ const VoucherValidationModal = ({
           </button>
         </div>
       </div>
-
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Reject Voucher</h3>
-              <button
-                onClick={() => setShowRejectModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FiX className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="p-6">
-              <div className="mb-4">
-                <p className="text-gray-600 mb-4">
-                  Are you sure you want to reject this voucher? This action cannot be undone.
-                </p>
-                
-                {validationResult?.data?.voucher && (
-                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-gray-500">Voucher Code:</span>
-                        <p className="font-medium">{validationResult.data.voucher.voucherCode}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Reward:</span>
-                        <p className="font-medium">{validationResult.data.voucher.rewardTitle}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Donor:</span>
-                        <p className="font-medium">{validationResult.data.donorName}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Blood Type:</span>
-                        <p className="font-medium">{requiredBloodType}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rejection Reason *
-                </label>
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Please provide a reason for rejecting this voucher..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                  rows={3}
-                  maxLength={500}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {rejectReason.length}/500 characters
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowRejectModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
-                >
-                  Keep Voucher
-                </button>
-                <button
-                  onClick={handleConfirmReject}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
-                >
-                  Reject Voucher
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

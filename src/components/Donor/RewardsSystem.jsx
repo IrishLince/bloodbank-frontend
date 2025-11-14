@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Gift, Award, Clock, ChevronRight, Check, AlertCircle, X, Download, TrendingUp, Star, Medal, Trophy, Heart, Stethoscope, Activity, Zap, Building2 } from "lucide-react"
 import { FiX, FiCornerUpRight, FiGift, FiCheckCircle, FiClock, FiDownload, FiPackage, FiPrinter, FiAward, FiCheck } from "react-icons/fi"
 import { toast } from "react-toastify"
@@ -42,17 +42,83 @@ const RewardsSystem = () => {
   const [redeemedRewards, setRedeemedRewards] = useState([])
   const [availableRewards, setAvailableRewards] = useState([])
 
+  // Refresh only points balance (lightweight refresh)
+  // Defined early so it can be used in useEffect hooks
+  const refreshPointsBalance = useCallback(async () => {
+    try {
+      const userResponse = await fetchWithAuth('/auth/me')
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        setUserPoints(userData.rewardPoints || 0)
+        setTotalDonations(userData.totalDonations || 0)
+        setDonorTier(userData.donorTier || "NEW")
+      }
+    } catch (error) {
+      console.error('Error refreshing points balance:', error)
+      // Don't show toast for background refresh to avoid annoying users
+    }
+  }, [])
+
+  // Refresh only points history
+  // Defined early so it can be used in useEffect hooks
+  const refreshPointsHistory = useCallback(async () => {
+    try {
+      const userId = localStorage.getItem('userId')
+      if (userId) {
+        const historyResponse = await fetchWithAuth(`/reward-points/donor/${userId}/history`)
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json()
+          if (historyData.data) {
+            // Transform backend data to match frontend format
+            const transformedHistory = historyData.data.map(item => ({
+              id: item.id,
+              event: item.description,
+              points: item.points,
+              date: new Date(item.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+            }))
+            setPointsHistory(transformedHistory)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing points history:', error)
+      // Don't show toast for background refresh
+    }
+  }, [])
+
   // Fetch user data and reward points on component mount
   useEffect(() => {
     fetchRewardPointsData()
   }, [])
   
-  // Reset pagination when switching to history tab
+  // Reset pagination when switching to history tab and refresh data
   useEffect(() => {
     if (activeTab === 'history') {
       setCurrentPage(1)
+      // Refresh points balance and history when switching to history tab
+      // This ensures cancelled vouchers show updated points
+      refreshPointsBalance()
+      refreshPointsHistory()
     }
-  }, [activeTab])
+  }, [activeTab, refreshPointsBalance, refreshPointsHistory])
+  
+  // Polling mechanism to refresh points balance periodically
+  // This ensures the balance updates when vouchers are cancelled
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      refreshPointsBalance()
+      // Also refresh history if on history tab
+      if (activeTab === 'history') {
+        refreshPointsHistory()
+      }
+    }, 30000) // Refresh every 30 seconds
+    
+    return () => clearInterval(intervalId)
+  }, [activeTab, refreshPointsBalance, refreshPointsHistory])
   
   // Reset rewards pagination when switching to available tab
   useEffect(() => {
@@ -182,7 +248,7 @@ const RewardsSystem = () => {
                     month: 'short', 
                     day: 'numeric' 
                   }) : null,
-                  notes: item.notes || null, // Add notes field for cancellation/rejection reasons
+                  notes: item.notes || null, // Add notes field for cancellation reasons
                   cancelledDate: item.status === 'CANCELLED' ? new Date(item.updatedAt).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'short', 
@@ -1188,7 +1254,7 @@ const RewardsSystem = () => {
                 )}
               </div>
               
-              {/* Rejection/Cancellation Reason - Blood Bank Information */}
+              {/* Cancellation Reason - Blood Bank Information */}
               {request.status === 'Cancelled' && request.bloodBankInfo && (
                 <div className="mt-3 border-2 rounded-lg p-4 bg-gradient-to-r from-red-50 to-rose-50 border-red-200">
                   <div className="flex items-center mb-3">
@@ -1196,7 +1262,7 @@ const RewardsSystem = () => {
                       <FiX className="w-4 h-4 text-red-600" />
                     </div>
                     <h4 className="text-sm font-semibold text-red-800">
-                      Rejected by Blood Bank
+                      Cancelled by Blood Bank
                     </h4>
                   </div>
                   
@@ -1232,7 +1298,7 @@ const RewardsSystem = () => {
                 </div>
               )}
               
-              {/* Rejection Reason Only (if no blood bank info) */}
+              {/* Cancellation Reason Only (if no blood bank info) */}
               {request.status === 'Cancelled' && !request.bloodBankInfo && request.notes && (
                 <div className="mt-3 border-2 rounded-lg p-4 bg-gradient-to-r from-red-50 to-rose-50 border-red-200">
                   <div className="flex items-center mb-3">
@@ -1820,7 +1886,7 @@ const RewardsSystem = () => {
                         <h4 className={`text-sm font-semibold ${
                           reward.status === 'Cancelled' ? 'text-red-800' : 'text-green-800'
                         }`}>
-                          {reward.status === 'Cancelled' ? 'Rejected by Hospital' : 'Accepted by Hospital'}
+                          {reward.status === 'Cancelled' ? 'Cancelled by Hospital' : 'Accepted by Hospital'}
                         </h4>
                       </div>
                       

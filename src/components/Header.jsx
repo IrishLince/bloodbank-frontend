@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { Menu, X, UserCircle2, Settings, LogOut, User, Mail, Home, Calendar, Info, List, Star, FileText, Package, Building2, ClipboardList } from "lucide-react"
+import { Menu, X, UserCircle2, LogOut, User, Mail, Home, Calendar, Info, List, Star, FileText, Package, Building2, ClipboardList } from "lucide-react"
 import { motion, AnimatePresence } from 'framer-motion'
 import logo from "../assets/Logo.png"
 import RefreshLink from "./RefreshLink"
@@ -390,15 +390,6 @@ const ProfileDropdown = ({ onLogout, userData, isLoading }) => {
               <span>Profile Settings</span>
             </RefreshLink>
 
-            <RefreshLink
-              to="/settings"
-                onClick={handleClose}
-                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center space-x-3"
-            >
-                <Settings className="w-4 h-4 text-gray-500" />
-              <span>Settings</span>
-            </RefreshLink>
-
             <div className="border-t border-gray-200 my-2"></div>
 
             <button
@@ -688,14 +679,6 @@ const MobileMenu = React.memo(({ isOpen, config, location, isAuthenticated, onLo
 
             {/* Menu Items */}
             <div className="py-1 bg-red-50">
-              <RefreshLink
-                to="/settings"
-                className="flex items-center px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
-              >
-                <Settings className="w-5 h-5 mr-3 text-red-600" />
-                <span className="text-sm">Settings</span>
-              </RefreshLink>
-
               <button
                 onClick={onLogout}
                 className="flex items-center w-full px-4 py-2.5 text-red-800 hover:bg-red-100 transition-colors"
@@ -1011,15 +994,6 @@ const Header = () => {
 
                 {/* Menu Items */}
                 <div className="py-1 bg-white">
-                  <RefreshLink
-                    to="/settings"
-                    onClick={() => setIsMobileProfileOpen(false)}
-                    className="flex items-center px-4 py-2.5 text-gray-800 hover:bg-gray-100 transition-colors"
-                  >
-                    <Settings className="w-5 h-5 mr-3 text-gray-600" />
-                    <span className="text-sm">Settings</span>
-                  </RefreshLink>
-
                   <button
                     onClick={() => {
                       setIsMobileProfileOpen(false)

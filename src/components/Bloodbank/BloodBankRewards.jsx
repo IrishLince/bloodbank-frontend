@@ -33,9 +33,6 @@ const BloodBankRewards = () => {
   const [selectedInventory, setSelectedInventory] = useState(null);
   const [inventoryList, setInventoryList] = useState([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [voucherToCancel, setVoucherToCancel] = useState(null);
   const itemsPerPage = 10;
 
   const handleValidateVoucher = async () => {
@@ -231,44 +228,6 @@ const BloodBankRewards = () => {
     }
   };
 
-  const handleCancelVoucher = (voucher) => {
-    setVoucherToCancel(voucher);
-    setCancelReason('');
-    setShowCancelModal(true);
-  };
-
-  const handleConfirmCancel = async () => {
-    if (!cancelReason.trim()) {
-      toast.error('Please provide a cancellation reason');
-      return;
-    }
-
-    try {
-      const bloodBankId = localStorage.getItem('userId');
-      const response = await fetchWithAuth(`/reward-points/bloodbank/vouchers/${voucherToCancel.id}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({
-          reason: cancelReason,
-          bloodBankId: bloodBankId
-        })
-      });
-
-      if (response.ok) {
-        toast.success('Voucher rejected successfully!');
-        setShowCancelModal(false);
-        setVoucherToCancel(null);
-        setCancelReason('');
-        // Refresh history
-        fetchRedemptionHistory();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to reject voucher');
-      }
-    } catch (error) {
-      console.error('Error rejecting voucher:', error);
-      toast.error('Failed to reject voucher');
-    }
-  };
 
   const fetchRedemptionHistory = async () => {
     setLoadingHistory(true);
@@ -509,24 +468,13 @@ const BloodBankRewards = () => {
                           </td>
                           <td className="px-4 py-4 text-center">
                             {voucher.status === 'PENDING' ? (
-                              <div className="flex gap-2 justify-center">
-                                <button
-                                  onClick={() => handleAcceptVoucher()}
-                                  className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                >
-                                  <FiCheckCircle className="w-4 h-4 mr-1" />
-                                  Accept
-                                </button>
-                                {voucher.rewardType === 'BLOOD_BAG_VOUCHER' && (
-                                  <button
-                                    onClick={() => handleCancelVoucher(voucher)}
-                                    className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                  >
-                                    <FiXCircle className="w-4 h-4 mr-1" />
-                                    Reject
-                                  </button>
-                                )}
-                              </div>
+                              <button
+                                onClick={() => handleAcceptVoucher()}
+                                className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              >
+                                <FiCheckCircle className="w-4 h-4 mr-1" />
+                                Accept
+                              </button>
                             ) : voucher.status === 'PROCESSING' ? (
                               <button
                                 onClick={() => handleMarkCompleted(voucher.id)}
@@ -746,30 +694,12 @@ const BloodBankRewards = () => {
 
               {/* Actions */}
               {validationResult.isValid && (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => {
-                      setVoucherToCancel({
-                        id: validationResult.voucher.id,
-                        voucherCode: validationResult.voucher.voucherCode,
-                        rewardTitle: validationResult.voucher.rewardTitle,
-                        rewardType: validationResult.voucher.rewardType,
-                        donorName: validationResult.donorName
-                      });
-                      setShowValidationModal(false);
-                      setShowCancelModal(true);
-                    }}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold"
-                  >
-                    Reject Voucher
-                  </button>
-                  <button
-                    onClick={handleAcceptVoucher}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all font-semibold"
-                  >
-                    Accept Voucher
-                  </button>
-                </div>
+                <button
+                  onClick={handleAcceptVoucher}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all font-semibold"
+                >
+                  Accept Voucher
+                </button>
               )}
             </div>
           </motion.div>
@@ -946,103 +876,6 @@ const BloodBankRewards = () => {
         </div>
       )}
 
-      {/* Cancellation Modal */}
-      {showCancelModal && voucherToCancel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
-          >
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-red-100 p-3 rounded-full">
-                    <FiXCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    Reject Voucher
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowCancelModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <FiXCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Voucher Info */}
-              <div className="mb-6">
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Voucher Details</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-sm text-gray-600">Code:</span>
-                      <span className="ml-2 font-mono text-sm font-semibold text-gray-900">
-                        {voucherToCancel.voucherCode}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-600">Incentive:</span>
-                      <span className="ml-2 text-sm text-gray-900">
-                        {voucherToCancel.rewardTitle}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-600">Donor:</span>
-                      <span className="ml-2 text-sm text-gray-900">
-                        {voucherToCancel.donorName || 'Unknown'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-600">Type:</span>
-                      <span className="ml-2 text-sm text-gray-900">
-                        {voucherToCancel.rewardType}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rejection Reason */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rejection Reason *
-                  </label>
-                  <textarea
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Please provide a reason for rejecting this voucher..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                    rows={3}
-                    maxLength={500}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {cancelReason.length}/500 characters
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowCancelModal(false)}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
-                >
-                  Keep Voucher
-                </button>
-                <button
-                  onClick={handleConfirmCancel}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all font-semibold"
-                >
-                  Reject Voucher
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 };
